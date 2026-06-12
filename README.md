@@ -321,6 +321,11 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+*.zip
+*.7z
+*.rar
+*.exe
+*.msi
 ```
 
 如果仓库中需要保留 VS Code / Cursor 的共享配置，可按需移除 `.vscode/` 忽略项。
