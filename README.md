@@ -415,13 +415,7 @@ Thumbs.db
 
 ## License
 
-当前许可证尚未确定。
-
-如果你计划公开发布此项目，建议尽快选择并添加开源许可证，例如：
-
 - MIT License
-- Apache License 2.0
-- GPL-3.0 License
 
 在许可证确定前，请默认视为“保留所有权利”。
 
