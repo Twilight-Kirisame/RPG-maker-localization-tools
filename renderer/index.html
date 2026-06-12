@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="app.title">RPG 汉化工作台</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="welcomeOverlay" class="welcome-overlay hidden">
+      <div class="welcome-card">
+        <div class="welcome-badge" data-i18n="app.title">RPG 汉化工作台</div>
+        <h1 data-i18n="welcome.title">欢迎使用汉化工作台</h1>
+        <p data-i18n="welcome.description">导入 RPG Maker 项目，提取文本，维护术语库，并导出可回写的汉化补丁。</p>
+        <div class="welcome-actions">
+          <button id="welcomeOpenBtn" class="primary-btn" data-i18n="welcome.start">开始工作</button>
+          <button id="welcomeDemoBtn" class="secondary-btn" data-i18n="welcome.demo">查看示例项目</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">R</div>
+          <div class="brand-copy">
+            <div class="brand-title-row">
+              <h1 data-i18n="app.title">RPG 汉化工作台</h1>
+              <span id="appVersionBadge" class="version-badge">β 1.0.0</span>
+            </div>
+            <p id="appCopyright" class="brand-copy-text">© 2026 RPG 汉化工作台，保留所有权利。</p>
+          </div>
+        </div>
+
+        <button id="pickFolderBtn" class="primary-btn" data-i18n="project.open">打开游戏项目</button>
+        <div class="card">
+          <h2 data-i18n="project.status">项目状态</h2>
+          <div id="engineBadge" class="badge neutral" data-i18n="project.unrecognized">未识别</div>
+          <p id="engineHint" data-i18n="project.hint">请选择游戏目录后自动判断引擎并加载文本。</p>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="features.title">主要能力</h2>
+          <ul>
+            <li data-i18n="features.import">导入 MV / MZ 项目资源</li>
+            <li data-i18n="features.extract">自动提取对话、选项、名词表文本</li>
+            <li data-i18n="features.glossary">术语库本地保存，可导出术语表</li>
+            <li data-i18n="features.export">导出半成品草稿与汉化补丁目录</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="glossary.title">术语库</h2>
+          <p class="settings-hint" data-i18n="glossary.panelHint">点击按钮打开术语库管理弹窗，支持新建、导入、导出和增删改查。</p>
+          <div class="inline-actions">
+            <button id="openGlossaryManagerBtn" class="secondary-btn" data-i18n="glossary.manage">管理术语库</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <section class="hero">
+          <div>
+            <h2 data-i18n="workspace.title">工作区</h2>
+            <p id="projectPath" data-i18n="workspace.noProject">尚未打开项目</p>
+          </div>
+          <div class="hero-actions">
+            <button id="loadProjectBtn" class="secondary-btn" data-i18n="workspace.exportDraft" title="将当前翻译进度导出为草稿文件">导出草稿</button>
+            <button id="saveDraftBtn" class="secondary-btn" data-i18n="workspace.draftLoad" title="从已保存的 JSON 草稿文件恢复翻译内容">载入草稿</button>
+            <button id="settingsBtn" class="secondary-btn settings-launch" data-i18n="workspace.settings">设置</button>
+            <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" title="导出可回写的补丁目录">导出补丁</button>
+          </div>
+        </section>
+
+        <section class="stats-row">
+          <div class="card stat-card">
+            <span class="stat-label" data-i18n="stats.groups">文本组数</span>
+            <strong id="entryCount">0</strong>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-label" data-i18n="stats.progress">总文本数/已翻译数</span>
+            <strong id="translatedCount">0/0</strong>
+          </div>
+          <div class="card stat-card">
+            <span class="stat-label" data-i18n="stats.hits">术语命中</span>
+            <strong id="glossaryHitCount">0</strong>
+          </div>
+        </section>
+
+        <div class="workspace-top-grid">
+          <section class="panel translation-panel">
+            <div class="panel-header translation-panel-header">
+              <div>
+                <h3 data-i18n="selector.title">双语编辑器</h3>
+                <span data-i18n="selector.hint">原文译文对照编辑，支持术语与辅助翻译</span>
+              </div>
+              <button id="clearTextsBtn" class="secondary-btn danger-btn editor-clear-btn" data-i18n="workspace.clearTexts" title="清空当前 JSON 文件下所有译文行内容">清空当前 JSON 译文</button>
+            </div>
+            <div class="entry-toolbar translation-toolbar">
+              <label>
+                <span data-i18n="selector.file">JSON 文件</span>
+                <select id="fileSelect"></select>
+              </label>
+              <label>
+                <span data-i18n="selector.search">搜索</span>
+                <input id="entrySearch" type="text" data-i18n-placeholder="selector.searchPlaceholder" placeholder="输入关键词过滤" />
+              </label>
+              <label class="ai-mode-global">
+                <span id="globalAiModeLabel">辅助翻译平台</span>
+                <select id="globalAiModeSelect"></select>
+              </label>
+            </div>
+            <div id="entryListHeader" class="paired-header compact-header">
+              <div data-i18n="editor.source">原文</div>
+              <div data-i18n="editor.target">译文</div>
+            </div>
+            <div id="entryList" class="paired-list"></div>
+          </section>
+
+          <section class="panel call-trace-panel call-trace-panel-main">
+            <div class="panel-header">
+              <h3>调用反馈</h3>
+              <span>操作状态</span>
+            </div>
+            <div id="callTrace" class="call-trace-box call-trace-box-main">
+              <div class="status-box">等待操作…</div>
+            </div>
+          </section>
+        </div>
+
+        <div id="settingsModal" class="settings-modal hidden" aria-hidden="true">
+          <div class="settings-backdrop" id="settingsBackdrop"></div>
+          <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+            <button id="settingsCloseBtn" class="settings-close" aria-label="关闭设置">×</button>
+            <div class="settings-tabs">
+              <button class="settings-tab active" data-tab="ui" data-i18n="settings.tabUI">界面设置</button>
+              <button class="settings-tab" data-tab="traditional" data-i18n="settings.tabTraditional">传统翻译</button>
+              <button class="settings-tab" data-tab="llm" data-i18n="settings.tabLLM">大模型翻译</button>
+              <button class="settings-tab" data-tab="glossary" data-i18n="glossary.manage">术语库</button>
+            </div>
+            <div class="settings-panel-group" id="settingsTitleWrap">
+              <div class="settings-pane" data-pane="ui">
+                <h3 id="settingsTitle" data-i18n="settings.titleUI">界面设置</h3>
+                <label>
+                  <span data-i18n="settings.language">界面语言</span>
+                  <select id="languageSelect">
+                    <option value="zh-CN">简体中文</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="settings.themeMode">配色模式</span>
+                  <select id="themeModeSelect">
+                    <option value="system" data-i18n="settings.themeSystem">跟随系统</option>
+                    <option value="dark" data-i18n="settings.themeDark">深色</option>
+                    <option value="light" data-i18n="settings.themeLight">浅色</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="settings.themePalette">界面风格颜色</span>
+                  <select id="themePaletteSelect">
+                    <option value="violet" data-i18n="settings.paletteViolet">星云紫</option>
+                    <option value="blue" data-i18n="settings.paletteBlue">海盐蓝</option>
+                    <option value="emerald" data-i18n="settings.paletteEmerald">翡翠绿</option>
+                    <option value="rose" data-i18n="settings.paletteRose">蔷薇粉</option>
+                    <option value="amber" data-i18n="settings.paletteAmber">暖琥珀</option>
+                    <option value="slate" data-i18n="settings.paletteSlate">高级灰</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="settings.backgroundImage">图片背景</span>
+                  <input id="themeBackgroundInput" class="theme-background-input" type="text" data-i18n-placeholder="settings.backgroundImagePlaceholder" placeholder="输入图片路径或 URL，留空则使用纯色背景" />
+                </label>
+                <div class="inline-actions theme-bg-actions">
+                  <button id="pickThemeBackgroundBtn" class="secondary-btn" data-i18n="settings.pickBackground">浏览本地图片</button>
+                  <button id="previewThemeBackgroundBtn" class="secondary-btn" data-i18n="settings.previewBackground">预览当前背景图</button>
+                  <button id="applyThemeBackgroundBtn" class="primary-btn" data-i18n="settings.applyBackground">应用但不保存</button>
+                  <button id="clearThemeBackgroundBtn" class="secondary-btn" data-i18n="settings.clearBackground">清除背景图</button>
+                </div>
+                <div class="theme-background-preview" id="themeBackgroundPreview">
+                  <div class="theme-background-preview-image" id="themeBackgroundPreviewImage"></div>
+                  <div class="theme-background-preview-info">
+                    <strong data-i18n="settings.previewTitle">背景预览</strong>
+                    <span id="themeBackgroundPreviewText" data-i18n="settings.previewEmpty">当前未设置图片背景</span>
+                  </div>
+                </div>
+                <div class="settings-hint" data-i18n="settings.backgroundHint">支持本地图片路径或网络图片 URL；留空时仅保留纯色背景。可将图片文件拖拽到输入框自动填入路径。</div>
+                <div class="inline-actions">
+                  <button id="saveUiSettingsBtn" class="primary-btn" data-i18n="settings.save">保存设置</button>
+                  <button id="resetUiThemeBtn" class="secondary-btn" data-i18n="settings.resetTheme">恢复默认外观</button>
+                </div>
+              </div>
+              <div class="settings-pane hidden" data-pane="traditional">
+                <h3 data-i18n="settings.titleTraditional">传统翻译</h3>
+                <label>
+                  <span data-i18n="settings.traditionalProvider">传统翻译子类型</span>
+                  <select id="traditionalProvider">
+                    <option value="baidu" data-i18n="settings.providerBaidu">百度翻译</option>
+                    <option value="google" data-i18n="settings.providerGoogle">谷歌翻译</option>
+                  </select>
+                </label>
+                <div class="settings-hint" id="traditionalProviderHint" data-i18n="settings.traditionalHint">百度翻译需要 App ID 与密钥签名；Google 建议使用官方 Cloud Translation 接口。</div>
+                <div id="traditionalProviderBaidu" class="traditional-provider-pane">
+                  <label>
+                    <span data-i18n="settings.baiduAppId">百度翻译开放平台 APP ID</span>
+                    <input id="baiduAppId" type="text" data-i18n-placeholder="settings.baiduAppIdPlaceholder" placeholder="请输入 App ID" />
+                  </label>
+                  <label>
+                    <span data-i18n="settings.baiduSecret">百度翻译开放平台密钥</span>
+                    <input id="baiduSecretKey" type="password" data-i18n-placeholder="settings.baiduSecretPlaceholder" placeholder="请输入密钥" />
+                  </label>
+                </div>
+                <div id="traditionalProviderGoogle" class="traditional-provider-pane hidden">
+                  <label>
+                    <span data-i18n="settings.googleApiKey">Google API Key</span>
+                    <input id="googleApiKey" type="password" data-i18n-placeholder="settings.googleApiKeyPlaceholder" placeholder="请输入 API Key" />
+                  </label>
+                  <label>
+                    <span data-i18n="settings.sourceLang">源语言</span>
+                    <input id="translateSourceLang" type="text" data-i18n-placeholder="settings.sourceLangPlaceholder" placeholder="auto" />
+                  </label>
+                  <label>
+                    <span data-i18n="settings.targetLang">目标语言</span>
+                    <input id="translateTargetLang" type="text" data-i18n-placeholder="settings.targetLangPlaceholder" placeholder="zh-CN" />
+                  </label>
+                </div>
+                <div class="inline-actions">
+                  <button id="saveTraditionalSettingsBtn" class="primary-btn" data-i18n="settings.save">保存设置</button>
+                  <button id="testTraditionalBtn" class="secondary-btn" data-i18n="settings.testTraditional">测试传统翻译</button>
+                </div>
+                <div id="traditionalStatus" class="status-box" data-i18n="ai.status">尚未配置 AI。</div>
+              </div>
+              <div class="settings-pane hidden" data-pane="llm">
+                <h3 data-i18n="settings.titleLLM">大模型翻译</h3>
+                <label>
+                  <span data-i18n="ai.provider">提供方</span>
+                  <select id="aiProvider">
+                    <option value="mock" data-i18n="ai.providerMock">本地示例</option>
+                    <option value="deepseek" data-i18n="ai.providerDeepseek">DeepSeek</option>
+                    <option value="gemini" data-i18n="ai.providerGemini">Gemini</option>
+                    <option value="claude" data-i18n="ai.providerClaude">Claude / Anthropic</option>
+                    <option value="custom" data-i18n="ai.providerCustom">自定义 OpenAI 兼容接口</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="ai.apiKey">API Key</span>
+                  <input id="aiApiKey" type="password" data-i18n-placeholder="ai.apiKeyPlaceholder" placeholder="你的 API Key" />
+                </label>
+                <label>
+                  <span data-i18n="ai.baseUrl">接口地址</span>
+                  <input id="aiBaseUrl" type="text" data-i18n-placeholder="ai.baseUrlPlaceholder" placeholder="https://api.openai.com/v1/chat/completions" />
+                </label>
+                <label>
+                  <span data-i18n="ai.model">模型</span>
+                  <input id="aiModel" type="text" data-i18n-placeholder="ai.modelPlaceholder" placeholder="模型名，例如 qwen-plus / glm-4 / yi-large" />
+                </label>
+                <label>
+                  <span data-i18n="ai.prompt">系统提示词</span>
+                  <textarea id="aiPrompt" rows="6"></textarea>
+                </label>
+                <div class="settings-hint" data-i18n="settings.llmHint">适合上下文翻译、术语一致性和润色。</div>
+                <div class="inline-actions">
+                  <button id="saveAiSettingsBtn" class="primary-btn" data-i18n="ai.save">保存设置</button>
+                  <button id="testAiBtn" class="secondary-btn" data-i18n="ai.test">测试 AI</button>
+                </div>
+                <div id="aiStatus" class="status-box" data-i18n="ai.status">尚未配置 AI。</div>
+              </div>
+              <div class="settings-pane hidden" data-pane="glossary">
+                <h3 data-i18n="glossary.manage">术语库管理</h3>
+                <div class="glossary-summary card-mini">
+                  <div id="glossaryStatus" class="glossary-status">当前项目 / default</div>
+                  <div class="glossary-stats"><span data-i18n="glossary.countLabel">术语数</span><strong id="glossaryCount">0</strong></div>
+                  <div id="glossaryHint" class="glossary-hint">当前术语库为空，可直接新增或导入。</div>
+                </div>
+                <label>
+                  <span data-i18n="glossary.search">搜索术语库</span>
+                  <input id="glossarySearch" type="text" data-i18n-placeholder="glossary.searchPlaceholder" placeholder="输入名称筛选术语库" />
+                </label>
+                <label>
+                  <span data-i18n="glossary.select">术语库列表</span>
+                  <select id="glossarySelect"></select>
+                </label>
+                <div class="inline-actions">
+                  <button id="newGlossaryBtn" class="secondary-btn" data-i18n="glossary.new">新建术语库</button>
+                  <button id="importGlossaryBtn" class="secondary-btn" data-i18n="glossary.import">导入术语库</button>
+                  <button id="exportGlossaryBtn" class="primary-btn" data-i18n="glossary.export">导出术语库</button>
+                  <button id="deleteGlossaryBtn" class="secondary-btn" data-i18n="glossary.delete">删除术语库</button>
+                </div>
+                <div id="newGlossaryInline" class="glossary-create-panel hidden">
+                  <label>
+                    <span data-i18n="glossary.newName">新术语库名称</span>
+                    <input id="newGlossaryName" type="text" data-i18n-placeholder="glossary.newNamePlaceholder" placeholder="例如：怪物名词" />
+                  </label>
+                  <div class="inline-actions">
+                    <button id="confirmNewGlossaryBtn" class="primary-btn" data-i18n="common.confirm">确认建立</button>
+                    <button id="cancelNewGlossaryBtn" class="secondary-btn" data-i18n="common.cancel">取消</button>
+                  </div>
+                </div>
+                <label class="term-search-block">
+                  <span data-i18n="glossary.termSelect">查询术语</span>
+                  <input id="termSearch" type="text" data-i18n-placeholder="glossary.termSearchPlaceholder" placeholder="输入原名或译名" />
+                </label>
+                <div class="term-actions-row">
+                  <button id="searchTermBtn" class="secondary-btn" data-i18n="glossary.searchTerm">搜索</button>
+                  <button id="addTermBtn" class="secondary-btn" data-i18n="glossary.add">添加术语</button>
+                </div>
+                <div id="termEditorModal" class="settings-modal hidden" aria-hidden="true">
+                  <div class="settings-backdrop" id="termEditorBackdrop"></div>
+                  <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="termEditorTitle">
+                    <button id="termEditorCloseBtn" class="settings-close" aria-label="关闭术语编辑">×</button>
+                    <h3 id="termEditorTitle" data-i18n="glossary.editTitle">术语编辑</h3>
+                    <label>
+                      <span data-i18n="glossary.source">原文术语</span>
+                      <input id="termSource" type="text" data-i18n-placeholder="glossary.sourcePlaceholder" placeholder="例如: Potion" />
+                    </label>
+                    <label>
+                      <span data-i18n="glossary.target">译文术语</span>
+                      <input id="termTarget" type="text" data-i18n-placeholder="glossary.targetPlaceholder" placeholder="例如: 药水" />
+                    </label>
+                    <label>
+                      <span data-i18n="glossary.note">术语备注</span>
+                      <input id="termNote" type="text" data-i18n-placeholder="glossary.notePlaceholder" placeholder="可选备注" />
+                    </label>
+                    <div class="inline-actions">
+                      <button id="confirmTermBtn" class="primary-btn" data-i18n="common.confirm">确认</button>
+                      <button id="cancelTermBtn" class="secondary-btn" data-i18n="common.cancel">取消</button>
+                    </div>
+                  </div>
+                </div>
+                <div id="glossaryList" class="glossary-list glossary-list-modal"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="app/bootstrap.js"></script>
+    <script src="app/store.js"></script>
+    <script src="app/view.js"></script>
+    <script src="app/controller.js"></script>
+    <script src="app/entries.js"></script>
+    <script src="app/project.js"></script>
+    <script src="app/glossary.js"></script>
+    <script src="export-module.js"></script>
+    <script src="renderer.js"></script>
+  </body>
+</html>

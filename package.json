@@ -1,0 +1,44 @@
+{
+  "name": "rpg-localization-workbench",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder --win portable",
+    "pack": "electron-builder --win dir",
+    "lint": "echo \"No linter configured\""
+  },
+  "description": "RPG Maker 汉化工作台",
+  "author": "RPG Localization Workbench",
+  "devDependencies": {
+    "electron": "42.3.3",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.rpg.localization.workbench",
+    "productName": "RPG汉化工作台",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "portable"
+      ]
+    }
+  }
+}
