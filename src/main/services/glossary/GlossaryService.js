@@ -153,6 +153,40 @@ async function deleteGlossary(project, glossaryName = 'default') {
 }
 
 /**
+ * 重命名术语库。
+ * @param {Object} project
+ * @param {string} oldName
+ * @param {string} newName
+ * @param {boolean} overwrite
+ * @returns {Promise<Object>}
+ */
+async function renameGlossary(project, oldName = 'default', newName = 'default', overwrite = false) {
+  if (!project?.rootDir) throw new Error('缺少项目根目录');
+  const safeOldName = toSafeFileName(oldName || 'default');
+  const safeNewName = toSafeFileName(newName || 'default');
+  if (!safeNewName) throw new Error('新术语库名称不能为空');
+  const oldPath = glossaryPathFor(project, safeOldName);
+  const newPath = glossaryPathFor(project, safeNewName);
+  if (!fs.existsSync(oldPath)) throw new Error(`术语库不存在：${safeOldName}`);
+  if (oldPath === newPath) {
+    const glossary = await loadGlossary(project, safeNewName);
+    return { ok: true, path: newPath, glossaryName: safeNewName, glossary };
+  }
+  if (fs.existsSync(newPath) && !overwrite) throw new Error(`目标术语库已存在：${safeNewName}`);
+  const parsed = JSON.parse(await fsp.readFile(oldPath, 'utf8'));
+  const payload = {
+    ...parsed,
+    projectName: parsed?.projectName || path.basename(project.rootDir),
+    glossaryName: safeNewName,
+    terms: Array.isArray(parsed?.terms) ? parsed.terms : [],
+    updatedAt: new Date().toISOString(),
+  };
+  await fsp.writeFile(newPath, JSON.stringify(payload, null, 2), 'utf8');
+  await fsp.unlink(oldPath);
+  return { ok: true, oldName: safeOldName, glossaryName: safeNewName, path: newPath, glossary: { projectName: payload.projectName, glossaryName: safeNewName, terms: payload.terms } };
+}
+
+/**
  * 计算术语命中。
  * @param {Object[]} entries
  * @param {Object} glossary
@@ -163,4 +197,4 @@ function detectGlossaryHits(entries, glossary) {
   return entries.map((entry) => ({ ...entry, glossaryHits: terms.filter((term) => term.enabled !== false && term.source && entry.source.includes(term.source)) }));
 }
 
-module.exports = { listGlossaries, loadGlossary, saveGlossary, saveGlossaryToPath, importGlossary, deleteGlossary, exportGlossary, detectGlossaryHits, defaultGlossaryNameForProject, ensureProjectGlossary };
+module.exports = { listGlossaries, loadGlossary, saveGlossary, saveGlossaryToPath, importGlossary, deleteGlossary, renameGlossary, exportGlossary, detectGlossaryHits, defaultGlossaryNameForProject, ensureProjectGlossary };

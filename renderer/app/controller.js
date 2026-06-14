@@ -72,5 +72,13 @@
     return runAction('AI 翻译', async () => window.rpgWorkbench.aiTranslate(payload));
   }
 
-  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, saveTranslatorSettings, testTranslatorSettings, aiTranslate };
+  async function getUiSettings() {
+    return runAction('读取界面设置', async () => window.rpgWorkbench.getUiSettings());
+  }
+
+  async function saveUiSettings(payload) {
+    return runAction('保存界面设置', async () => window.rpgWorkbench.saveUiSettings(payload));
+  }
+
+  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, saveTranslatorSettings, testTranslatorSettings, aiTranslate, getUiSettings, saveUiSettings };
 })();

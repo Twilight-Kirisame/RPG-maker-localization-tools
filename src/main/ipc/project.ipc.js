@@ -23,6 +23,12 @@ function registerProjectIpc() {
     return { ok: true, ...project, glossary };
   });
 
+  ipcMain.handle('scan-project-data-roots', async (_event, rootDir) => {
+    if (!rootDir || !fs.existsSync(rootDir)) return { ok: false, message: '项目目录不存在或无法访问', dataRoots: [] };
+    const project = detectEngine(rootDir);
+    return { ok: true, ...project, dataRoots: project.dataRoots || [] };
+  });
+
   ipcMain.handle('pick-draft-file', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -62,7 +68,7 @@ function registerProjectIpc() {
 
   ipcMain.handle('load-project-texts', async (_event, rootDir) => {
     if (!rootDir || !fs.existsSync(rootDir)) {
-      return { project: { rootDir: rootDir || '', engine: 'unknown', entries: [] }, glossary: { projectName: '', terms: [], glossaryName: 'default' }, aiSettings: { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' }, entries: [], warnings: ['项目目录不存在或无法访问'] };
+      return { project: { rootDir: rootDir || '', engine: 'unknown', entries: [], dataRoots: [] }, glossary: { projectName: '', terms: [], glossaryName: 'default' }, aiSettings: { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' }, entries: [], warnings: ['项目目录不存在或无法访问'] };
     }
     const project = collectProjectTexts(rootDir);
     const glossary = await ensureProjectGlossary(project);
@@ -71,7 +77,8 @@ function registerProjectIpc() {
     const draft = await loadDraft(rootDir);
     if (draft?.entries?.length) entries = applyDraftToEntries(entries, draft.entries);
     const warnings = [];
-    if (!project.features?.hasDataDir && !project.features?.hasWwwDataDir) warnings.push('未发现标准 data 目录');
+    if (!project.dataRoots?.length) warnings.push('未自动发现可扫描的数据目录');
+    else warnings.push(`已发现 ${project.dataRoots.length} 个数据目录`);
     if (!entries.length) warnings.push('未扫描到可提取的文本条目');
     return { project, glossary, aiSettings, entries, warnings };
   });

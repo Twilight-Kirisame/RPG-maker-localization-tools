@@ -12,15 +12,17 @@ const path = require('path');
  * @returns {{rootDir:string, engine:string, files:Array, features:Object}}
  */
 function detectEngine(rootDir) {
-  const result = { rootDir, engine: 'unknown', files: [], features: {} };
+  const result = { rootDir, engine: 'unknown', files: [], features: {}, dataRoots: [] };
   const entries = fs.existsSync(rootDir) ? fs.readdirSync(rootDir, { withFileTypes: true }) : [];
   for (const entry of entries) result.files.push({ name: entry.name, type: entry.isDirectory() ? 'dir' : 'file' });
+  const dataRoots = discoverDataRoots(rootDir);
+  result.dataRoots = dataRoots;
   result.features.hasDataDir = fs.existsSync(path.join(rootDir, 'data'));
   result.features.hasWwwDataDir = fs.existsSync(path.join(rootDir, 'www', 'data'));
-  result.features.hasCommonEvents = fs.existsSync(path.join(rootDir, 'data', 'CommonEvents.json')) || fs.existsSync(path.join(rootDir, 'www', 'data', 'CommonEvents.json'));
-  result.features.hasSystem = fs.existsSync(path.join(rootDir, 'data', 'System.json')) || fs.existsSync(path.join(rootDir, 'www', 'data', 'System.json'));
-  result.features.hasMapJson = entries.some((entry) => entry.isDirectory() && entry.name.toLowerCase() === 'data') || fs.existsSync(path.join(rootDir, 'www', 'data'));
-  if (result.features.hasDataDir || result.features.hasWwwDataDir) result.engine = 'RPG Maker MV/MZ';
+  result.features.hasCommonEvents = dataRoots.some((dir) => fs.existsSync(path.join(dir, 'CommonEvents.json')));
+  result.features.hasSystem = dataRoots.some((dir) => fs.existsSync(path.join(dir, 'System.json')));
+  result.features.hasMapJson = dataRoots.some((dir) => fs.readdirSync(dir).some((file) => /^Map\d+\.json$/i.test(file)));
+  if (dataRoots.length) result.engine = 'RPG Maker MV/MZ';
   return result;
 }
 
@@ -32,6 +34,36 @@ function detectEngine(rootDir) {
 function buildDialogueText(value) {
   if (Array.isArray(value)) return value.map((v) => String(v ?? '')).join('\n').trim();
   return String(value ?? '').trim();
+}
+
+function discoverDataRoots(rootDir) {
+  const roots = [];
+  const visited = new Set();
+  const maxDepth = 4;
+
+  function walk(dir, depth) {
+    if (!dir || visited.has(dir) || depth > maxDepth) return;
+    visited.add(dir);
+    if (!fs.existsSync(dir)) return;
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    const names = entries.filter((entry) => entry.isFile()).map((entry) => entry.name.toLowerCase());
+    const hasDataSignature = names.includes('system.json') || names.includes('commonevents.json') || names.some((name) => /^map\d+\.json$/.test(name));
+    if (hasDataSignature) {
+      roots.push(dir);
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) walk(path.join(dir, entry.name), depth + 1);
+    }
+  }
+
+  walk(rootDir, 0);
+  return [...new Set(roots.filter(Boolean))];
 }
 
 /**
@@ -152,14 +184,16 @@ function extractMapText(mapJson, file) {
  */
 function collectProjectTexts(rootDir) {
   const info = detectEngine(rootDir);
-  const dataRoots = [];
-  const dataDir = path.join(rootDir, 'data');
-  const wwwDataDir = path.join(rootDir, 'www', 'data');
-  if (fs.existsSync(dataDir)) dataRoots.push(dataDir);
-  if (fs.existsSync(wwwDataDir)) dataRoots.push(wwwDataDir);
+  const dataRoots = info.dataRoots && info.dataRoots.length ? info.dataRoots : [];
   const entries = [];
   for (const dataRoot of dataRoots) {
-    for (const file of fs.readdirSync(dataRoot)) {
+    let files = [];
+    try {
+      files = fs.readdirSync(dataRoot);
+    } catch {
+      continue;
+    }
+    for (const file of files) {
       if (!file.toLowerCase().endsWith('.json')) continue;
       const filePath = path.join(dataRoot, file);
       try {
@@ -183,4 +217,4 @@ function collectProjectTexts(rootDir) {
   return { ...info, entries };
 }
 
-module.exports = { detectEngine, collectProjectTexts };
+module.exports = { detectEngine, collectProjectTexts, discoverDataRoots };

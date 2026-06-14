@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('rpgWorkbench', {
   pickGlossaryFile: () => invoke('pick-glossary-file'),
   pickThemeImageFile: () => invoke('pick-theme-image-file'),
   loadProjectTexts: (rootDir) => invoke('load-project-texts', rootDir),
+  scanProjectDataRoots: (rootDir) => invoke('scan-project-data-roots', rootDir),
   loadGlossary: (payload) => invoke('load-glossary', payload),
   listGlossaries: (payload) => invoke('list-glossaries', payload),
   saveGlossary: (payload) => invoke('save-glossary', payload),
@@ -29,6 +30,7 @@ contextBridge.exposeInMainWorld('rpgWorkbench', {
   exportGlossaryAs: (payload) => invoke('export-glossary-as', payload),
   importGlossary: (payload) => invoke('import-glossary', payload),
   deleteGlossary: (payload) => invoke('delete-glossary', payload),
+  renameGlossary: (payload) => invoke('rename-glossary', payload),
   exportPatch: (payload) => invoke('export-patch', payload),
   saveDraft: (payload) => invoke('save-draft', payload),
   openFolder: (folderPath) => invoke('open-folder', folderPath),
@@ -37,4 +39,6 @@ contextBridge.exposeInMainWorld('rpgWorkbench', {
   saveTranslatorSettings: (payload) => invoke('save-translator-settings', payload),
   testTranslatorSettings: (payload) => invoke('test-translator-settings', payload),
   aiTranslate: (payload) => invoke('ai-translate', payload),
+  getUiSettings: () => invoke('get-ui-settings'),
+  saveUiSettings: (payload) => invoke('save-ui-settings', payload),
 });

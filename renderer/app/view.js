@@ -4,6 +4,7 @@
     themeMode: 'rpg-workbench-theme-mode',
     palette: 'rpg-workbench-theme-palette',
     backgroundImage: 'rpg-workbench-background-image',
+    closeBehavior: 'rpg-workbench-close-behavior',
   };
 
   const defaults = {
@@ -11,6 +12,7 @@
     themeMode: 'system',
     palette: 'violet',
     backgroundImage: '',
+    closeBehavior: 'minimize-to-tray',
   };
 
   function getStoredUiSettings() {
@@ -19,6 +21,7 @@
       themeMode: localStorage.getItem(storageKeys.themeMode) || defaults.themeMode,
       palette: localStorage.getItem(storageKeys.palette) || defaults.palette,
       backgroundImage: localStorage.getItem(storageKeys.backgroundImage) || defaults.backgroundImage,
+      closeBehavior: localStorage.getItem(storageKeys.closeBehavior) || defaults.closeBehavior,
     };
   }
 
@@ -78,10 +81,12 @@
     const themeModeSelect = document.getElementById('themeModeSelect');
     const themePaletteSelect = document.getElementById('themePaletteSelect');
     const themeBackgroundInput = document.getElementById('themeBackgroundInput');
+    const closeBehaviorSelect = document.getElementById('closeBehaviorSelect');
     if (languageSelect) languageSelect.value = ['zh-CN', 'en', 'ja'].includes(settings.language) ? settings.language : defaults.language;
     if (themeModeSelect) themeModeSelect.value = ['system', 'dark', 'light'].includes(settings.themeMode) ? settings.themeMode : defaults.themeMode;
     if (themePaletteSelect) themePaletteSelect.value = ['violet', 'blue', 'emerald', 'rose', 'amber', 'slate'].includes(settings.palette) ? settings.palette : defaults.palette;
     if (themeBackgroundInput && !preserveBackground) themeBackgroundInput.value = settings.backgroundImage || '';
+    if (closeBehaviorSelect) closeBehaviorSelect.value = ['minimize-to-tray', 'exit-immediately'].includes(settings.closeBehavior) ? settings.closeBehavior : defaults.closeBehavior;
     applyThemeSettings({ ...settings, backgroundImage: preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage });
     updateThemePreview(preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage);
   }
@@ -91,22 +96,42 @@
     const themeModeSelect = document.getElementById('themeModeSelect');
     const themePaletteSelect = document.getElementById('themePaletteSelect');
     const themeBackgroundInput = document.getElementById('themeBackgroundInput');
+    const closeBehaviorSelect = document.getElementById('closeBehaviorSelect');
     const settings = {
       language: languageSelect?.value || defaults.language,
       themeMode: themeModeSelect?.value || defaults.themeMode,
       palette: themePaletteSelect?.value || defaults.palette,
       backgroundImage: themeBackgroundInput?.value?.trim() || '',
+      closeBehavior: closeBehaviorSelect?.value || defaults.closeBehavior,
     };
     if (persist) {
       localStorage.setItem(storageKeys.language, settings.language);
       localStorage.setItem(storageKeys.themeMode, settings.themeMode);
       localStorage.setItem(storageKeys.palette, settings.palette);
       localStorage.setItem(storageKeys.backgroundImage, settings.backgroundImage);
+      localStorage.setItem(storageKeys.closeBehavior, settings.closeBehavior);
+      window.rpgWorkbench?.saveUiSettings?.(settings).catch?.(() => {});
     }
     applyThemeSettings(settings);
     applyI18n();
     updateThemePreview(settings.backgroundImage);
     return settings;
+  }
+
+  function getCloseBehavior() {
+    return localStorage.getItem(storageKeys.closeBehavior) || defaults.closeBehavior;
+  }
+
+  function setCloseBehavior(value) {
+    const next = ['minimize-to-tray', 'exit-immediately'].includes(value) ? value : defaults.closeBehavior;
+    localStorage.setItem(storageKeys.closeBehavior, next);
+    const select = document.getElementById('closeBehaviorSelect');
+    if (select) select.value = next;
+    return next;
+  }
+
+  function getCloseBehaviorLabel(value = getCloseBehavior()) {
+    return value === 'exit-immediately' ? (window.RpgView?.t?.('settings.closeBehaviorExit') || '直接退出程序') : (window.RpgView?.t?.('settings.closeBehaviorTray') || '最小化到右下角托盘');
   }
 
   function updateThemePreview(backgroundImage = document.getElementById('themeBackgroundInput')?.value || '') {
@@ -148,6 +173,8 @@
     applyI18n,
     syncUiSettingsFields,
     persistUiSettings,
+    getCloseBehavior,
+    setCloseBehavior,
     updateThemePreview,
     installTransientScrollbars,
     updateLocalText: window.RpgView?.updateLocalText || (() => {}),

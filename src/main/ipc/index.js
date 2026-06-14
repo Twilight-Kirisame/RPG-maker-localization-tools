@@ -7,6 +7,7 @@ const { registerProjectIpc } = require('./project.ipc');
 const { registerGlossaryIpc } = require('./glossary.ipc');
 const { registerExportIpc } = require('./export.ipc');
 const { registerTranslationIpc } = require('./translation.ipc');
+const { registerUiIpc } = require('./ui.ipc');
 
 /**
  * 注册全部 IPC。
@@ -16,6 +17,7 @@ function registerAllIpc() {
   registerGlossaryIpc();
   registerExportIpc();
   registerTranslationIpc();
+  registerUiIpc();
 }
 
 module.exports = { registerAllIpc };

@@ -4,22 +4,31 @@
  */
 
 const { app } = require('electron');
-const { createMainWindow } = require('./appWindow');
+const { createMainWindow, ensureTray, destroyTray, setExitRequested, setCloseBehavior } = require('./appWindow');
 const { registerAllIpc } = require('./ipc');
+const { loadUiSettings } = require('./ipc/ui.ipc');
 
 /**
  * 启动应用。
  */
 function bootstrap() {
-  app.whenReady().then(() => {
-    createMainWindow();
+  app.whenReady().then(async () => {
     registerAllIpc();
+    const uiSettings = await loadUiSettings();
+    setCloseBehavior(uiSettings.closeBehavior || 'minimize-to-tray');
+    createMainWindow();
+    ensureTray();
 
     app.on('activate', () => {
       if (require('electron').BrowserWindow.getAllWindows().length === 0) {
         createMainWindow();
       }
     });
+  });
+
+  app.on('before-quit', () => {
+    setExitRequested(true);
+    destroyTray();
   });
 
   app.on('window-all-closed', () => {

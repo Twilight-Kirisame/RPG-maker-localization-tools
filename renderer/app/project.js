@@ -22,13 +22,14 @@
       engineBadge.className = `badge ${engine === 'unknown' ? 'warn' : 'success'}`;
     }
     if (engineHint) {
-      engineHint.textContent = info.warnings?.length
+      const dataRootText = Array.isArray(project.dataRoots) && project.dataRoots.length ? `文本目录：${project.dataRoots.map((dir) => String(dir).replace(project.rootDir || '', '').replace(/^[/\\]/, '') || '.').join('；')}` : '';
+      engineHint.textContent = dataRootText || (info.warnings?.length
         ? info.warnings.join('；')
         : engine === 'RPG Maker MV/MZ'
           ? '已识别为 MV/MZ，可导入 data/*.json 并生成回写补丁。'
           : engine === 'RPG Maker VX Ace / XP'
             ? '已识别为 VX Ace / XP，当前保留二进制扩展位。'
-            : t('project.hint');
+            : t('project.hint'));
     }
     window.RpgView?.syncUiSettingsFields?.({ preserveBackground: true });
     window.RpgApp?.syncGlobalAiModeSelect?.();

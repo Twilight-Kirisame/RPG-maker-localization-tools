@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { dialog, ipcMain } = require('electron');
-const { listGlossaries, loadGlossary, saveGlossary, saveGlossaryToPath, importGlossary, deleteGlossary, exportGlossary, ensureProjectGlossary } = require('../services/glossary/GlossaryService');
+const { listGlossaries, loadGlossary, saveGlossary, saveGlossaryToPath, importGlossary, deleteGlossary, renameGlossary, exportGlossary, ensureProjectGlossary } = require('../services/glossary/GlossaryService');
 
 /**
  * 注册术语库 IPC。
@@ -91,6 +91,11 @@ function registerGlossaryIpc() {
   ipcMain.handle('delete-glossary', async (_event, payload) => {
     const { project, glossaryName } = payload || {};
     return deleteGlossary(project, glossaryName);
+  });
+
+  ipcMain.handle('rename-glossary', async (_event, payload) => {
+    const { project, oldName, newName, overwrite } = payload || {};
+    return renameGlossary(project, oldName, newName, !!overwrite);
   });
 }
 

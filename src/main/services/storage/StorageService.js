@@ -20,6 +20,12 @@ function projectStoragePath(project, fileName) {
   return path.join(base, `${slug}.${fileName}`);
 }
 
+function appStoragePath(fileName) {
+  const base = path.join(app.getPath('userData'), 'app');
+  ensureDir(base);
+  return path.join(base, fileName);
+}
+
 /**
  * 返回术语库目录。
  * @param {Object} project
@@ -66,4 +72,4 @@ function draftPathFor(project, draftName = 'work-draft') {
   return path.join(draftDirFor(project), `${toSafeFileName(draftName || 'work-draft')}.json`);
 }
 
-module.exports = { projectStoragePath, glossaryDirFor, glossaryPathFor, draftDirFor, draftPathFor };
+module.exports = { projectStoragePath, appStoragePath, glossaryDirFor, glossaryPathFor, draftDirFor, draftPathFor };

@@ -223,6 +223,20 @@
     window.__rpgTrace?.(format('glossary.deleted', { name }), 'success');
   }
 
+  async function renameCurrentGlossary() {
+    const current = state();
+    const select = get('glossarySelect');
+    const oldName = String(select?.value || current.glossary?.glossaryName || 'default').trim() || 'default';
+    const nextName = String(window.prompt(t('glossary.renamePrompt') || '请输入新的术语库名称', oldName) || '').trim();
+    if (!nextName || nextName === oldName) return;
+    if (!window.rpgWorkbench?.renameGlossary) throw new Error(t('glossary.renameApiMissing'));
+    const result = await window.rpgWorkbench.renameGlossary({ project: current.project, oldName, newName: nextName, overwrite: false });
+    if (!result?.ok) throw new Error(result?.message || t('glossary.renameFailed'));
+    await refreshList();
+    await loadGlossary(result.glossaryName || nextName);
+    window.__rpgTrace?.(format('glossary.renamed', { from: oldName, to: result.glossaryName || nextName }), 'success');
+  }
+
   function bindGlossaryActions() {
     get('newGlossaryBtn')?.addEventListener('click', () => showNewGlossaryPanel());
     get('confirmNewGlossaryBtn')?.addEventListener('click', () => createGlossaryFromInline().catch((e) => window.__rpgTrace?.(e.message, 'error')));
@@ -231,6 +245,16 @@
     get('importGlossaryBtn')?.addEventListener('click', () => importGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
     get('exportGlossaryBtn')?.addEventListener('click', () => exportGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
     get('deleteGlossaryBtn')?.addEventListener('click', () => deleteGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
+    get('renameGlossaryBtn')?.addEventListener('click', () => renameCurrentGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
+    get('scanDataRootsBtn')?.addEventListener('click', async () => {
+      const current = state();
+      if (!current.project?.rootDir) { window.__rpgTrace?.(t('project.scanDataRootsMissing'), 'error'); return; }
+      const result = await window.rpgWorkbench?.scanProjectDataRoots?.(current.project.rootDir);
+      if (!result?.ok) { window.__rpgTrace?.(format('project.scanDataRootsFailed', { message: result?.message || 'unknown' }), 'error'); return; }
+      const roots = Array.isArray(result.dataRoots) ? result.dataRoots : [];
+      window.__rpgTrace?.(roots.length ? format('project.scanDataRootsDone', { count: roots.length }) : t('project.scanDataRootsEmpty'), roots.length ? 'success' : 'normal');
+      if (roots.length) await window.RpgProject?.loadProject?.(current.project.rootDir);
+    });
     get('addTermBtn')?.addEventListener('click', () => openTermEditor(-1));
     get('confirmTermBtn')?.addEventListener('click', () => saveTermFromEditor().catch((e) => window.__rpgTrace?.(e.message, 'error')));
     get('cancelTermBtn')?.addEventListener('click', () => closeTermEditor());
@@ -251,5 +275,5 @@
     searchBtn?.addEventListener('click', applySearch);
   }
 
-  window.RpgGlossaryModule = { syncUI, openTermEditor, closeTermEditor, render, refreshList, loadGlossary, saveGlossary, setGlossary, showNewGlossaryPanel, hideNewGlossaryPanel, createGlossaryFromInline, exportGlossary, importGlossary, deleteGlossary, bindGlossaryActions };
+  window.RpgGlossaryModule = { syncUI, openTermEditor, closeTermEditor, render, refreshList, loadGlossary, saveGlossary, setGlossary, showNewGlossaryPanel, hideNewGlossaryPanel, createGlossaryFromInline, exportGlossary, importGlossary, deleteGlossary, renameCurrentGlossary, bindGlossaryActions };
 })();
