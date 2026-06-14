@@ -1,34 +1,37 @@
 /**
  * @file src/main/ipc/ui.ipc.js
- * @description UI 设置与窗口控制 IPC。
+ * @description 界面设置持久化 IPC。
  */
 
+const fs = require('fs');
+const path = require('path');
 const { ipcMain } = require('electron');
 const { appStoragePath } = require('../services/storage/StorageService');
-const fs = require('fs');
-const fsp = fs.promises;
 
-const settingsFile = appStoragePath('ui-settings.json');
+const UI_SETTINGS_FILE = appStoragePath('ui-settings.json');
 
-async function loadUiSettings() {
+function readUiSettings() {
   try {
-    if (!fs.existsSync(settingsFile)) return { closeBehavior: 'minimize-to-tray' };
-    return JSON.parse(await fsp.readFile(settingsFile, 'utf8'));
+    if (!fs.existsSync(UI_SETTINGS_FILE)) return { closeBehavior: 'minimize-to-tray' };
+    return JSON.parse(fs.readFileSync(UI_SETTINGS_FILE, 'utf8'));
   } catch {
     return { closeBehavior: 'minimize-to-tray' };
   }
 }
 
-async function saveUiSettings(payload = {}) {
-  const current = await loadUiSettings();
-  const next = { ...current, ...payload };
-  await fsp.writeFile(settingsFile, JSON.stringify(next, null, 2), 'utf8');
-  return { ok: true, settings: next };
+function writeUiSettings(settings) {
+  const payload = {
+    closeBehavior: ['minimize-to-tray', 'exit-immediately'].includes(settings?.closeBehavior) ? settings.closeBehavior : 'minimize-to-tray',
+    updatedAt: new Date().toISOString(),
+  };
+  fs.mkdirSync(path.dirname(UI_SETTINGS_FILE), { recursive: true });
+  fs.writeFileSync(UI_SETTINGS_FILE, JSON.stringify(payload, null, 2), 'utf8');
+  return payload;
 }
 
 function registerUiIpc() {
-  ipcMain.handle('get-ui-settings', async () => ({ ok: true, settings: await loadUiSettings() }));
-  ipcMain.handle('save-ui-settings', async (_event, payload) => saveUiSettings(payload));
+  ipcMain.handle('get-ui-settings', async () => ({ ok: true, settings: readUiSettings() }));
+  ipcMain.handle('save-ui-settings', async (_event, payload) => ({ ok: true, settings: writeUiSettings(payload) }));
 }
 
-module.exports = { registerUiIpc, loadUiSettings, saveUiSettings };
+module.exports = { registerUiIpc, readUiSettings, writeUiSettings };

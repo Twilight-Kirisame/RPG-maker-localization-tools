@@ -185,6 +185,12 @@ function extractMapText(mapJson, file) {
 function collectProjectTexts(rootDir) {
   const info = detectEngine(rootDir);
   const dataRoots = info.dataRoots && info.dataRoots.length ? info.dataRoots : [];
+  if (!dataRoots.length) {
+    const dataDir = path.join(rootDir, 'data');
+    const wwwDataDir = path.join(rootDir, 'www', 'data');
+    if (fs.existsSync(dataDir)) dataRoots.push(dataDir);
+    if (fs.existsSync(wwwDataDir)) dataRoots.push(wwwDataDir);
+  }
   const entries = [];
   for (const dataRoot of dataRoots) {
     let files = [];
