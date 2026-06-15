@@ -372,6 +372,7 @@
       try { const result = await window.rpgWorkbench?.pickThemeImageFile?.(); if (result?.filePath && $('themeBackgroundInput')) { $('themeBackgroundInput').value = result.filePath; window.RpgView?.persistUiSettings?.({ persist: false }); } } catch (e) { appendTrace('背景图片', e.message || '选择失败', 'error'); }
     });
     $('previewThemeBackgroundBtn')?.addEventListener('click', () => window.RpgView?.updateThemePreview?.());
+    $('resetUiThemeBtn')?.addEventListener('click', () => { window.RpgView?.resetUiSettings?.(); applyRuntimeI18n(); syncGlobalAiModeSelect(); render(); appendTrace('界面设置', '已恢复默认外观', 'success'); });
   }
 
   window.RpgApp = {

@@ -177,6 +177,58 @@ function extractMapText(mapJson, file) {
   return entries;
 }
 
+function extractGenericJsonText(json, file) {
+  const entries = [];
+  const visited = new Set();
+  const fieldHints = new Set(['name', 'nickname', 'description', 'profile', 'note', 'displayname', 'message', 'text', 'title', 'caption']);
+
+  function walk(value, pathParts = []) {
+    if (value == null) return;
+    if (typeof value === 'string') {
+      const keyName = String(pathParts[pathParts.length - 1] || '').toLowerCase();
+      const shouldInclude = fieldHints.has(keyName) || /(?:name|text|message|description|profile|note|title|caption)$/i.test(keyName);
+      if (shouldInclude && isSafeRpgText(value)) {
+        const pathText = pathParts.join('.');
+        entries.push(createEntry(file, pathText, value, { kind: `generic-${keyName || 'text'}`, path: pathText }));
+      }
+      return;
+    }
+    if (typeof value !== 'object') return;
+    if (visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => walk(item, [...pathParts, `[${index}]`]));
+      return;
+    }
+    Object.entries(value).forEach(([key, next]) => walk(next, [...pathParts, key]));
+  }
+
+  walk(json);
+  return entries;
+}
+
+function listJsonFilesRecursively(rootDir, maxDepth = 2) {
+  const files = [];
+  const visited = new Set();
+  function walk(dir, depth) {
+    if (!dir || visited.has(dir) || depth > maxDepth) return;
+    visited.add(dir);
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.forEach((entry) => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(fullPath, depth + 1);
+      else if (entry.isFile() && entry.name.toLowerCase().endsWith('.json')) files.push(fullPath);
+    });
+  }
+  walk(rootDir, 0);
+  return files;
+}
+
 /**
  * 扫描并提取项目文本。
  * @param {string} rootDir
@@ -193,18 +245,12 @@ function collectProjectTexts(rootDir) {
   }
   const entries = [];
   for (const dataRoot of dataRoots) {
-    let files = [];
-    try {
-      files = fs.readdirSync(dataRoot);
-    } catch {
-      continue;
-    }
-    for (const file of files) {
-      if (!file.toLowerCase().endsWith('.json')) continue;
-      const filePath = path.join(dataRoot, file);
+    const files = listJsonFilesRecursively(dataRoot, 3);
+    for (const filePath of files) {
       try {
         const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         const relFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
+        const file = path.basename(filePath);
         if (/^Map\d+\.json$/i.test(file)) { entries.push(...extractMapText(json, relFile)); continue; }
         if (/^(CommonEvents|System)\.json$/i.test(file)) {
           if (file.toLowerCase() === 'system.json') entries.push(...extractSystemText(json, relFile));
@@ -215,6 +261,7 @@ function collectProjectTexts(rootDir) {
         }
         const baseName = path.basename(file, '.json').toLowerCase();
         if (['items', 'weapons', 'armors', 'skills', 'actors', 'classes', 'states'].includes(baseName)) entries.push(...extractDatabaseText(json, relFile));
+        else entries.push(...extractGenericJsonText(json, relFile));
       } catch {
         // 忽略损坏 JSON，继续扫描其他文件。
       }

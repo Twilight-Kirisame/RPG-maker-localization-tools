@@ -23,13 +23,8 @@
     }
     if (engineHint) {
       const dataRootText = Array.isArray(project.dataRoots) && project.dataRoots.length ? `文本目录：${project.dataRoots.map((dir) => String(dir).replace(project.rootDir || '', '').replace(/^[/\\]/, '') || '.').join('；')}` : '';
-      engineHint.textContent = dataRootText || (info.warnings?.length
-        ? info.warnings.join('；')
-        : engine === 'RPG Maker MV/MZ'
-          ? '已识别为 MV/MZ，可导入 data/*.json 并生成回写补丁。'
-          : engine === 'RPG Maker VX Ace / XP'
-            ? '已识别为 VX Ace / XP，当前保留二进制扩展位。'
-            : t('project.hint'));
+      const scanStatus = Array.isArray(project.dataRoots) && project.dataRoots.length ? `已扫描到 ${project.dataRoots.length} 个文本目录` : '未扫描到文本目录';
+      engineHint.textContent = dataRootText || `${scanStatus}；${info.warnings?.length ? info.warnings.join('；') : (engine === 'RPG Maker MV/MZ' ? '已识别为 MV/MZ，可导入 data/*.json 并生成回写补丁。' : engine === 'RPG Maker VX Ace / XP' ? '已识别为 VX Ace / XP，当前保留二进制扩展位。' : t('project.hint'))}`;
     }
     window.RpgView?.syncUiSettingsFields?.({ preserveBackground: true });
     window.RpgApp?.syncGlobalAiModeSelect?.();

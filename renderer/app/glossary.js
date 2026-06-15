@@ -3,6 +3,10 @@
   const state = () => window.RpgAppStore?.getState?.() || {};
   const t = (key) => window.RpgView?.t?.(key) || key;
   const format = (key, params = {}) => Object.entries(params).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), t(key));
+  const trace = (message, kind = 'normal') => {
+    if (window.traceCall) window.traceCall('术语库', message, kind);
+    else if (window.showToast) window.showToast(message, kind);
+  };
 
   function getTerms() {
     const glossary = state().glossary || { terms: [] };
@@ -44,9 +48,10 @@
 
   async function persistGlossary(message) {
     const current = state();
+    trace('正在保存术语库…', 'normal');
     const result = await window.rpgWorkbench.saveGlossary({ project: current.project, glossary: current.glossary, glossaryName: current.glossary?.glossaryName || 'default' });
     if (!result?.ok) throw new Error(result?.message || t('glossary.saveFailed'));
-    if (message) window.__rpgTrace?.(message, 'success');
+    if (message) trace(message, 'success');
     window.RpgProject?.syncStatusFromProject?.({ project: current.project, glossary: result.glossary || current.glossary, aiSettings: current.aiSettings, warnings: [] });
     return result;
   }
@@ -97,7 +102,7 @@
       row.className = 'glossary-item glossary-row';
       row.innerHTML = `<div class="glossary-text"><strong>${term.source || '—'}</strong> → ${term.target || '—'}${term.note ? `<div class="glossary-note">${term.note}</div>` : ''}</div><div class="glossary-row-actions"><button class="glossary-edit" type="button">${t('common.edit')}</button><button class="glossary-delete" type="button">${t('common.delete')}</button></div>`;
       row.querySelector('.glossary-edit').addEventListener('click', () => openTermEditor(realIndex));
-      row.querySelector('.glossary-delete').addEventListener('click', () => deleteTerm(realIndex).catch((e) => window.__rpgTrace?.(e.message, 'error')));
+      row.querySelector('.glossary-delete').addEventListener('click', () => deleteTerm(realIndex).catch((e) => trace(e.message, 'error')));
       list.appendChild(row);
     });
     syncUI();
@@ -159,8 +164,23 @@
     return result;
   }
 
-  function showNewGlossaryPanel() { const panel = get('newGlossaryInline'); const input = get('newGlossaryName'); panel?.classList.remove('hidden'); if (input) { input.value = ''; input.focus(); } }
+  function showNewGlossaryPanel() { hideRenameGlossaryPanel(); const panel = get('newGlossaryInline'); const input = get('newGlossaryName'); panel?.classList.remove('hidden'); if (input) { input.value = ''; input.focus(); } }
   function hideNewGlossaryPanel() { get('newGlossaryInline')?.classList.add('hidden'); }
+  function showRenameGlossaryPanel() {
+    hideNewGlossaryPanel();
+    const current = state();
+    const select = get('glossarySelect');
+    const oldName = String(select?.value || current.glossary?.glossaryName || 'default').trim() || 'default';
+    const panel = get('renameGlossaryInline');
+    const input = get('renameGlossaryName');
+    panel?.classList.remove('hidden');
+    if (input) {
+      input.value = oldName;
+      input.focus();
+      input.select();
+    }
+  }
+  function hideRenameGlossaryPanel() { get('renameGlossaryInline')?.classList.add('hidden'); }
 
   async function createGlossaryFromInline() {
     const current = state();
@@ -168,17 +188,18 @@
     if (!current.project?.rootDir) throw new Error(t('glossary.loadProjectFirst'));
     if (!window.rpgWorkbench?.saveGlossaryAs) throw new Error(t('glossary.saveAsApiMissing'));
     const nextGlossary = { projectName: current.glossary?.projectName || current.project?.name || '', glossaryName: name, terms: [] };
+    trace('正在新建术语库…', 'normal');
     const result = await window.rpgWorkbench.saveGlossaryAs({ project: current.project, glossary: nextGlossary, defaultName: name });
     if (!result?.ok) {
       if (!result?.canceled) throw new Error(result?.message || t('glossary.createFailed'));
-      window.__rpgTrace?.(t('glossary.createCanceled'), 'normal');
+      trace(t('glossary.createCanceled'), 'normal');
       return result;
     }
     setGlossary(result.glossary || nextGlossary);
     await refreshList();
     renderGlossaryOptions();
     hideNewGlossaryPanel();
-    window.__rpgTrace?.(format('glossary.createdAt', { name: window.RpgAppStore?.getState?.().glossary?.glossaryName || name, path: result.path || '' }), 'success');
+    trace(format('glossary.createdAt', { name: window.RpgAppStore?.getState?.().glossary?.glossaryName || name, path: result.path || '' }), 'success');
     render();
     return result;
   }
@@ -188,13 +209,14 @@
     if (!current.project?.rootDir) throw new Error(t('glossary.loadProjectFirst'));
     if (!window.rpgWorkbench?.exportGlossaryAs) throw new Error(t('glossary.exportApiMissing'));
     await saveGlossary();
+    trace('正在导出术语库…', 'normal');
     const result = await window.rpgWorkbench.exportGlossaryAs({ project: current.project, glossary: current.glossary, defaultName: current.glossary?.glossaryName || 'glossary' });
     if (!result?.ok) {
       if (!result?.canceled) throw new Error(result?.message || t('glossary.exportFailed'));
-      window.__rpgTrace?.(t('glossary.exportCanceled'), 'normal');
+      trace(t('glossary.exportCanceled'), 'normal');
       return result;
     }
-    window.__rpgTrace?.(format('glossary.exported', { name: current.glossary?.glossaryName || 'glossary', path: result.path ? ` → ${result.path}` : '' }), 'success');
+    trace(format('glossary.exported', { name: current.glossary?.glossaryName || 'glossary', path: result.path ? ` → ${result.path}` : '' }), 'success');
     return result;
   }
 
@@ -204,11 +226,12 @@
     if (!window.rpgWorkbench?.pickGlossaryFile) throw new Error(t('glossary.importApiMissing'));
     const file = await window.rpgWorkbench.pickGlossaryFile();
     if (!file?.filePath) return;
+    trace('正在导入术语库…', 'normal');
     const result = await window.rpgWorkbench.importGlossary({ project: current.project, filePath: file.filePath });
     if (!result?.ok) throw new Error(result?.message || t('glossary.importFailed'));
     await refreshList();
     setGlossary(result.glossary);
-    window.__rpgTrace?.(format('glossary.imported', { name: result.glossaryName }), 'success');
+    trace(format('glossary.imported', { name: result.glossaryName }), 'success');
   }
 
   async function deleteGlossary() {
@@ -220,53 +243,60 @@
     if (!result?.ok) throw new Error(result?.message || t('glossary.deleteFailed'));
     const names = await refreshList();
     await loadGlossary(names[0] || 'default');
-    window.__rpgTrace?.(format('glossary.deleted', { name }), 'success');
+    trace(format('glossary.deleted', { name }), 'success');
   }
 
-  async function renameCurrentGlossary() {
+  async function renameCurrentGlossary(nextNameFromInput) {
     const current = state();
     const select = get('glossarySelect');
     const oldName = String(select?.value || current.glossary?.glossaryName || 'default').trim() || 'default';
-    const nextName = String(window.prompt(t('glossary.renamePrompt') || '请输入新的术语库名称', oldName) || '').trim();
-    if (!nextName || nextName === oldName) return;
+    const nextName = String(nextNameFromInput || get('renameGlossaryName')?.value || '').trim();
+    if (!nextName || nextName === oldName) { hideRenameGlossaryPanel(); return; }
     if (!window.rpgWorkbench?.renameGlossary) throw new Error(t('glossary.renameApiMissing'));
+    trace(`正在重命名术语库：${oldName} → ${nextName}`, 'normal');
     const result = await window.rpgWorkbench.renameGlossary({ project: current.project, oldName, newName: nextName, overwrite: false });
     if (!result?.ok) throw new Error(result?.message || t('glossary.renameFailed'));
+    hideRenameGlossaryPanel();
     await refreshList();
     await loadGlossary(result.glossaryName || nextName);
-    window.__rpgTrace?.(format('glossary.renamed', { from: oldName, to: result.glossaryName || nextName }), 'success');
+    renderGlossaryOptions();
+    trace(format('glossary.renamed', { from: oldName, to: result.glossaryName || nextName }), 'success');
   }
 
   function bindGlossaryActions() {
     get('newGlossaryBtn')?.addEventListener('click', () => showNewGlossaryPanel());
-    get('confirmNewGlossaryBtn')?.addEventListener('click', () => createGlossaryFromInline().catch((e) => window.__rpgTrace?.(e.message, 'error')));
+    get('confirmNewGlossaryBtn')?.addEventListener('click', () => createGlossaryFromInline().catch((e) => trace(e.message, 'error')));
     get('cancelNewGlossaryBtn')?.addEventListener('click', () => hideNewGlossaryPanel());
-    get('newGlossaryName')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') createGlossaryFromInline().catch((er) => window.__rpgTrace?.(er.message, 'error')); if (e.key === 'Escape') hideNewGlossaryPanel(); });
-    get('importGlossaryBtn')?.addEventListener('click', () => importGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
-    get('exportGlossaryBtn')?.addEventListener('click', () => exportGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
-    get('deleteGlossaryBtn')?.addEventListener('click', () => deleteGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
-    get('renameGlossaryBtn')?.addEventListener('click', () => renameCurrentGlossary().catch((e) => window.__rpgTrace?.(e.message, 'error')));
+    get('newGlossaryName')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') createGlossaryFromInline().catch((er) => trace(er.message, 'error')); if (e.key === 'Escape') hideNewGlossaryPanel(); });
+    get('renameGlossaryBtn')?.addEventListener('click', () => showRenameGlossaryPanel());
+    get('confirmRenameGlossaryBtn')?.addEventListener('click', () => renameCurrentGlossary().catch((e) => trace(e.message, 'error')));
+    get('cancelRenameGlossaryBtn')?.addEventListener('click', () => hideRenameGlossaryPanel());
+    get('renameGlossaryName')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') renameCurrentGlossary().catch((er) => trace(er.message, 'error')); if (e.key === 'Escape') hideRenameGlossaryPanel(); });
+    get('importGlossaryBtn')?.addEventListener('click', () => importGlossary().catch((e) => trace(e.message, 'error')));
+    get('exportGlossaryBtn')?.addEventListener('click', () => exportGlossary().catch((e) => trace(e.message, 'error')));
+    get('deleteGlossaryBtn')?.addEventListener('click', () => deleteGlossary().catch((e) => trace(e.message, 'error')));
     get('scanDataRootsBtn')?.addEventListener('click', async () => {
       const current = state();
-      if (!current.project?.rootDir) { window.__rpgTrace?.(t('project.scanDataRootsMissing'), 'error'); return; }
+      if (!current.project?.rootDir) { trace(t('project.scanDataRootsMissing'), 'error'); return; }
+      trace('正在扫描文本目录…', 'normal');
       const result = await window.rpgWorkbench?.scanProjectDataRoots?.(current.project.rootDir);
-      if (!result?.ok) { window.__rpgTrace?.(format('project.scanDataRootsFailed', { message: result?.message || 'unknown' }), 'error'); return; }
+      if (!result?.ok) { trace(format('project.scanDataRootsFailed', { message: result?.message || 'unknown' }), 'error'); return; }
       const roots = Array.isArray(result.dataRoots) ? result.dataRoots : [];
-      window.__rpgTrace?.(roots.length ? format('project.scanDataRootsDone', { count: roots.length }) : t('project.scanDataRootsEmpty'), roots.length ? 'success' : 'normal');
+      trace(roots.length ? format('project.scanDataRootsDone', { count: roots.length }) : t('project.scanDataRootsEmpty'), roots.length ? 'success' : 'normal');
       if (roots.length) await window.RpgProject?.loadProject?.(current.project.rootDir);
     });
     get('addTermBtn')?.addEventListener('click', () => openTermEditor(-1));
-    get('confirmTermBtn')?.addEventListener('click', () => saveTermFromEditor().catch((e) => window.__rpgTrace?.(e.message, 'error')));
+    get('confirmTermBtn')?.addEventListener('click', () => saveTermFromEditor().catch((e) => trace(e.message, 'error')));
     get('cancelTermBtn')?.addEventListener('click', () => closeTermEditor());
     get('termEditorBackdrop')?.addEventListener('click', () => closeTermEditor());
     get('termEditorCloseBtn')?.addEventListener('click', () => closeTermEditor());
-    get('glossarySelect')?.addEventListener('change', (e) => loadGlossary(e.target.value).catch((er) => window.__rpgTrace?.(er.message, 'error')));
+    get('glossarySelect')?.addEventListener('change', (e) => loadGlossary(e.target.value).catch((er) => trace(er.message, 'error')));
     const glossarySearchInput = get('glossarySearch');
     glossarySearchInput?.addEventListener('input', () => {
       const current = state();
       window.RpgAppStore?.setState?.({ glossaryFilterText: glossarySearchInput.value || '' });
       const options = renderGlossaryOptions();
-      if (options.length && !options.includes(current.glossary?.glossaryName)) loadGlossary(options[0]).catch((er) => window.__rpgTrace?.(er.message, 'error'));
+      if (options.length && !options.includes(current.glossary?.glossaryName)) loadGlossary(options[0]).catch((er) => trace(er.message, 'error'));
     });
     const searchInput = get('termSearch');
     const searchBtn = get('searchTermBtn');
@@ -275,5 +305,15 @@
     searchBtn?.addEventListener('click', applySearch);
   }
 
-  window.RpgGlossaryModule = { syncUI, openTermEditor, closeTermEditor, render, refreshList, loadGlossary, saveGlossary, setGlossary, showNewGlossaryPanel, hideNewGlossaryPanel, createGlossaryFromInline, exportGlossary, importGlossary, deleteGlossary, renameCurrentGlossary, bindGlossaryActions };
+  function updateContext(project, glossary) {
+    const current = state();
+    window.RpgAppStore?.setState?.({
+      project: project || current.project,
+      glossary: glossary || current.glossary,
+      glossaryFilterText: current.glossaryFilterText || '',
+    });
+    syncUI();
+  }
+
+  window.RpgGlossaryModule = { syncUI, openTermEditor, closeTermEditor, render, refreshList, loadGlossary, saveGlossary, setGlossary, showNewGlossaryPanel, hideNewGlossaryPanel, showRenameGlossaryPanel, hideRenameGlossaryPanel, createGlossaryFromInline, exportGlossary, importGlossary, deleteGlossary, renameCurrentGlossary, bindGlossaryActions, updateContext };
 })();

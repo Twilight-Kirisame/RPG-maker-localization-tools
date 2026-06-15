@@ -130,6 +130,16 @@
     return next;
   }
 
+  function resetUiSettings() {
+    localStorage.setItem(storageKeys.language, defaults.language);
+    localStorage.setItem(storageKeys.themeMode, defaults.themeMode);
+    localStorage.setItem(storageKeys.palette, defaults.palette);
+    localStorage.setItem(storageKeys.backgroundImage, defaults.backgroundImage);
+    localStorage.setItem(storageKeys.closeBehavior, defaults.closeBehavior);
+    syncUiSettingsFields();
+    return getStoredUiSettings();
+  }
+
   function getCloseBehaviorLabel(value = getCloseBehavior()) {
     return value === 'exit-immediately' ? (window.RpgView?.t?.('settings.closeBehaviorExit') || '直接退出程序') : (window.RpgView?.t?.('settings.closeBehaviorTray') || '最小化到右下角托盘');
   }
@@ -176,6 +186,7 @@
     getCloseBehavior,
     setCloseBehavior,
     updateThemePreview,
+    resetUiSettings,
     installTransientScrollbars,
     updateLocalText: window.RpgView?.updateLocalText || (() => {}),
   };

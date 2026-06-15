@@ -173,14 +173,6 @@
                   <span data-i18n="settings.backgroundImage">图片背景</span>
                   <input id="themeBackgroundInput" class="theme-background-input" type="text" data-i18n-placeholder="settings.backgroundImagePlaceholder" placeholder="输入图片路径或 URL，留空则使用纯色背景" />
                 </label>
-                <label>
-                  <span data-i18n="settings.closeBehavior">关闭按钮行为</span>
-                  <select id="closeBehaviorSelect">
-                    <option value="minimize-to-tray" data-i18n="settings.closeBehaviorTray">最小化到右下角托盘</option>
-                    <option value="exit-immediately" data-i18n="settings.closeBehaviorExit">直接退出程序</option>
-                  </select>
-                  <small class="settings-hint" data-i18n="settings.closeBehaviorHint">选择“最小化到托盘”后，点击右上角 X 不会真正退出，而是隐藏到系统托盘；再次打开托盘即可恢复窗口。选择“直接退出程序”则点击 X 会正常关闭应用。</small>
-                </label>
                 <div class="inline-actions theme-bg-actions">
                   <button id="pickThemeBackgroundBtn" class="secondary-btn" data-i18n="settings.pickBackground">浏览本地图片</button>
                   <button id="previewThemeBackgroundBtn" class="secondary-btn" data-i18n="settings.previewBackground">预览当前背景图</button>
@@ -195,6 +187,17 @@
                   </div>
                 </div>
                 <div class="settings-hint" data-i18n="settings.backgroundHint">支持本地图片路径或网络图片 URL；留空时仅保留纯色背景。可将图片文件拖拽到输入框自动填入路径。</div>
+                <div class="settings-group settings-close-group">
+                  <h4 data-i18n="settings.closeBehaviorGroup">关闭行为</h4>
+                  <label>
+                    <span data-i18n="settings.closeBehavior">关闭按钮行为</span>
+                    <select id="closeBehaviorSelect">
+                      <option value="minimize-to-tray" data-i18n="settings.closeBehaviorTray">最小化到右下角托盘</option>
+                      <option value="exit-immediately" data-i18n="settings.closeBehaviorExit">直接退出程序</option>
+                    </select>
+                  </label>
+                  <small class="settings-hint" data-i18n="settings.closeBehaviorHint">选择“最小化到托盘”后，点击右上角 X 不会真正退出，而是隐藏到系统托盘；再次打开托盘即可恢复窗口。选择“直接退出程序”则点击 X 会正常关闭应用。</small>
+                </div>
                 <div class="inline-actions">
                   <button id="saveUiSettingsBtn" class="primary-btn" data-i18n="settings.save">保存设置</button>
                   <button id="resetUiThemeBtn" class="secondary-btn" data-i18n="settings.resetTheme">恢复默认外观</button>
@@ -290,9 +293,9 @@
                   <span data-i18n="glossary.select">术语库列表</span>
                   <select id="glossarySelect"></select>
                 </label>
-                <div class="inline-actions">
+                <div class="inline-actions glossary-actions">
                   <button id="newGlossaryBtn" class="secondary-btn" data-i18n="glossary.new">新建术语库</button>
-                  <button id="renameGlossaryBtn" class="secondary-btn" data-i18n="glossary.rename">重命名术语库</button>
+                  <button id="renameGlossaryBtn" class="primary-btn" data-i18n="glossary.rename">重命名术语库</button>
                   <button id="importGlossaryBtn" class="secondary-btn" data-i18n="glossary.import">导入术语库</button>
                   <button id="exportGlossaryBtn" class="primary-btn" data-i18n="glossary.export">导出术语库</button>
                   <button id="deleteGlossaryBtn" class="secondary-btn" data-i18n="glossary.delete">删除术语库</button>
@@ -305,6 +308,16 @@
                   <div class="inline-actions">
                     <button id="confirmNewGlossaryBtn" class="primary-btn" data-i18n="common.confirm">确认建立</button>
                     <button id="cancelNewGlossaryBtn" class="secondary-btn" data-i18n="common.cancel">取消</button>
+                  </div>
+                </div>
+                <div id="renameGlossaryInline" class="glossary-create-panel hidden">
+                  <label>
+                    <span data-i18n="glossary.renamePrompt">请输入新的术语库名称</span>
+                    <input id="renameGlossaryName" type="text" data-i18n-placeholder="glossary.renamePrompt" placeholder="请输入新的术语库名称" />
+                  </label>
+                  <div class="inline-actions">
+                    <button id="confirmRenameGlossaryBtn" class="primary-btn" data-i18n="common.confirm">确认</button>
+                    <button id="cancelRenameGlossaryBtn" class="secondary-btn" data-i18n="common.cancel">取消</button>
                   </div>
                 </div>
                 <label class="term-search-block">
