@@ -261,11 +261,19 @@
                 </label>
                 <label>
                   <span data-i18n="ai.baseUrl">接口地址</span>
-                  <input id="aiBaseUrl" type="text" data-i18n-placeholder="ai.baseUrlPlaceholder" placeholder="https://api.openai.com/v1/chat/completions" />
+                  <input id="aiBaseUrl" type="text" data-i18n-placeholder="ai.baseUrlPlaceholder" placeholder="https://api.deepseek.com" />
                 </label>
+                <div class="settings-hint" data-i18n="ai.deepseekBaseUrlHint">DeepSeek 官方 base_url 是 https://api.deepseek.com，程序会自动调用 /chat/completions；请不要填写 /v1/chat/completions。</div>
                 <label>
                   <span data-i18n="ai.model">模型</span>
-                  <input id="aiModel" type="text" data-i18n-placeholder="ai.modelPlaceholder" placeholder="模型名，例如 qwen-plus / glm-4 / yi-large" />
+                  <select id="aiModelSelect">
+                    <option value="deepseek-v4-flash">deepseek-v4-flash（官方推荐，非思考）</option>
+                    <option value="deepseek-v4-pro">deepseek-v4-pro（官方推荐，思考）</option>
+                    <option value="deepseek-chat">deepseek-chat（旧兼容名，将弃用）</option>
+                    <option value="deepseek-reasoner">deepseek-reasoner（旧兼容名，将弃用）</option>
+                    <option value="custom" data-i18n="ai.modelCustom">自定义模型</option>
+                  </select>
+                  <input id="aiModel" class="ai-model-custom hidden" type="text" data-i18n-placeholder="ai.modelPlaceholder" placeholder="输入自定义模型名" />
                 </label>
                 <label>
                   <span data-i18n="ai.prompt">系统提示词</span>

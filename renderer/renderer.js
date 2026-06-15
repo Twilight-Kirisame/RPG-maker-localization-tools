@@ -141,8 +141,10 @@
       'ai.providerClaude': 'Claude / Anthropic',
       'ai.providerCustom': '自定义接口',
       'ai.apiKeyPlaceholder': '你的 API Key',
-      'ai.baseUrlPlaceholder': '接口地址，例如 https://api.deepseek.com/chat/completions',
-      'ai.modelPlaceholder': '模型名称，例如 deepseek-chat',
+      'ai.baseUrlPlaceholder': '接口地址，例如 https://api.deepseek.com',
+      'ai.modelPlaceholder': '输入自定义模型名',
+      'ai.modelCustom': '自定义模型',
+      'ai.deepseekBaseUrlHint': 'DeepSeek 官方 base_url 是 https://api.deepseek.com，程序会自动调用 /chat/completions；请不要填写 /v1/chat/completions。',
       'ai.prompt': '系统提示词'
     },
     en: {
@@ -262,14 +264,41 @@
       targetLang: $('translateTargetLang')?.value || 'zh-CN',
     };
   }
+  function getSelectedAiModel() {
+    const select = $('aiModelSelect');
+    const customInput = $('aiModel');
+    if (select?.value === 'custom') return customInput?.value?.trim() || '';
+    return select?.value || customInput?.value?.trim() || '';
+  }
+  function syncAiModelSelector(model = '') {
+    const select = $('aiModelSelect');
+    const customInput = $('aiModel');
+    if (!select || !customInput) return;
+    const known = Array.from(select.options).map((option) => option.value).filter((value) => value && value !== 'custom');
+    const nextModel = String(model || 'deepseek-v4-flash').trim();
+    const isKnown = known.includes(nextModel);
+    select.value = isKnown ? nextModel : 'custom';
+    customInput.value = isKnown ? '' : nextModel;
+    customInput.classList.toggle('hidden', isKnown);
+  }
+  function updateAiProviderDefaults({ preserveUserInput = true } = {}) {
+    const provider = $('aiProvider')?.value || 'deepseek';
+    const baseUrlInput = $('aiBaseUrl');
+    if (provider === 'deepseek') {
+      if (baseUrlInput && (!preserveUserInput || !baseUrlInput.value.trim() || /api\.deepseek\.com\/v1\/?$/i.test(baseUrlInput.value.trim()))) baseUrlInput.value = 'https://api.deepseek.com';
+      if (!getSelectedAiModel()) syncAiModelSelector('deepseek-v4-flash');
+    }
+  }
   function collectAiSettings() {
     const current = getState().aiSettings || {};
+    const provider = $('aiProvider')?.value || current.provider || 'deepseek';
+    const baseUrl = provider === 'deepseek' ? 'https://api.deepseek.com' : ($('aiBaseUrl')?.value || '');
     return {
       ...current,
-      provider: $('aiProvider')?.value || current.provider || 'deepseek',
+      provider,
       apiKey: $('aiApiKey')?.value || '',
-      baseUrl: $('aiBaseUrl')?.value || '',
-      model: $('aiModel')?.value || '',
+      baseUrl,
+      model: getSelectedAiModel() || (provider === 'deepseek' ? 'deepseek-v4-flash' : ''),
       prompt: $('aiPrompt')?.value || '',
       traditional: collectTraditionalSettings(),
       lastEntryAiMode: $('globalAiModeSelect')?.value || current.lastEntryAiMode || current.provider || 'baidu',
@@ -284,11 +313,12 @@
     if ($('translateTargetLang')) $('translateTargetLang').value = settings.traditional?.targetLang || 'zh-CN';
     if ($('aiProvider')) $('aiProvider').value = settings.provider || 'deepseek';
     if ($('aiApiKey')) $('aiApiKey').value = settings.apiKey || '';
-    if ($('aiBaseUrl')) $('aiBaseUrl').value = settings.baseUrl || '';
-    if ($('aiModel')) $('aiModel').value = settings.model || '';
+    if ($('aiBaseUrl')) $('aiBaseUrl').value = settings.provider === 'deepseek' ? 'https://api.deepseek.com' : (settings.baseUrl || '');
+    syncAiModelSelector(settings.model || (settings.provider === 'deepseek' ? 'deepseek-v4-flash' : ''));
     if ($('aiPrompt')) $('aiPrompt').value = settings.prompt || '';
     if ($('globalAiModeSelect')) $('globalAiModeSelect').value = settings.lastEntryAiMode || settings.provider || 'baidu';
     updateTraditionalProviderUI();
+    updateAiProviderDefaults();
   }
 
   function setStatus(id, message, kind = 'normal') {
@@ -348,6 +378,8 @@
     $('settingsBackdrop')?.addEventListener('click', () => closeSettings());
     document.querySelectorAll('.settings-tab').forEach((btn) => btn.addEventListener('click', () => switchSettingsTab(btn.dataset.tab || 'ui')));
     $('traditionalProvider')?.addEventListener('change', updateTraditionalProviderUI);
+    $('aiProvider')?.addEventListener('change', () => updateAiProviderDefaults({ preserveUserInput: false }));
+    $('aiModelSelect')?.addEventListener('change', () => syncAiModelSelector(getSelectedAiModel()));
     $('saveTraditionalSettingsBtn')?.addEventListener('click', () => saveTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || '保存失败', 'error')));
     $('testTraditionalBtn')?.addEventListener('click', () => testTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || '测试失败', 'error')));
     $('saveAiSettingsBtn')?.addEventListener('click', () => saveAiSettings().catch((e) => setStatus('aiStatus', e.message || '保存失败', 'error')));
