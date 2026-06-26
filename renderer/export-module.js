@@ -1,5 +1,4 @@
 (() => {
-  const log = (msg, kind = 'normal') => window.__rpgTrace?.(msg, kind);
   const el = (id) => document.getElementById(id);
 
   function assertProject(payload, action) {
@@ -12,7 +11,6 @@
     const result = await window.rpgWorkbench.saveDraft(payload);
     if (!result?.ok) throw new Error(result?.message || '导出草稿失败');
     if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
-    log(`草稿已导出：${result.path}`, 'success');
     return result;
   }
 
@@ -22,7 +20,6 @@
     const result = await window.rpgWorkbench.exportPatch(payload);
     if (!result?.ok) throw new Error(result?.message || '导出补丁失败');
     if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
-    log(`补丁已导出：${result.outputDir}`, 'success');
     return result;
   }
 
@@ -31,21 +28,18 @@
     const patchBtn = el('exportPatchBtn');
     const openPatchBtn = el('openPatchFolderBtn');
     if (draftBtn) draftBtn.addEventListener('click', async () => {
-      try { log('点击导出草稿', 'pending'); await exportDraft(window.__rpgExportContext()); }
-      catch (error) { log(error.message, 'error'); }
+      return window.runUiAction?.('导出草稿', async () => exportDraft(window.__rpgExportContext()), { pending: '正在导出草稿…', success: '草稿导出完成', error: '草稿导出失败', statusId: 'projectStatus', traceTitle: '导出草稿' });
     });
     if (patchBtn) patchBtn.addEventListener('click', async () => {
-      try { log('点击导出补丁', 'pending'); const result = await exportPatch(window.__rpgExportContext()); if (result?.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir); }
-      catch (error) { log(error.message, 'error'); }
+      return window.runUiAction?.('导出补丁', async () => exportPatch(window.__rpgExportContext()), { pending: '正在导出补丁…', success: '补丁导出完成', error: '补丁导出失败', statusId: 'projectStatus', traceTitle: '导出补丁' });
     });
     if (openPatchBtn) openPatchBtn.addEventListener('click', async () => {
-      try {
-        log('点击打开补丁目录', 'pending');
+      return window.runUiAction?.('打开补丁目录', async () => {
         const ctx = window.__rpgExportContext();
         if (!ctx?.lastPatchDir) throw new Error('没有可打开的补丁目录');
         if (!window.rpgWorkbench?.openFolder) throw new Error('打开目录接口未注入');
-        await window.rpgWorkbench.openFolder(ctx.lastPatchDir);
-      } catch (error) { log(error.message, 'error'); }
+        return window.rpgWorkbench.openFolder(ctx.lastPatchDir);
+      }, { pending: '正在打开补丁目录…', success: '补丁目录已打开', error: '打开补丁目录失败', statusId: 'projectStatus', traceTitle: '打开补丁目录' });
     });
   }
 

@@ -5,13 +5,20 @@
  */
 
 const crypto = require('crypto');
-const { projectStoragePath } = require('../storage/StorageService');
+const { projectStoragePath, appStoragePath } = require('../storage/StorageService');
 const fs = require('fs');
 const fsp = fs.promises;
 
 const defaultPrompt = '你是一个专业的 RPG Maker 游戏汉化助手，请将原文自然准确地翻译成简体中文。';
 const acgPrompt = '你是一个专业的 ACG 领域日中翻译专家。要求译文地道、活人感强、消除翻译腔。在语境合适时，必须使用中国特有的成语、歇后语或固定短语进行意译（例如将单纯的“力量对抗”转化为“道高一尺，魔高一丈”等具有文学色彩的表达）。不要解释，直接输出译文。';
 const baiduTranslateEndpoint = 'https://fanyi-api.baidu.com/api/trans/vip/translate';
+const providerDefaults = {
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com',
+    endpoint: '/chat/completions',
+    model: 'deepseek-v4-flash',
+  },
+};
 
 const baiduLanguageMap = {
   'zh-CN': 'zh',
@@ -60,12 +67,11 @@ function parseBaiduError(json, httpStatus) {
 }
 
 /**
- * 加载 AI 设置。
- * @param {Object} project
+ * 加载 AI 设置（全局存储）。
  * @returns {Promise<Object>}
  */
-async function loadAiSettings(project) {
-  const filePath = projectStoragePath(project, 'ai-settings.json');
+async function loadAiSettings() {
+  const filePath = appStoragePath('ai-settings.json');
   if (!fs.existsSync(filePath)) return { provider: 'mock', apiKey: '', baseUrl: '', model: '', prompt: defaultPrompt, traditional: {} };
   try {
     return JSON.parse(await fsp.readFile(filePath, 'utf8'));
@@ -75,29 +81,27 @@ async function loadAiSettings(project) {
 }
 
 /**
- * 保存 AI 设置。
- * @param {Object} project
+ * 保存 AI 设置（全局存储）。
  * @param {Object} settings
  * @returns {Promise<Object>}
  */
-async function saveAiSettings(project, settings) {
-  const filePath = projectStoragePath(project, 'ai-settings.json');
+async function saveAiSettings(settings) {
+  const filePath = appStoragePath('ai-settings.json');
   await fsp.writeFile(filePath, JSON.stringify(settings || {}, null, 2), 'utf8');
   return { ok: true, path: filePath };
 }
 
 /**
  * 保存翻译器设置。
- * @param {Object} project
  * @param {Object} payload
  * @returns {Promise<Object>}
  */
-async function saveTranslatorSettings(project, payload) {
-  const current = await loadAiSettings(project);
+async function saveTranslatorSettings(payload) {
+  const current = await loadAiSettings();
   const next = payload?.type === 'traditional'
     ? { ...current, traditional: payload.settings || {} }
     : { ...current, ...(payload?.settings || payload || {}) };
-  return saveAiSettings(project, next);
+  return saveAiSettings(next);
 }
 
 /**
@@ -174,6 +178,43 @@ async function testTraditional(settings, sampleText = '测试文本') {
   return result.ok ? { ok: true, message: `传统翻译测试成功：${result.translatedText}` } : result;
 }
 
+function normalizeDeepseekBaseUrl(baseUrl) {
+  const raw = String(baseUrl || providerDefaults.deepseek.baseUrl).trim().replace(/\/+$/, '');
+  if (!raw) return providerDefaults.deepseek.baseUrl;
+  if (/^https:\/\/api\.deepseek\.com(?:\/v1)?$/i.test(raw)) return providerDefaults.deepseek.baseUrl;
+  if (/^https:\/\/api\.deepseek\.com\/chat\/completions$/i.test(raw)) return providerDefaults.deepseek.baseUrl;
+  return raw.replace(/\/v1$/i, '');
+}
+
+function normalizeChatCompletionUrl(provider, baseUrl) {
+  const defaults = providerDefaults[provider] || {};
+  const rawBase = provider === 'deepseek' ? normalizeDeepseekBaseUrl(baseUrl) : String(baseUrl || defaults.baseUrl || '').trim();
+  const raw = rawBase.replace(/\/+$/, '');
+  if (!raw) return '';
+  if (/\/chat\/completions$/i.test(raw)) return raw;
+  return `${raw}${defaults.endpoint || '/chat/completions'}`;
+}
+
+function normalizeDeepseekModel(model) {
+  const value = String(model || '').trim();
+  if (value === 'deepseek-chat') return 'deepseek-v4-flash';
+  if (value === 'deepseek-reasoner') return 'deepseek-v4-pro';
+  return value || providerDefaults.deepseek.model;
+}
+
+function buildDeepseekExtraBody(model) {
+  const normalized = normalizeDeepseekModel(model);
+  if (normalized === 'deepseek-v4-pro') return { thinking: { type: 'enabled' }, reasoning_effort: 'high' };
+  if (normalized === 'deepseek-v4-flash') return { thinking: { type: 'disabled' } };
+  return {};
+}
+
+function parseAiError(json, provider, status) {
+  const detail = json?.error?.message || json?.message || json?.msg || '';
+  const hint = provider === 'deepseek' && status === 404 ? '；DeepSeek 官方 OpenAI 兼容 base_url 是 https://api.deepseek.com，对话接口为 /chat/completions。请不要把 /v1 或其它不存在路径当作完整接口地址。' : '';
+  return detail ? `AI 调用失败 HTTP ${status}：${detail}${hint}` : `AI 调用失败 HTTP ${status}${hint}`;
+}
+
 /**
  * 构建 AI 翻译。
  * @param {Object} payload
@@ -187,26 +228,34 @@ async function buildAiTranslate(payload) {
   if (provider === 'baidu' || provider === 'traditional-baidu') return translateWithBaidu(settings.traditional || settings, sourceText);
   if (!settings.apiKey) return { ok: false, provider, message: 'API Key 未配置' };
 
-  const baseUrl = settings.baseUrl || (provider === 'deepseek' ? 'https://api.deepseek.com/chat/completions' : '');
-  const model = settings.model || (provider === 'deepseek' ? 'deepseek-chat' : '');
+  const normalizedBaseUrl = provider === 'deepseek'
+    ? normalizeDeepseekBaseUrl(settings.baseUrl)
+    : String(settings.baseUrl || '').trim();
+  const baseUrl = normalizeChatCompletionUrl(provider, normalizedBaseUrl);
+  const model = provider === 'deepseek' ? normalizeDeepseekModel(settings.model) : String(settings.model || '').trim();
   if (!baseUrl || !model) return { ok: false, provider, message: '接口地址或模型未配置' };
 
   try {
+    const payloadBody = {
+      model,
+      temperature: provider === 'deepseek' ? 0.2 : 0.7,
+      stream: false,
+      messages: [
+        { role: 'system', content: provider === 'deepseek' ? (settings.prompt || defaultPrompt) : (settings.prompt || defaultPrompt) },
+        { role: 'user', content: sourceText },
+      ],
+    };
+    if (provider === 'deepseek') Object.assign(payloadBody, buildDeepseekExtraBody(model));
     const response = await fetch(baseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-      body: JSON.stringify({
-        model,
-        temperature: provider === 'deepseek' ? 1.2 : 0.7,
-        messages: [
-          { role: 'system', content: provider === 'deepseek' ? acgPrompt : (settings.prompt || defaultPrompt) },
-          { role: 'user', content: sourceText },
-        ],
-      }),
+      body: JSON.stringify(payloadBody),
     });
     const json = await response.json().catch(() => ({}));
-    if (!response.ok) return { ok: false, provider, message: json?.error?.message || `AI 调用失败 HTTP ${response.status}` };
-    return { ok: true, provider, translatedText: json?.choices?.[0]?.message?.content?.trim() || '', message: `已使用 ${provider} 完成翻译。` };
+    if (!response.ok) return { ok: false, provider, message: parseAiError(json, provider, response.status) };
+    const translatedText = json?.choices?.[0]?.message?.content?.trim() || '';
+    if (!translatedText) return { ok: false, provider, message: 'AI 未返回译文' };
+    return { ok: true, provider, translatedText, message: `已使用 ${provider} 完成翻译。` };
   } catch (error) {
     return { ok: false, provider, message: `AI 调用失败：${error.message}` };
   }

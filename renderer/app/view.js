@@ -71,6 +71,18 @@
       const translated = t(key, fallback);
       if (translated && translated !== key) el.placeholder = translated;
     });
+    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+      const key = el.getAttribute('data-i18n-title');
+      const fallback = el.getAttribute('title') || '';
+      const translated = t(key, fallback);
+      if (translated && translated !== key) el.title = translated;
+    });
+    document.querySelectorAll('[data-i18n-aria-label]').forEach((el) => {
+      const key = el.getAttribute('data-i18n-aria-label');
+      const fallback = el.getAttribute('aria-label') || '';
+      const translated = t(key, fallback);
+      if (translated && translated !== key) el.setAttribute('aria-label', translated);
+    });
     window.RpgView?.updateLocalText?.(current, t);
     return t;
   }
@@ -114,6 +126,8 @@
     }
     applyThemeSettings(settings);
     applyI18n();
+    window.RpgApp?.render?.();
+    window.RpgGlossaryModule?.render?.();
     updateThemePreview(settings.backgroundImage);
     return settings;
   }
