@@ -29,3 +29,12 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# compression files
+*.zip
+
+
+*.exe
+*.exe
+*.exe
+dist-test/win-unpacked/RPG汉化工作台-测试版.exe

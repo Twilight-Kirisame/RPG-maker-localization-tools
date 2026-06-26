@@ -72,6 +72,14 @@
     return runAction('AI 翻译', async () => window.rpgWorkbench.aiTranslate(payload));
   }
 
+  async function saveProjectLastPosition(payload) {
+    return runAction('保存翻译位置', async () => window.rpgWorkbench.saveProjectLastPosition(payload));
+  }
+
+  async function loadProjectProgressState(project) {
+    return runAction('读取项目进度', async () => window.rpgWorkbench.loadProjectProgressState(project));
+  }
+
   async function getUiSettings() {
     return runAction('读取界面设置', async () => window.rpgWorkbench.getUiSettings());
   }
@@ -80,5 +88,5 @@
     return runAction('保存界面设置', async () => window.rpgWorkbench.saveUiSettings(payload));
   }
 
-  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, saveTranslatorSettings, testTranslatorSettings, aiTranslate, getUiSettings, saveUiSettings };
+  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, saveTranslatorSettings, testTranslatorSettings, aiTranslate, saveProjectLastPosition, loadProjectProgressState, getUiSettings, saveUiSettings };
 })();

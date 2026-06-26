@@ -10,19 +10,17 @@ const { loadAiSettings, saveAiSettings, saveTranslatorSettings, testTraditional,
  * 注册翻译相关 IPC。
  */
 function registerTranslationIpc() {
-  ipcMain.handle('get-ai-settings', async (_event, payload) => {
-    const { project } = payload || {};
-    return { ok: true, settings: await loadAiSettings(project) };
+  ipcMain.handle('get-ai-settings', async () => {
+    return { ok: true, settings: await loadAiSettings() };
   });
 
   ipcMain.handle('save-ai-settings', async (_event, payload) => {
     const { project, ...settings } = payload || {};
-    return saveAiSettings(project, settings);
+    return saveAiSettings(settings);
   });
 
   ipcMain.handle('save-translator-settings', async (_event, payload) => {
-    const { project } = payload || {};
-    return saveTranslatorSettings(project, payload);
+    return saveTranslatorSettings(payload);
   });
 
   ipcMain.handle('test-translator-settings', async (_event, payload) => {

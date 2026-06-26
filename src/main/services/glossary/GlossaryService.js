@@ -56,13 +56,13 @@ function defaultGlossaryNameForProject(project) {
  * @param {Object} project
  * @returns {Promise<Object>}
  */
-async function ensureProjectGlossary(project) {
+async function ensureProjectGlossary(project, { createIfMissing = false } = {}) {
   if (!project?.rootDir) return { projectName: '', glossaryName: 'default', terms: [] };
   const glossaryName = defaultGlossaryNameForProject(project);
   const glossary = await loadGlossary(project, glossaryName);
   const filePath = glossaryPathFor(project, glossaryName);
-  if (!fs.existsSync(filePath)) await saveGlossary(project, glossary, glossaryName);
-  return { ...glossary, projectName: path.basename(project.rootDir), glossaryName };
+  if (createIfMissing && !fs.existsSync(filePath)) await saveGlossary(project, glossary, glossaryName);
+  return { ...glossary, projectName: path.basename(project.rootDir), glossaryName, exists: fs.existsSync(filePath) };
 }
 
 /**

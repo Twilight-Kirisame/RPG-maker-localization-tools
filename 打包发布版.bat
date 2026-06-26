@@ -2,48 +2,111 @@
 setlocal EnableExtensions
 chcp 65001 >nul
 
-cd /d "%~dp0"
-
-echo ========================================
-echo RPG Localization Workbench - Release Packager
-echo ========================================
-echo.
+set "ROOT=%~dp0"
+cd /d "%ROOT%"
 
 if not exist "package.json" (
-  echo [ERROR] package.json not found. Please run this script from the project root.
+  echo [ERROR] package.json not found in project root.
   pause
   exit /b 1
 )
+
+echo ========================================
+echo RPG Localization Workbench Packager
+echo ========================================
+echo.
+echo 1. Build stable release
+echo 2. Build test release
+echo.
+set "BUILD_KIND=1"
+set /p "BUILD_KIND=Choose build type [1/2] [default=1]: "
+if not defined BUILD_KIND set "BUILD_KIND=1"
+
+set "BUILD_NAME="
+set "OUTPUT_DIR="
+set "NPM_SCRIPT="
+set "CLEAN_DIR="
+
+if "%BUILD_KIND%"=="1" goto stable
+if "%BUILD_KIND%"=="2" goto test
+goto invalid
+
+:stable
+set "BUILD_NAME=stable"
+set "OUTPUT_DIR=dist"
+set "NPM_SCRIPT=dist"
+set "CLEAN_DIR=dist"
+goto selected
+
+:test
+set "BUILD_NAME=test"
+set "OUTPUT_DIR=dist-test"
+set "NPM_SCRIPT=dist:test"
+set "CLEAN_DIR=dist-test"
+goto selected
+
+:invalid
+echo [ERROR] Invalid selection. Please enter 1 or 2.
+pause
+exit /b 1
+
+:selected
+echo [INFO] Selected %BUILD_NAME% build.
 
 if not exist "node_modules\electron" (
   echo [INFO] node_modules not found. Installing dependencies...
   call npm install
-  if errorlevel 1 (
-    echo [ERROR] Dependency installation failed.
-    pause
-    exit /b 1
-  )
+  if errorlevel 1 goto depfail
 )
 
-echo [1/2] Cleaning old build artifacts...
-if exist "dist\win-unpacked" rmdir /s /q "dist\win-unpacked" 2>nul
-if exist "dist\builder-debug.yml" del /f /q "dist\builder-debug.yml" 2>nul
-if exist "dist\builder-effective-config.yaml" del /f /q "dist\builder-effective-config.yaml" 2>nul
+echo [1/2] Closing possible locked build processes...
+taskkill /f /im "electron.exe" >nul 2>&1
+taskkill /f /im "app-builder.exe" >nul 2>&1
+taskkill /f /im "node.exe" >nul 2>&1
+timeout /t 2 /nobreak >nul
+
+echo [1/2] Cleaning %BUILD_NAME% build artifacts...
+if not defined CLEAN_DIR goto cleanfail
+if "%CLEAN_DIR%"=="" goto cleanfail
+if "%CLEAN_DIR%"=="." goto cleanfail
+if "%CLEAN_DIR%"=="\" goto cleanfail
+if exist "%CLEAN_DIR%" (
+  rmdir /s /q "%CLEAN_DIR%" 2>nul
+  if exist "%CLEAN_DIR%" (
+    timeout /t 2 /nobreak >nul
+    rmdir /s /q "%CLEAN_DIR%" 2>nul
+  )
+  if exist "%CLEAN_DIR%" goto cleanfail
+)
+mkdir "%CLEAN_DIR%" >nul 2>&1
+if errorlevel 1 goto cleanfail
 
 echo.
-echo [2/2] Building portable exe...
-call npm run dist
-if errorlevel 1 (
-  echo.
-  echo [ERROR] Build failed. Please check the logs above.
-  pause
-  exit /b 1
-)
+echo [2/2] Building %BUILD_NAME% release...
+call npm run %NPM_SCRIPT%
+if errorlevel 1 goto buildfail
 
 echo.
 echo ========================================
 echo Build complete.
-echo Output directory: %cd%\dist
+echo Output directory: %ROOT%%OUTPUT_DIR%
 echo ========================================
 echo.
 pause
+exit /b 0
+
+:depfail
+echo [ERROR] Dependency installation failed.
+pause
+exit /b 1
+
+:cleanfail
+echo [ERROR] Failed to clean output contents in %CLEAN_DIR%.
+pause
+exit /b 1
+
+:buildfail
+echo.
+echo [ERROR] Build failed. Please check the logs above.
+pause
+exit /b 1
