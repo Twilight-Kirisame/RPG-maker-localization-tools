@@ -70,6 +70,7 @@
             <button id="saveDraftBtn" class="secondary-btn" data-i18n="workspace.draftLoad" title="从已保存的 JSON 草稿文件恢复翻译内容">载入草稿</button>
             <button id="settingsBtn" class="secondary-btn settings-launch" data-i18n="workspace.settings">设置</button>
             <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" title="导出可回写的补丁目录">导出补丁</button>
+            <button id="applyWritebackBtn" class="primary-btn" data-i18n="workspace.applyWriteback" title="把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）">写回游戏 JSON</button>
           </div>
         </section>
 
@@ -100,7 +101,10 @@
             <div class="entry-toolbar translation-toolbar">
               <label>
                 <span data-i18n="selector.file">JSON 文件</span>
-                <select id="fileSelect"></select>
+                <span class="file-select-row">
+                  <select id="fileSelect"></select>
+                  <span id="currentFileProgressBadge" class="file-progress-badge" title="当前 JSON 文件的翻译百分比"></span>
+                </span>
               </label>
               <label>
                 <span data-i18n="selector.search">搜索</span>
@@ -110,6 +114,11 @@
                 <span id="globalAiModeLabel">辅助翻译平台</span>
                 <select id="globalAiModeSelect"></select>
               </label>
+            </div>
+            <div class="entry-view-mode">
+              <span data-i18n="context.viewMode">显示模式</span>
+              <button id="singleEntryModeBtn" class="secondary-btn active" data-entry-mode="single" data-i18n="context.singleMode">单条模式</button>
+              <button id="contextGroupModeBtn" class="secondary-btn" data-entry-mode="group" data-i18n="context.groupMode">上下文组模式</button>
             </div>
             <div id="entryListHeader" class="paired-header compact-header">
               <div data-i18n="editor.source">原文</div>
@@ -280,6 +289,26 @@
                   <textarea id="aiPrompt" rows="6"></textarea>
                 </label>
                 <div class="settings-hint" data-i18n="settings.llmHint">适合上下文翻译、术语一致性和润色。</div>
+                <div class="settings-group">
+                  <h4 data-i18n="ai.glossaryGroup">术语库自动注入</h4>
+                  <label>
+                    <span data-i18n="ai.glossaryMode">注入模式</span>
+                    <select id="aiGlossaryMode">
+                      <option value="off" data-i18n="ai.glossaryModeOff">不使用（默认）</option>
+                      <option value="replace" data-i18n="ai.glossaryModeReplace">强制替换原文（送进 AI 前先替换）</option>
+                      <option value="prompt" data-i18n="ai.glossaryModePrompt">注入 System Prompt（要求 AI 遵守对照表）</option>
+                    </select>
+                  </label>
+                  <small class="settings-hint" data-i18n="ai.glossaryHint">命中术语会在每次 AI 调用前介入：替换模式直接改写原文；Prompt 模式把对照表加到系统提示后部。空术语库时所有模式均不生效。</small>
+                </div>
+                <div class="settings-group">
+                  <h4 data-i18n="ai.autoSplitGroup">译文自动断行</h4>
+                  <label class="checkbox-label">
+                    <input id="aiAutoSplit" type="checkbox" />
+                    <span data-i18n="ai.autoSplit">对话框（code:401）译文超长时按引擎约束自动拆行</span>
+                  </label>
+                  <small class="settings-hint" data-i18n="ai.autoSplitHint">仅作用于对话框文本；按标点优先级切分，不破坏控制码。</small>
+                </div>
                 <div class="inline-actions">
                   <button id="saveAiSettingsBtn" class="primary-btn" data-i18n="ai.save">保存设置</button>
                   <button id="testAiBtn" class="secondary-btn" data-i18n="ai.test">测试 AI</button>

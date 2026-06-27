@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('rpgWorkbench', {
   deleteGlossary: (payload) => invoke('delete-glossary', payload),
   renameGlossary: (payload) => invoke('rename-glossary', payload),
   exportPatch: (payload) => invoke('export-patch', payload),
+  applyWriteback: (payload) => invoke('apply-writeback', payload),
   saveDraft: (payload) => invoke('save-draft', payload),
   openFolder: (folderPath) => invoke('open-folder', folderPath),
   getAiSettings: (payload) => invoke('get-ai-settings', payload),
@@ -39,6 +40,7 @@ contextBridge.exposeInMainWorld('rpgWorkbench', {
   saveTranslatorSettings: (payload) => invoke('save-translator-settings', payload),
   testTranslatorSettings: (payload) => invoke('test-translator-settings', payload),
   aiTranslate: (payload) => invoke('ai-translate', payload),
+  validateEntry: (payload) => invoke('validate-entry', payload),
   getUiSettings: () => invoke('get-ui-settings'),
   saveUiSettings: (payload) => invoke('save-ui-settings', payload),
 });

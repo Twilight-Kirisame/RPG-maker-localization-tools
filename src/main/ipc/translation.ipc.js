@@ -5,6 +5,7 @@
 
 const { ipcMain } = require('electron');
 const { loadAiSettings, saveAiSettings, saveTranslatorSettings, testTraditional, buildAiTranslate } = require('../services/translation/TranslationService');
+const { validateEntry } = require('../services/validation/EntryValidator');
 
 /**
  * 注册翻译相关 IPC。
@@ -35,7 +36,20 @@ function registerTranslationIpc() {
     }
   });
 
-  ipcMain.handle('ai-translate', async (_event, payload) => buildAiTranslate(payload));
+  ipcMain.handle('ai-translate', async (_event, payload) => {
+    const result = await buildAiTranslate(payload);
+    if (result?.ok && result.translatedText && payload?.entry) {
+      const engine = payload?.project?.engine || 'RPG Maker MV/MZ';
+      const validation = validateEntry({ ...payload.entry, target: result.translatedText, source: payload.sourceText }, engine);
+      result.warnings = validation.warnings;
+    }
+    return result;
+  });
+
+  ipcMain.handle('validate-entry', async (_event, payload) => {
+    const { entry, engine } = payload || {};
+    return validateEntry(entry, engine || 'RPG Maker MV/MZ');
+  });
 }
 
 module.exports = { registerTranslationIpc };

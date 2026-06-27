@@ -26,9 +26,24 @@
     return result;
   }
 
+  async function applyWriteback(payload) {
+    assertProject(payload, '写回 JSON');
+    if (!window.rpgWorkbench?.applyWriteback) throw new Error('写回接口未注入');
+    const result = await window.rpgWorkbench.applyWriteback({ project: payload.project, entries: payload.entries });
+    if (!result?.ok) throw new Error(result?.message || '写回失败');
+    const errCount = Array.isArray(result.errors) ? result.errors.length : 0;
+    const fileCount = Array.isArray(result.files) ? result.files.length : 0;
+    const summary = `已写回 ${fileCount} 个 JSON 文件${errCount ? `（含 ${errCount} 条错误）` : ''}`;
+    if (errCount) log(`${summary}：${result.errors.slice(0, 3).map((e) => `${e.file || ''}/${e.key || ''}：${e.reason}`).join('；')}`, errCount > 0 ? 'pending' : 'success');
+    log(summary, errCount ? 'pending' : 'success');
+    if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
+    return result;
+  }
+
   function bind() {
     const draftBtn = el('loadProjectBtn');
     const patchBtn = el('exportPatchBtn');
+    const writebackBtn = el('applyWritebackBtn');
     const openPatchBtn = el('openPatchFolderBtn');
     if (draftBtn) draftBtn.addEventListener('click', async () => {
       try { log('点击导出草稿', 'pending'); await exportDraft(window.__rpgExportContext()); }
@@ -36,6 +51,10 @@
     });
     if (patchBtn) patchBtn.addEventListener('click', async () => {
       try { log('点击导出补丁', 'pending'); const result = await exportPatch(window.__rpgExportContext()); if (result?.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir); }
+      catch (error) { log(error.message, 'error'); }
+    });
+    if (writebackBtn) writebackBtn.addEventListener('click', async () => {
+      try { log('点击写回游戏 JSON', 'pending'); await applyWriteback(window.__rpgExportContext()); }
       catch (error) { log(error.message, 'error'); }
     });
     if (openPatchBtn) openPatchBtn.addEventListener('click', async () => {
@@ -54,5 +73,5 @@
     bind();
   }
 
-  window.RpgExportModule = { init, exportDraft, exportPatch };
+  window.RpgExportModule = { init, exportDraft, exportPatch, applyWriteback };
 })();

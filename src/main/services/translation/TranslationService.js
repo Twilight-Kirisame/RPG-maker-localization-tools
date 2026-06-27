@@ -6,6 +6,10 @@
 
 const crypto = require('crypto');
 const { projectStoragePath } = require('../storage/StorageService');
+const { applyInjection } = require('./GlossaryInjector');
+const TranslationCache = require('./TranslationCache');
+const AutoSplit = require('./AutoSplit');
+const { getConstraints } = require('../validation/EngineConstraints');
 const fs = require('fs');
 const fsp = fs.promises;
 
@@ -223,12 +227,70 @@ function parseAiError(json, provider, status) {
  * @param {Object} payload
  * @returns {Promise<Object>}
  */
+/**
+ * 对成功的 AI 译文做最终化处理：可选自动断行。
+ * 缓存里始终存 AI 原始输出；本函数在 cache hit 与新调用两条路径上都跑一次，
+ * 保证用户切换 autoSplit 设置后下一次翻译会拿到对应形态。
+ * @param {string} rawText
+ * @param {Object} settings
+ * @param {Object} project
+ * @param {Object} entry
+ * @returns {{text: string, splitLines?: string[], splitOverflow?: boolean}}
+ */
+function finalizeTranslated(rawText, settings, project, entry) {
+  const text = String(rawText || '');
+  if (!text) return { text };
+  if (!settings?.autoSplit) return { text };
+  if (!entry || Number(entry.code) !== 401) return { text };
+  const engine = project?.engine || 'RPG Maker MV/MZ';
+  const c = getConstraints(engine, entry.kind || 'dialogue-line');
+  if (!c || !c.maxCharsPerLine) return { text };
+  const { lines, overflow } = AutoSplit.split(text, c);
+  if (lines.length <= 1) return { text };
+  return { text: lines.join('\n'), splitLines: lines, splitOverflow: overflow };
+}
+
 async function buildAiTranslate(payload) {
-  const { sourceText, settings = {} } = payload || {};
+  const { sourceText, settings = {}, glossary = null, project = null, entry = null } = payload || {};
   const provider = settings.provider || 'mock';
   if (!sourceText) return { ok: false, provider, message: '缺少待翻译文本' };
-  if (provider === 'mock') return { ok: true, provider, translatedText: `[示例译文] ${sourceText}`, message: '本地示例翻译完成。' };
-  if (provider === 'baidu' || provider === 'traditional-baidu') return translateWithBaidu(settings.traditional || settings, sourceText);
+
+  const injectionMode = settings.glossaryInjectionMode || 'off';
+  const basePrompt = settings.prompt || defaultPrompt;
+  const injection = applyInjection({ sourceText, systemPrompt: basePrompt, glossary, mode: injectionMode });
+  const effectiveSource = injection.effectiveSource;
+  const systemPrompt = injection.systemPrompt;
+  const glossaryMeta = injection.hits.length
+    ? { glossaryMode: injectionMode, glossaryHitCount: injection.hits.length, glossaryHits: injection.hits.map((t) => ({ source: t.source, target: t.target })) }
+    : { glossaryMode: injectionMode, glossaryHitCount: 0 };
+
+  // 缓存查询：mock 不参与缓存（避免污染调试结果）
+  const modelForCache = provider === 'deepseek'
+    ? normalizeDeepseekModel(settings.model)
+    : (provider === 'baidu' || provider === 'traditional-baidu' ? `baidu:${(settings.traditional || settings).targetLang || 'zh'}` : String(settings.model || ''));
+  const cacheKey = provider !== 'mock' && project?.rootDir
+    ? TranslationCache.keyFor({ provider, model: modelForCache, systemPrompt, source: effectiveSource })
+    : null;
+  if (cacheKey) {
+    const hit = await TranslationCache.get(project, cacheKey);
+    if (hit && hit.text) {
+      const finalized = finalizeTranslated(hit.text, settings, project, entry);
+      return { ok: true, provider, translatedText: finalized.text, splitLines: finalized.splitLines, splitOverflow: finalized.splitOverflow, message: '命中本地翻译缓存', cached: true, ...glossaryMeta };
+    }
+  }
+
+  if (provider === 'mock') {
+    const raw = `[示例译文] ${effectiveSource}`;
+    const finalized = finalizeTranslated(raw, settings, project, entry);
+    return { ok: true, provider, translatedText: finalized.text, splitLines: finalized.splitLines, splitOverflow: finalized.splitOverflow, message: '本地示例翻译完成。', ...glossaryMeta };
+  }
+  if (provider === 'baidu' || provider === 'traditional-baidu') {
+    const result = await translateWithBaidu(settings.traditional || settings, effectiveSource);
+    if (result.ok && cacheKey) await TranslationCache.set(project, cacheKey, result.translatedText);
+    if (!result.ok) return result;
+    const finalized = finalizeTranslated(result.translatedText, settings, project, entry);
+    return { ...result, translatedText: finalized.text, splitLines: finalized.splitLines, splitOverflow: finalized.splitOverflow, ...glossaryMeta };
+  }
   if (!settings.apiKey) return { ok: false, provider, message: 'API Key 未配置' };
 
   const normalizedBaseUrl = provider === 'deepseek'
@@ -244,8 +306,8 @@ async function buildAiTranslate(payload) {
       temperature: provider === 'deepseek' ? 0.2 : 0.7,
       stream: false,
       messages: [
-        { role: 'system', content: provider === 'deepseek' ? (settings.prompt || defaultPrompt) : (settings.prompt || defaultPrompt) },
-        { role: 'user', content: sourceText },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: effectiveSource },
       ],
     };
     if (provider === 'deepseek') Object.assign(payloadBody, buildDeepseekExtraBody(model));
@@ -258,7 +320,9 @@ async function buildAiTranslate(payload) {
     if (!response.ok) return { ok: false, provider, message: parseAiError(json, provider, response.status) };
     const translatedText = json?.choices?.[0]?.message?.content?.trim() || '';
     if (!translatedText) return { ok: false, provider, message: 'AI 未返回译文' };
-    return { ok: true, provider, translatedText, message: `已使用 ${provider} 完成翻译。` };
+    if (cacheKey) await TranslationCache.set(project, cacheKey, translatedText);
+    const finalized = finalizeTranslated(translatedText, settings, project, entry);
+    return { ok: true, provider, translatedText: finalized.text, splitLines: finalized.splitLines, splitOverflow: finalized.splitOverflow, message: `已使用 ${provider} 完成翻译。`, ...glossaryMeta };
   } catch (error) {
     return { ok: false, provider, message: `AI 调用失败：${error.message}` };
   }

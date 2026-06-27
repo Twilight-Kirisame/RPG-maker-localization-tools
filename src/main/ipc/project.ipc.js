@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { dialog, ipcMain, shell } = require('electron');
 const { detectEngine, collectProjectTexts } = require('../services/project/ProjectTextService');
+const { pickAdapter } = require('../services/engine/registry');
 const { detectGlossaryHits, ensureProjectGlossary } = require('../services/glossary/GlossaryService');
 const { loadAiSettings } = require('../services/translation/TranslationService');
 const { loadDraft, applyDraftToEntries } = require('../services/export/ExportService');
@@ -70,15 +71,20 @@ function registerProjectIpc() {
     if (!rootDir || !fs.existsSync(rootDir)) {
       return { project: { rootDir: rootDir || '', engine: 'unknown', entries: [], dataRoots: [] }, glossary: { projectName: '', terms: [], glossaryName: 'default' }, aiSettings: { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' }, entries: [], warnings: ['项目目录不存在或无法访问'] };
     }
-    const project = collectProjectTexts(rootDir);
+    const { adapter, probe, fallback } = pickAdapter(rootDir);
+    const project = adapter.extract(rootDir);
+    project.engine = project.engine || adapter.displayName;
+    project.adapterId = adapter.id;
     const glossary = await ensureProjectGlossary(project);
     const aiSettings = await loadAiSettings(project);
-    let entries = detectGlossaryHits(project.entries, glossary);
+    let entries = detectGlossaryHits(project.entries || [], glossary);
     const draft = await loadDraft(rootDir);
     if (draft?.entries?.length) entries = applyDraftToEntries(entries, draft.entries);
     const warnings = [];
-    if (!project.dataRoots?.length) warnings.push('未自动发现可扫描的数据目录');
-    else warnings.push(`已发现 ${project.dataRoots.length} 个数据目录`);
+    if (fallback) warnings.push('未识别引擎类型，已回退到 RPG Maker 适配器');
+    else warnings.push(`已识别引擎：${adapter.displayName}（置信度 ${(probe.confidence * 100).toFixed(0)}%）`);
+    if (Array.isArray(project.warnings) && project.warnings.length) warnings.push(...project.warnings);
+    if (!project.dataRoots?.length && adapter.id === 'rpgmaker-mvmz') warnings.push('未自动发现可扫描的数据目录');
     if (!entries.length) warnings.push('未扫描到可提取的文本条目');
     return { project, glossary, aiSettings, entries, warnings };
   });

@@ -1,0 +1,25 @@
+{
+  "displayName": "",
+  "width": 17,
+  "height": 13,
+  "events": [
+    null,
+    {
+      "id": 1,
+      "name": "EV001",
+      "x": 5,
+      "y": 5,
+      "pages": [
+        {
+          "list": [
+            { "code": 101, "indent": 0, "parameters": ["Actor1", 0, 0, 2, "村人"] },
+            { "code": 401, "indent": 0, "parameters": ["ようこそ、村へ！"] },
+            { "code": 401, "indent": 0, "parameters": ["気をつけて旅をしてください。"] },
+            { "code": 401, "indent": 0, "parameters": ["これは長い対話文で、自動断行のテストに使う非常に長いセリフです。複数の段落に分割される必要があります。"] },
+            { "code": 0, "indent": 0, "parameters": [] }
+          ]
+        }
+      ]
+    }
+  ]
+}

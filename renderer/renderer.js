@@ -302,6 +302,8 @@
       prompt: $('aiPrompt')?.value || '',
       traditional: collectTraditionalSettings(),
       lastEntryAiMode: $('globalAiModeSelect')?.value || current.lastEntryAiMode || current.provider || 'baidu',
+      glossaryInjectionMode: $('aiGlossaryMode')?.value || current.glossaryInjectionMode || 'off',
+      autoSplit: $('aiAutoSplit') ? !!$('aiAutoSplit').checked : !!current.autoSplit,
     };
   }
   function syncAiSettingsFields(settings = getState().aiSettings || {}) {
@@ -317,6 +319,8 @@
     syncAiModelSelector(settings.model || (settings.provider === 'deepseek' ? 'deepseek-v4-flash' : ''));
     if ($('aiPrompt')) $('aiPrompt').value = settings.prompt || '';
     if ($('globalAiModeSelect')) $('globalAiModeSelect').value = settings.lastEntryAiMode || settings.provider || 'baidu';
+    if ($('aiGlossaryMode')) $('aiGlossaryMode').value = settings.glossaryInjectionMode || 'off';
+    if ($('aiAutoSplit')) $('aiAutoSplit').checked = !!settings.autoSplit;
     updateTraditionalProviderUI();
     updateAiProviderDefaults();
   }
