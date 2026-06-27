@@ -5,7 +5,7 @@
  */
 
 const crypto = require('crypto');
-const { projectStoragePath } = require('../storage/StorageService');
+const { projectStoragePath, appStoragePath } = require('../storage/StorageService');
 const { applyInjection } = require('./GlossaryInjector');
 const TranslationCache = require('./TranslationCache');
 const AutoSplit = require('./AutoSplit');

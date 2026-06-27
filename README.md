@@ -12,6 +12,14 @@
 
 ## 更新日志
 
+### v1.1.1 — 合并修复与回归保护
+
+- 修复 git 合并后 8 个文件残留的 conflict markers（`<<<<<<<` / `=======` / `>>>>>>>`）导致 `.bat` 闪退、Electron 主进程因 `appStoragePath is not defined` 抛出 ReferenceError、`project.js` 因括号失配 `node --check` 失败等问题。
+- entry 形状升级到 LocalizationEntry（顶层 `code` / `kind` 改入 `adapterMeta.code` / `adapterMeta.kind`、新增 `textClass` / `textType` / `semanticRole` / `groupId` / `context` / `constraints` / `progress` / `status` / `hash` 等字段）。Writeback / Validator / TranslationService / smoke 全部加 `codeOf / kindOf / pathOf` helper，新旧形状双兼容读取。
+- 新增两个不依赖 Electron 即可跑的冒烟脚本：
+  - `node scripts/smoke-mainproc-require.js` — stub Electron 后 require 全部 25 个主进程模块，杜绝再出"运行时缺导入"
+  - `node scripts/smoke-load-project.js` — 复刻 `load-project-texts` IPC 流程，验证适配器派发 → 提取 → 术语库 → AI 设置 → 草稿套回 → 进度统计的完整链路
+
 ### v1.1 — 本地化全链路升级
 
 工具从「文本替换助手」升级为「本地化资源生命周期工具」，核心改动如下。
@@ -460,6 +468,8 @@ Thumbs.db
 | `npm run dist:test` | 打包为 Windows portable exe（测试版） |
 | `npm run lint` | 当前为占位命令 |
 | `node scripts/smoke-writeback.js` | 端到端冒烟：提取 → 术语注入 → 自动断行 → 写回 fixture → 12 项断言；不依赖 Electron 运行时，可入 CI |
+| `node scripts/smoke-mainproc-require.js` | stub Electron 后 require 全部主进程模块，确保启动期没有缺失 import / 循环依赖 |
+| `node scripts/smoke-load-project.js` | 直接模拟 `load-project-texts` IPC 完整流程（含适配器派发 / 术语库 / AI 设置 / 进度统计） |
 
 ---
 
@@ -467,9 +477,10 @@ Thumbs.db
 
 - 当前主要面向 Windows 桌面环境。
 - 当前打包目标为 Windows portable exe。
+- **引擎支持**：当前仅 RPG Maker MV / MZ 适配器是完整可用的。Unity 适配器是占位（仅识别、不提取）。**RPG Maker XP / VX Ace（`.rgss2a` / `.rgss3a` 封包）、Wolf RPG Editor、Vahren / ヴァーレントゥーガ、KiriKiri、自制引擎**等暂未支持，打开后会显示「未识别」或回退到 RPG Maker 适配器后扫不到 `data/*.json`。
+- **大型 MV/MZ 项目可能造成主进程堆内存峰值过高**：例如 500+ Map JSON、文本提取超过 ~10 万条条目时，IPC 返回 payload 可能 200MB+，在 Electron BrowserWindow 默认 V8 堆下偶发崩溃。后续会引入分页 / 流式 / 索引化加载缓解。
 - 文本提取规则仍以 RPG Maker MV / MZ 常见 JSON 结构为主。
 - 插件自定义数据、复杂脚本内字符串、特殊加密/封包项目暂未完整覆盖。
-- 目前没有引入自动化测试框架。
 - 当前界面使用原生 JavaScript，随着功能增长，后续可能需要更系统的模块化或框架化重构。
 
 ---
