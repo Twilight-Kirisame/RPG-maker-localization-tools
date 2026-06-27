@@ -308,6 +308,11 @@ async function buildAiTranslate(payload) {
       ],
     };
     if (provider === 'deepseek') Object.assign(payloadBody, buildDeepseekExtraBody(model));
+    // 强制结构化输出：调用方（如上下文组翻译）传入 settings.responseFormat = 'json_object' 时启用
+    // 仅对 OpenAI 兼容协议生效；deepseek / openai / claude(via OpenAI-compatible) / custom 都支持
+    if (settings.responseFormat) {
+      payloadBody.response_format = { type: String(settings.responseFormat) };
+    }
     const response = await fetch(baseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
