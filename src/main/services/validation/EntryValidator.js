@@ -30,7 +30,7 @@ function validateEntry(entry, engine) {
   const target = String(entry.target ?? '');
   if (!target.trim()) return { warnings };
 
-  const c = getConstraints(engine, entry.kind);
+  const c = getConstraints(engine, entry.kind || entry?.adapterMeta?.kind || entry?.textType);
   if (!c) return { warnings };
 
   const lines = target.split(/\r?\n/);

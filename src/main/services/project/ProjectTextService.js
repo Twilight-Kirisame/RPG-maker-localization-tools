@@ -5,6 +5,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { detectEngine: detectByRegistry, extractProjectTexts } = require('../engines/EngineRegistry');
+const { calculateGlobalProgress, calculateFileProgress, calculateCurrentFileProgress } = require('../localization/ProgressService');
 
 /**
  * 识别 RPG Maker 项目类型。
@@ -12,18 +14,9 @@ const path = require('path');
  * @returns {{rootDir:string, engine:string, files:Array, features:Object}}
  */
 function detectEngine(rootDir) {
-  const result = { rootDir, engine: 'unknown', files: [], features: {}, dataRoots: [] };
-  const entries = fs.existsSync(rootDir) ? fs.readdirSync(rootDir, { withFileTypes: true }) : [];
-  for (const entry of entries) result.files.push({ name: entry.name, type: entry.isDirectory() ? 'dir' : 'file' });
-  const dataRoots = discoverDataRoots(rootDir);
-  result.dataRoots = dataRoots;
-  result.features.hasDataDir = fs.existsSync(path.join(rootDir, 'data'));
-  result.features.hasWwwDataDir = fs.existsSync(path.join(rootDir, 'www', 'data'));
-  result.features.hasCommonEvents = dataRoots.some((dir) => fs.existsSync(path.join(dir, 'CommonEvents.json')));
-  result.features.hasSystem = dataRoots.some((dir) => fs.existsSync(path.join(dir, 'System.json')));
-  result.features.hasMapJson = dataRoots.some((dir) => fs.readdirSync(dir).some((file) => /^Map\d+\.json$/i.test(file)));
-  if (dataRoots.length) result.engine = 'RPG Maker MV/MZ';
-  return result;
+  const detected = detectByRegistry(rootDir);
+  if (detected?.ok && detected.engine === 'rpg-maker') return { ...detected, engine: 'RPG Maker MV/MZ' };
+  return detected?.ok ? detected : { rootDir, engine: 'unknown', displayName: 'unknown', files: [], features: {}, dataRoots: [], warnings: detected?.warnings || [] };
 }
 
 /**
@@ -37,33 +30,8 @@ function buildDialogueText(value) {
 }
 
 function discoverDataRoots(rootDir) {
-  const roots = [];
-  const visited = new Set();
-  const maxDepth = 4;
-
-  function walk(dir, depth) {
-    if (!dir || visited.has(dir) || depth > maxDepth) return;
-    visited.add(dir);
-    if (!fs.existsSync(dir)) return;
-    let entries = [];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    const names = entries.filter((entry) => entry.isFile()).map((entry) => entry.name.toLowerCase());
-    const hasDataSignature = names.includes('system.json') || names.includes('commonevents.json') || names.some((name) => /^map\d+\.json$/.test(name));
-    if (hasDataSignature) {
-      roots.push(dir);
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.isDirectory()) walk(path.join(dir, entry.name), depth + 1);
-    }
-  }
-
-  walk(rootDir, 0);
-  return [...new Set(roots.filter(Boolean))];
+  const detected = detectByRegistry(rootDir);
+  return Array.isArray(detected?.dataRoots) ? detected.dataRoots : [];
 }
 
 /**
@@ -235,39 +203,27 @@ function listJsonFilesRecursively(rootDir, maxDepth = 2) {
  * @returns {Object}
  */
 function collectProjectTexts(rootDir) {
-  const info = detectEngine(rootDir);
-  const dataRoots = info.dataRoots && info.dataRoots.length ? info.dataRoots : [];
-  if (!dataRoots.length) {
-    const dataDir = path.join(rootDir, 'data');
-    const wwwDataDir = path.join(rootDir, 'www', 'data');
-    if (fs.existsSync(dataDir)) dataRoots.push(dataDir);
-    if (fs.existsSync(wwwDataDir)) dataRoots.push(wwwDataDir);
-  }
-  const entries = [];
-  for (const dataRoot of dataRoots) {
-    const files = listJsonFilesRecursively(dataRoot, 3);
-    for (const filePath of files) {
-      try {
-        const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const relFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
-        const file = path.basename(filePath);
-        if (/^Map\d+\.json$/i.test(file)) { entries.push(...extractMapText(json, relFile)); continue; }
-        if (/^(CommonEvents|System)\.json$/i.test(file)) {
-          if (file.toLowerCase() === 'system.json') entries.push(...extractSystemText(json, relFile));
-          if (file.toLowerCase() === 'commonevents.json' && Array.isArray(json)) {
-            json.forEach((event, index) => entries.push(...extractEventCommandTexts(event?.list || [], relFile, `commonEvents[${index}]`)));
-          }
-          continue;
-        }
-        const baseName = path.basename(file, '.json').toLowerCase();
-        if (['items', 'weapons', 'armors', 'skills', 'actors', 'classes', 'states'].includes(baseName)) entries.push(...extractDatabaseText(json, relFile));
-        else entries.push(...extractGenericJsonText(json, relFile));
-      } catch {
-        // 忽略损坏 JSON，继续扫描其他文件。
-      }
-    }
-  }
-  return { ...info, entries };
+  const result = extractProjectTexts(rootDir);
+  const entries = Array.isArray(result.entries) ? result.entries : [];
+  const fileProgress = calculateFileProgress(entries);
+  const globalProgress = calculateGlobalProgress(entries);
+  const currentFileProgress = calculateCurrentFileProgress(entries, entries[0]?.file || '');
+  return {
+    ...result,
+    engine: result.adapterEngine === 'rpg-maker' || result.engine === 'rpg-maker' ? 'RPG Maker MV/MZ' : (result.displayName || result.engine || 'unknown'),
+    entries,
+    groups: Array.isArray(result.groups)
+      ? result.groups.map((group) => ({
+        ...group,
+        sourceJoined: group.sourceJoined || '',
+        targetJoined: group.targetJoined || '',
+        entries: Array.isArray(group.entries) ? group.entries : [],
+      }))
+      : [],
+    fileProgress,
+    globalProgress,
+    currentFileProgress,
+  };
 }
 
 module.exports = { detectEngine, collectProjectTexts, discoverDataRoots };

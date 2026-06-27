@@ -53,7 +53,11 @@ async function main() {
   assert.ok(project.entries.length > 0, '应当提取到条目');
   pass(`提取 ${project.entries.length} 条文本`);
 
-  const longDialogue = project.entries.find((e) => e.code === 401 && e.source.includes('長い'));
+  // 兼容旧形状（顶层 code/kind）与新形状（adapterMeta.code/kind）
+  const codeOf = (e) => Number(e?.code ?? e?.adapterMeta?.code);
+  const kindOf = (e) => e?.kind ?? e?.adapterMeta?.kind ?? e?.textType ?? '';
+
+  const longDialogue = project.entries.find((e) => codeOf(e) === 401 && e.source.includes('長い'));
   assert.ok(longDialogue, '应当能找到长对话条目');
   pass(`定位长对话条目：${longDialogue.path}`);
 
@@ -70,7 +74,7 @@ async function main() {
   pass(`AutoSplit 拆为 ${lines.length} 行`);
 
   // 4) 校验：故意造一个超长 + 缺控制码的译文
-  const validation = validateEntry({ source: longDialogue.source, target: 'これは非常に長い行であり、制限を超える', kind: longDialogue.kind, code: longDialogue.code }, 'RPG Maker MV/MZ');
+  const validation = validateEntry({ source: longDialogue.source, target: 'これは非常に長い行であり、制限を超える', kind: kindOf(longDialogue), code: codeOf(longDialogue) }, 'RPG Maker MV/MZ');
   pass(`validateEntry 命中 ${validation.warnings.length} 条 warning（demo）`);
 
   // 5) 用 fakeTranslate 给所有条目造译文，长对话用 AutoSplit 结果

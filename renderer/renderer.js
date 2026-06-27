@@ -23,11 +23,19 @@
       'workspace.noProject': '尚未打开项目',
       'workspace.load': '导出草稿',
       'workspace.exportDraft': '导出草稿',
+      'workspace.exportDraftTitle': '将当前翻译进度导出为草稿文件',
       'workspace.draftLoad': '载入草稿',
+      'workspace.draftLoadTitle': '从已保存的 JSON 草稿文件恢复翻译内容',
       'workspace.settings': '设置',
       'workspace.export': '导出补丁',
+      'workspace.exportTitle': '导出可回写的补丁目录',
+      'workspace.resetProject': '重置',
+      'workspace.resetProjectTitle': '清空当前项目并回到未加载状态',
+      'workspace.resetConfirm': '将当前界面退回到未加载项目状态。已保存的草稿与自动保存内容仍可通过“载入草稿”恢复。是否继续？',
+      'workspace.resetDone': '已重置为未加载项目状态。',
       'workspace.ai': '辅助翻译平台',
       'workspace.clearTexts': '清空当前 JSON 翻译',
+      'workspace.clearTextsTitle': '清空当前 JSON 文件下所有译文行内容',
       'workspace.clearConfirm': '此操作会清空当前 JSON 文件的所有译文，并将这些条目标记为未翻译。建议先导出草稿备份。确认继续？',
       'stats.groups': '文本组数',
       'stats.progress': '总文本数/已翻译数',
@@ -38,6 +46,9 @@
       'selector.file': 'JSON 文件',
       'selector.search': '搜索',
       'selector.searchPlaceholder': '输入关键词过滤',
+      'selector.searchScope': '搜索范围',
+      'selector.searchScopeCurrent': '当前 JSON',
+      'selector.searchScopeAll': '全部 JSON',
       'editor.source': '原文',
       'editor.target': '译文',
       'editor.targetPlaceholder': '输入译文',
@@ -89,6 +100,8 @@
       'glossary.currentProject': '当前项目',
       'glossary.emptyHint': '当前术语库为空，可直接添加术语。',
       'glossary.termCountHint': '当前术语库含 {count} 条术语。',
+      'glossary.insertAllHits': '一键插入全部',
+      'glossary.insertMode': '插入方式',
       'glossary.confirmDeleteTerm': '确认删除术语 {source}？',
       'glossary.confirmDeleteGlossary': '确认删除术语库 {name}？',
       'glossary.termAdded': '已添加并保存术语：{source} → {target}',
@@ -117,12 +130,15 @@
       'glossary.renameApiMissing': '重命名接口未注册',
       'glossary.renameFailed': '重命名失败',
       'glossary.renamed': '已将术语库 {from} 重命名为 {to}',
+      'glossary.closeEditor': '关闭术语编辑',
+      'settings.close': '关闭设置',
       'project.scanDataRoots': '扫描文本位置',
       'project.scanDataRootsDone': '已发现文本目录：{count} 个',
       'project.scanDataRootsEmpty': '未发现可扫描的数据目录，请检查项目结构。',
       'project.scanDataRootsFailed': '扫描文本位置失败：{message}',
       'project.scanDataRootsMissing': '请先打开项目再扫描文本位置。',
       'common.none': '暂无条目',
+      'common.item': '条',
       'common.edit': '编辑',
       'common.delete': '删除',
       'common.confirm': '确认',
@@ -133,6 +149,12 @@
       'common.aiTestFail': 'AI 测试失败。',
       'common.aiTestSuccess': 'AI 测试成功。',
       'common.aiTestEmpty': 'AI 测试返回为空。',
+      'trace.project': '项目',
+      'trace.aiTranslate': 'AI翻译',
+      'trace.traditionalTranslate': '传统翻译',
+      'trace.notice': '提示',
+      'trace.status': '状态',
+      'trace.assistPlatform': '辅助翻译平台',
       'ai.status': '请选择翻译模式后开始翻译。',
       'ai.providerBaidu': '百度翻译',
       'ai.providerGoogle': '谷歌翻译',
@@ -148,20 +170,63 @@
       'ai.prompt': '系统提示词'
     },
     en: {
-      'common.none': 'No items', 'common.edit': 'Edit', 'common.delete': 'Delete', 'common.confirm': 'Confirm', 'common.cancel': 'Cancel',
+      'common.none': 'No items', 'common.item': 'item', 'common.edit': 'Edit', 'common.delete': 'Delete', 'common.confirm': 'Confirm', 'common.cancel': 'Cancel',
       'glossary.currentProject': 'Current Project', 'glossary.emptyHint': 'The current glossary is empty. You can add terms directly.', 'glossary.termCountHint': 'This glossary contains {count} terms.',
-      'workspace.ai': 'AI Assist Platform', 'workspace.clearTexts': 'Clear Current JSON Translations', 'workspace.clearConfirm': 'This will clear all translations in the current JSON file and mark them as untranslated. Continue?',
+      'workspace.ai': 'AI Assist Platform', 'workspace.exportDraft': 'Export Draft', 'workspace.exportDraftTitle': 'Export the current translation progress as a draft file', 'workspace.draftLoad': 'Load Draft', 'workspace.draftLoadTitle': 'Restore translations from a saved JSON draft file', 'workspace.settings': 'Settings', 'workspace.export': 'Export Patch', 'workspace.exportTitle': 'Export a patch directory that can be written back to the game', 'workspace.resetProject': 'Reset', 'workspace.resetProjectTitle': 'Clear the current project and return to an unloaded state', 'workspace.resetConfirm': 'This will return the UI to an unloaded-project state. Saved drafts and autosaved progress can still be recovered via Load Draft. Continue?', 'workspace.resetDone': 'Reset to unloaded-project state.', 'workspace.clearTexts': 'Clear Current JSON Translations', 'workspace.clearTextsTitle': 'Clear all translation lines in the current JSON file', 'workspace.clearConfirm': 'This will clear all translations in the current JSON file and mark them as untranslated. Continue?',
       'stats.groups': 'Text Groups', 'stats.progress': 'Total / Translated', 'stats.translated': 'Translated', 'stats.hits': 'Glossary Hits',
-      'ai.providerBaidu': 'Baidu Translate', 'ai.providerGoogle': 'Google Translate', 'ai.providerDeepseek': 'DeepSeek', 'ai.providerGemini': 'Gemini', 'ai.providerClaude': 'Claude / Anthropic', 'ai.providerCustom': 'Custom API'
+      'ai.status': 'Choose a translation mode to start.',
+      'ai.providerBaidu': 'Baidu Translate', 'ai.providerGoogle': 'Google Translate', 'ai.providerDeepseek': 'DeepSeek', 'ai.providerGemini': 'Gemini', 'ai.providerClaude': 'Claude / Anthropic', 'ai.providerCustom': 'Custom API',
+      'progress.global': 'Project Progress',
+      'progress.global': 'Project Progress', 'progress.currentFile': 'Current File Progress', 'progress.file': 'File Progress', 'progress.translated': 'Translated', 'progress.pending': 'Pending', 'progress.reviewed': 'Reviewed', 'progress.warning': 'Warnings', 'progress.lastPosition': 'Last Translation Position', 'progress.continueLast': 'Continue Last Translation', 'progress.gotoLast': 'Go to Last Position', 'progress.nextPending': 'Next Pending', 'progress.previousPending': 'Previous Pending', 'progress.filterPending': 'Pending Only', 'progress.filterWarnings': 'Warnings Only', 'progress.filterContextual': 'Contextual Only', 'progress.filterAtomic': 'Atomic Only', 'progress.noLastPosition': 'No previous translation position', 'progress.noPending': 'No pending entries', 'progress.summary': '{translated}/{total} · {percent}%', 'progress.toggleStatus': 'Click to toggle translated/pending status',
+      'context.viewMode': 'View Mode', 'context.singleMode': 'Single Entry Mode', 'context.groupMode': 'Context Group Mode', 'context.noGroups': 'No context groups in current file', 'context.groupTargetPlaceholder': 'Enter the translated text for this context group', 'context.groupLineCount': 'How many lines should this be split into', 'context.groupBoundaryTitle': 'Suggested split points', 'context.groupSplitHint': 'Insert ---SPLIT--- inside the combined translation above to mark line breaks. Applying will split by markers or line breaks into selected entries.', 'context.groupSplitOnApply': 'Split by line breaks when applying back', 'context.groupApply': 'Apply to Selected', 'context.groupClear': 'Clear Selection', 'context.groupShort': 'Group',
+      'glossary.hitCount': '{count} glossary hits', 'glossary.untitledSource': 'Untitled source', 'glossary.untitledTarget': 'Untitled target', 'glossary.insertMode': 'Insert Mode', 'glossary.insertCursor': 'Insert at Cursor', 'glossary.insertReplace': 'Replace Selection', 'glossary.insertAppend': 'Append to End', 'glossary.insertAll': 'Insert All', 'glossary.insertAllDone': 'Inserted all glossary terms: {count}', 'glossary.insertOne': 'Insert: {source} → {target}', 'glossary.insertOneDone': 'Inserted glossary term into translation: {source}',
+      'entry.aiTranslate': 'AI Translate', 'entry.aiTranslateTitle': 'Translate this entry with the currently selected assist provider',
+      'textClass.contextual': 'Contextual Text', 'textClass.atomic': 'Atomic Term', 'textClass.mixed': 'Mixed Text', 'textClass.unknown': 'Unknown Type',
+      'textType.dialogue-line': 'Dialogue Line', 'textType.dialogue-block': 'Dialogue Group', 'textType.long-description': 'Long Text', 'textType.choice-option': 'Choice', 'textType.actor-name': 'Actor Name', 'textType.actor-description': 'Actor Description', 'textType.enemy-name': 'Enemy Name', 'textType.enemy-description': 'Enemy Description', 'textType.item-name': 'Item Name', 'textType.item-description': 'Item Description', 'textType.items-description': 'Item Description', 'textType.weapon-name': 'Weapon Name', 'textType.weapon-description': 'Weapon Description', 'textType.weapons-description': 'Weapon Description', 'textType.armor-name': 'Armor Name', 'textType.armor-description': 'Armor Description', 'textType.armors-description': 'Armor Description', 'textType.skill-name': 'Skill Name', 'textType.skill-description': 'Skill Description', 'textType.skills-description': 'Skill Description', 'textType.state-name': 'State Name', 'textType.state-description': 'State Description', 'textType.states-description': 'State Description', 'textType.class-name': 'Class Name', 'textType.class-description': 'Class Description', 'textType.classes-description': 'Class Description', 'textType.map-name': 'Map Name', 'textType.system-command': 'System Command', 'textType.system-message': 'System Message', 'textType.system-title': 'System Title', 'textType.currency-unit': 'Currency Unit', 'textType.event-message': 'Event Message', 'textType.speaker': 'Speaker', 'textType.plugin-text': 'Plugin Text', 'textType.generic-text': 'Generic Text',
+      'build.testVersion': 'Test Build', 'build.stableVersion': 'Stable Build'
     },
     ja: {
-      'common.none': '項目なし', 'common.edit': '編集', 'common.delete': '削除', 'common.confirm': '確認', 'common.cancel': 'キャンセル',
+      'common.none': '項目なし', 'common.item': '件', 'common.edit': '編集', 'common.delete': '削除', 'common.confirm': '確認', 'common.cancel': 'キャンセル',
       'glossary.currentProject': '現在のプロジェクト', 'glossary.emptyHint': '現在の用語集は空です。用語を直接追加できます。', 'glossary.termCountHint': 'この用語集には {count} 件の用語があります。',
-      'workspace.ai': 'AI 補助翻訳プラットフォーム', 'workspace.clearTexts': '現在の JSON 翻訳をクリア', 'workspace.clearConfirm': '現在の JSON ファイルのすべての翻訳を消去し、未翻訳に戻します。続行しますか？',
+      'workspace.ai': 'AI 補助翻訳プラットフォーム', 'workspace.exportDraft': '下書きをエクスポート', 'workspace.exportDraftTitle': '現在の翻訳進捗を下書きファイルとしてエクスポート', 'workspace.draftLoad': '下書きを読み込み', 'workspace.draftLoadTitle': '保存済み JSON 下書きから翻訳内容を復元', 'workspace.settings': '設定', 'workspace.export': 'パッチをエクスポート', 'workspace.exportTitle': 'ゲームへ書き戻せるパッチフォルダをエクスポート', 'workspace.resetProject': 'リセット', 'workspace.resetProjectTitle': '現在のプロジェクトをクリアして未読み込み状態に戻す', 'workspace.clearTexts': '現在の JSON 翻訳をクリア', 'workspace.clearTextsTitle': '現在の JSON ファイル内のすべての翻訳行をクリア', 'workspace.clearConfirm': '現在の JSON ファイルのすべての翻訳を消去し、未翻訳に戻します。続行しますか？',
       'stats.groups': 'テキストグループ数', 'stats.progress': '総数 / 翻訳済み', 'stats.translated': '翻訳済み', 'stats.hits': '用語ヒット',
-      'ai.providerBaidu': 'Baidu 翻訳', 'ai.providerGoogle': 'Google 翻訳', 'ai.providerDeepseek': 'DeepSeek', 'ai.providerGemini': 'Gemini', 'ai.providerClaude': 'Claude / Anthropic', 'ai.providerCustom': 'カスタム API'
+      'ai.providerBaidu': 'Baidu 翻訳', 'ai.providerGoogle': 'Google 翻訳', 'ai.providerDeepseek': 'DeepSeek', 'ai.providerGemini': 'Gemini', 'ai.providerClaude': 'Claude / Anthropic', 'ai.providerCustom': 'カスタム API',
+      'progress.global': 'プロジェクト進捗', 'progress.currentFile': '現在のファイル進捗', 'progress.file': 'ファイル進捗', 'progress.translated': '翻訳済み', 'progress.pending': '未翻訳', 'progress.reviewed': '校正済み', 'progress.warning': '警告', 'progress.lastPosition': '前回の翻訳位置', 'progress.continueLast': '前回の続きから翻訳', 'progress.gotoLast': '前回位置へ移動', 'progress.nextPending': '次の未翻訳', 'progress.previousPending': '前の未翻訳', 'progress.filterPending': '未翻訳のみ', 'progress.filterWarnings': '警告のみ', 'progress.filterContextual': '文脈テキストのみ', 'progress.filterAtomic': '独立語句のみ', 'progress.noLastPosition': '前回の翻訳位置はありません', 'progress.noPending': '未翻訳項目はありません', 'progress.summary': '{translated}/{total} · {percent}%', 'progress.toggleStatus': 'クリックして翻訳済み/未翻訳を切り替え',
+      'context.viewMode': '表示モード', 'context.singleMode': '単一項目モード', 'context.groupMode': '文脈グループモード', 'context.noGroups': '現在のファイルには文脈グループがありません', 'context.groupTargetPlaceholder': 'この文脈グループ全体の翻訳を入力', 'context.groupLineCount': '何行に分けるか', 'context.groupBoundaryTitle': '分割候補', 'context.groupSplitHint': '上の結合訳文内に ---SPLIT--- を入れて分割位置を指定します。適用時にマーカーまたは改行で選択項目へ戻します。', 'context.groupSplitOnApply': '適用時に改行で分割', 'context.groupApply': '選択項目に適用', 'context.groupClear': '選択をクリア', 'context.groupShort': '文脈グループ',
+      'glossary.hitCount': '用語ヒット {count} 件', 'glossary.untitledSource': '未命名の原文', 'glossary.untitledTarget': '未命名の訳文', 'glossary.insertMode': '挿入方法', 'glossary.insertCursor': 'カーソル位置に挿入', 'glossary.insertReplace': '選択範囲を置換', 'glossary.insertAppend': '末尾に追加', 'glossary.insertAll': 'すべて挿入', 'glossary.insertOne': '挿入：{source} → {target}',
+      'textClass.contextual': '文脈テキスト', 'textClass.atomic': '独立語句', 'textClass.mixed': '混合テキスト', 'textClass.unknown': '不明な種類',
+      'textType.dialogue-line': '会話行', 'textType.dialogue-block': '会話グループ', 'textType.long-description': '長文', 'textType.choice-option': '選択肢', 'textType.actor-name': 'キャラクター名', 'textType.actor-description': 'キャラクター説明', 'textType.enemy-name': '敵名', 'textType.enemy-description': '敵説明', 'textType.item-name': 'アイテム名', 'textType.item-description': 'アイテム説明', 'textType.items-description': 'アイテム説明', 'textType.weapon-name': '武器名', 'textType.weapon-description': '武器説明', 'textType.weapons-description': '武器説明', 'textType.armor-name': '防具名', 'textType.armor-description': '防具説明', 'textType.armors-description': '防具説明', 'textType.skill-name': 'スキル名', 'textType.skill-description': 'スキル説明', 'textType.skills-description': 'スキル説明', 'textType.state-name': 'ステート名', 'textType.state-description': 'ステート説明', 'textType.states-description': 'ステート説明', 'textType.class-name': '職業名', 'textType.class-description': '職業説明', 'textType.classes-description': '職業説明', 'textType.map-name': 'マップ名', 'textType.system-command': 'システムコマンド', 'textType.system-message': 'システムメッセージ', 'textType.system-title': 'システムタイトル', 'textType.currency-unit': '通貨単位', 'textType.event-message': 'イベントメッセージ', 'textType.speaker': '話者', 'textType.plugin-text': 'プラグインテキスト', 'textType.generic-text': '汎用テキスト',
+      'build.testVersion': 'テスト版', 'build.stableVersion': '安定版'
     }
   };
+
+  Object.assign(fallbackI18n['zh-CN'], {
+    'ai.provider': '提供方', 'ai.providerMock': '本地示例', 'ai.apiKey': 'API Key', 'ai.baseUrl': '接口地址', 'ai.model': '模型', 'ai.save': '保存设置', 'ai.test': '测试 AI',
+    'settings.traditionalProvider': '传统翻译子类型', 'settings.providerBaidu': '百度翻译', 'settings.providerGoogle': '谷歌翻译', 'settings.testTraditional': '测试传统翻译', 'settings.closeBehaviorGroup': '关闭行为', 'settings.closeBehavior': '关闭按钮行为', 'settings.closeBehaviorTray': '最小化到右下角托盘', 'settings.closeBehaviorExit': '直接退出程序', 'settings.closeBehaviorHint': '选择“最小化到托盘”后，点击右上角 X 不会真正退出，而是隐藏到系统托盘；再次打开托盘即可恢复窗口。选择“直接退出程序”则点击 X 会正常关闭应用。',
+    'glossary.countLabel': '术语数', 'glossary.search': '搜索术语库', 'glossary.searchPlaceholder': '输入名称筛选术语库', 'glossary.select': '术语库列表', 'glossary.new': '新建术语库', 'glossary.import': '导入术语库', 'glossary.export': '导出术语库', 'glossary.delete': '删除术语库', 'glossary.newName': '新术语库名称', 'glossary.newNamePlaceholder': '例如：怪物名词', 'glossary.termSelect': '查询术语', 'glossary.termSearchPlaceholder': '输入原名或译名', 'glossary.searchTerm': '搜索', 'glossary.add': '添加术语', 'glossary.editTitle': '术语编辑', 'glossary.source': '原文术语', 'glossary.sourcePlaceholder': '例如：Potion', 'glossary.target': '译文术语', 'glossary.targetPlaceholder': '例如：药水', 'glossary.note': '术语备注', 'glossary.notePlaceholder': '可选备注'
+  });
+
+  Object.assign(fallbackI18n.en, {
+    'app.title': 'RPG Localization Workbench', 'welcome.title': 'Welcome to the Localization Workbench', 'welcome.description': 'Import RPG Maker projects, extract text, maintain glossaries, and export writable localization patches.', 'welcome.start': 'Start Project', 'welcome.demo': 'View Demo Project',
+    'project.open': 'Open Game Project', 'project.status': 'Project Status', 'project.unrecognized': 'Unrecognized', 'project.hint': 'Choose a game folder to detect the engine and load text.', 'project.scanDataRoots': 'Scan Text Locations',
+    'features.title': 'Core Features', 'features.import': 'Import MV / MZ project assets', 'features.extract': 'Extract dialogue, choices, names, and database text', 'features.glossary': 'Local glossary storage with import/export', 'features.export': 'Export draft translations and patch folders',
+    'workspace.title': 'Workspace', 'workspace.noProject': 'No project opened', 'selector.title': 'Bilingual Editor', 'selector.hint': 'Edit source and translation side by side with glossary and AI assistance', 'selector.file': 'JSON File', 'selector.search': 'Search', 'selector.searchPlaceholder': 'Enter keywords to filter', 'selector.searchScope': 'Search Scope', 'selector.searchScopeCurrent': 'Current JSON', 'selector.searchScopeAll': 'All JSON', 'editor.source': 'Source', 'editor.target': 'Translation',
+    'settings.tabUI': 'UI Settings', 'settings.tabTraditional': 'Traditional Translation', 'settings.tabLLM': 'LLM Translation', 'settings.titleUI': 'UI Settings', 'settings.titleTraditional': 'Traditional Translation Settings', 'settings.titleLLM': 'LLM Translation Settings', 'settings.language': 'Interface Language', 'settings.themeMode': 'Color Mode', 'settings.themeSystem': 'Follow System', 'settings.themeDark': 'Dark', 'settings.themeLight': 'Light', 'settings.themePalette': 'Accent Color', 'settings.paletteViolet': 'Violet', 'settings.paletteBlue': 'Sky Blue', 'settings.paletteEmerald': 'Emerald', 'settings.paletteRose': 'Rose', 'settings.paletteAmber': 'Amber', 'settings.paletteSlate': 'Slate', 'settings.backgroundImage': 'Background Image', 'settings.backgroundImagePlaceholder': 'Enter an image path or URL; leave empty for solid background', 'settings.backgroundHint': 'Supports local image paths or web image URLs. Leave empty to use the theme background.', 'settings.pickBackground': 'Choose Background Image', 'settings.previewBackground': 'Preview Background', 'settings.applyBackground': 'Apply to Current UI', 'settings.clearBackground': 'Clear Background Image', 'settings.resetTheme': 'Reset Appearance', 'settings.previewTitle': 'Background Preview', 'settings.previewEmpty': 'No background image is set', 'settings.save': 'Save Settings', 'settings.close': 'Close Settings',
+    'settings.traditionalProvider': 'Traditional Translation Subtype', 'settings.providerBaidu': 'Baidu Translate', 'settings.providerGoogle': 'Google Translate', 'settings.testTraditional': 'Test Traditional Translation', 'settings.baiduAppId': 'Baidu App ID', 'settings.baiduAppIdPlaceholder': 'Enter Baidu App ID', 'settings.baiduSecret': 'Baidu Secret Key', 'settings.baiduSecretPlaceholder': 'Enter Baidu secret key', 'settings.googleApiKey': 'Google API Key', 'settings.googleApiKeyPlaceholder': 'Enter Google API Key', 'settings.sourceLang': 'Source Language', 'settings.sourceLangPlaceholder': 'auto', 'settings.targetLang': 'Target Language', 'settings.targetLangPlaceholder': 'zh-CN', 'settings.traditionalHint': 'Choose a traditional translation service. Baidu requires App ID and secret; Google requires an API key.', 'settings.llmHint': 'Useful for long text translation, style consistency, and character voice.', 'settings.closeBehaviorGroup': 'Close Behavior', 'settings.closeBehavior': 'Close Button Behavior', 'settings.closeBehaviorTray': 'Minimize to system tray', 'settings.closeBehaviorExit': 'Exit immediately', 'settings.closeBehaviorHint': 'When minimized to tray, the X button hides the window instead of quitting. Exit immediately closes the app normally.',
+    'ai.provider': 'Provider', 'ai.providerMock': 'Local Demo', 'ai.apiKey': 'API Key', 'ai.baseUrl': 'Endpoint URL', 'ai.model': 'Model', 'ai.prompt': 'System Prompt', 'ai.save': 'Save Settings', 'ai.test': 'Test AI', 'ai.status': 'Choose a translation mode to start.', 'ai.apiKeyPlaceholder': 'Your API Key', 'ai.baseUrlPlaceholder': 'Endpoint URL, e.g. https://api.deepseek.com', 'ai.modelPlaceholder': 'Enter custom model name', 'ai.modelCustom': 'Custom Model', 'ai.deepseekBaseUrlHint': 'DeepSeek official base_url is https://api.deepseek.com. The app calls /chat/completions automatically; do not enter /v1/chat/completions.',
+    'glossary.title': 'Glossary', 'glossary.panelHint': 'Open glossary management to create, import, export, edit, and search terms.', 'glossary.manage': 'Manage Glossary', 'glossary.countLabel': 'Terms', 'glossary.search': 'Search Glossaries', 'glossary.searchPlaceholder': 'Filter glossary names', 'glossary.select': 'Glossary List', 'glossary.new': 'New Glossary', 'glossary.rename': 'Rename Glossary', 'glossary.import': 'Import Glossary', 'glossary.export': 'Export Glossary', 'glossary.delete': 'Delete Glossary', 'glossary.newName': 'New Glossary Name', 'glossary.newNamePlaceholder': 'Example: Monster Names', 'glossary.renamePrompt': 'Enter a new glossary name', 'glossary.termSelect': 'Find Term', 'glossary.termSearchPlaceholder': 'Enter source or translation', 'glossary.searchTerm': 'Search', 'glossary.add': 'Add Term', 'glossary.editTitle': 'Term Editor', 'glossary.source': 'Source Term', 'glossary.sourcePlaceholder': 'Example: Potion', 'glossary.target': 'Translated Term', 'glossary.targetPlaceholder': 'Example: Potion', 'glossary.note': 'Term Note', 'glossary.notePlaceholder': 'Optional note', 'glossary.closeEditor': 'Close term editor'
+  });
+
+  Object.assign(fallbackI18n.ja, {
+    'app.title': 'RPG ローカライズ作業台', 'welcome.title': 'ローカライズ作業台へようこそ', 'welcome.description': 'RPG Maker プロジェクトを読み込み、テキスト抽出、用語集管理、書き戻し可能なパッチ出力を行います。', 'welcome.start': '作業を開始', 'welcome.demo': 'デモプロジェクトを見る',
+    'project.open': 'ゲームプロジェクトを開く', 'project.status': 'プロジェクト状態', 'project.unrecognized': '未識別', 'project.hint': 'ゲームフォルダを選択すると、エンジンを判定してテキストを読み込みます。', 'project.scanDataRoots': 'テキスト位置をスキャン',
+    'features.title': '主な機能', 'features.import': 'MV / MZ プロジェクト資産の読み込み', 'features.extract': '会話、選択肢、名前、データベース文言を抽出', 'features.glossary': '用語集をローカル保存し、インポート/エクスポート可能', 'features.export': '翻訳草稿とパッチフォルダを出力',
+    'workspace.title': 'ワークスペース', 'workspace.noProject': 'プロジェクトは未選択です', 'selector.title': '対訳エディタ', 'selector.hint': '原文と訳文を並べて編集し、用語集と AI 補助翻訳を利用できます', 'selector.file': 'JSON ファイル', 'selector.search': '検索', 'selector.searchPlaceholder': 'キーワードで絞り込み', 'selector.searchScope': '検索範囲', 'selector.searchScopeCurrent': '現在の JSON', 'selector.searchScopeAll': 'すべての JSON', 'editor.source': '原文', 'editor.target': '訳文',
+    'settings.tabUI': 'UI 設定', 'settings.tabTraditional': '従来翻訳', 'settings.tabLLM': '大規模モデル翻訳', 'settings.titleUI': 'UI 設定', 'settings.titleTraditional': '従来翻訳設定', 'settings.titleLLM': '大規模モデル翻訳設定', 'settings.language': '表示言語', 'settings.themeMode': '配色モード', 'settings.themeSystem': 'システムに従う', 'settings.themeDark': 'ダーク', 'settings.themeLight': 'ライト', 'settings.themePalette': 'アクセントカラー', 'settings.paletteViolet': 'バイオレット', 'settings.paletteBlue': 'スカイブルー', 'settings.paletteEmerald': 'エメラルド', 'settings.paletteRose': 'ローズ', 'settings.paletteAmber': 'アンバー', 'settings.paletteSlate': 'スレート', 'settings.backgroundImage': '背景画像', 'settings.backgroundImagePlaceholder': '画像パスまたは URL。空なら単色背景', 'settings.backgroundHint': 'ローカル画像パスまたは Web 画像 URL に対応。空の場合はテーマ背景を使用します。', 'settings.pickBackground': '背景画像を選択', 'settings.previewBackground': '背景をプレビュー', 'settings.applyBackground': '現在の UI に適用', 'settings.clearBackground': '背景画像をクリア', 'settings.resetTheme': '外観を初期化', 'settings.previewTitle': '背景プレビュー', 'settings.previewEmpty': '背景画像は未設定です', 'settings.save': '設定を保存', 'settings.close': '設定を閉じる',
+    'settings.traditionalProvider': '従来翻訳の種類', 'settings.providerBaidu': 'Baidu 翻訳', 'settings.providerGoogle': 'Google 翻訳', 'settings.testTraditional': '従来翻訳をテスト', 'settings.baiduAppId': 'Baidu App ID', 'settings.baiduAppIdPlaceholder': 'Baidu App ID を入力', 'settings.baiduSecret': 'Baidu シークレットキー', 'settings.baiduSecretPlaceholder': 'Baidu シークレットキーを入力', 'settings.googleApiKey': 'Google API Key', 'settings.googleApiKeyPlaceholder': 'Google API Key を入力', 'settings.sourceLang': '元言語', 'settings.sourceLangPlaceholder': 'auto', 'settings.targetLang': '対象言語', 'settings.targetLangPlaceholder': 'zh-CN', 'settings.traditionalHint': '従来翻訳サービスを選択できます。Baidu は App ID とシークレット、Google は API Key が必要です。', 'settings.llmHint': '長文翻訳、文体統一、キャラクター口調に適しています。', 'settings.closeBehaviorGroup': '閉じる動作', 'settings.closeBehavior': '閉じるボタンの動作', 'settings.closeBehaviorTray': 'システムトレイに最小化', 'settings.closeBehaviorExit': 'すぐ終了', 'settings.closeBehaviorHint': 'トレイに最小化を選ぶと、X ボタンは終了せずウィンドウを隠します。すぐ終了を選ぶと通常終了します。',
+    'ai.provider': '提供元', 'ai.providerMock': 'ローカルデモ', 'ai.apiKey': 'API Key', 'ai.baseUrl': 'エンドポイント URL', 'ai.model': 'モデル', 'ai.prompt': 'システムプロンプト', 'ai.save': '設定を保存', 'ai.test': 'AI をテスト', 'ai.status': '翻訳モードを選択してください。', 'ai.apiKeyPlaceholder': 'API Key', 'ai.baseUrlPlaceholder': '例：https://api.deepseek.com', 'ai.modelPlaceholder': 'カスタムモデル名を入力', 'ai.modelCustom': 'カスタムモデル', 'ai.deepseekBaseUrlHint': 'DeepSeek 公式 base_url は https://api.deepseek.com です。アプリが /chat/completions を自動で呼び出すため、/v1/chat/completions は入力しないでください。',
+    'glossary.title': '用語集', 'glossary.panelHint': '用語集管理を開き、新規作成、インポート、エクスポート、編集、検索ができます。', 'glossary.manage': '用語集を管理', 'glossary.countLabel': '用語数', 'glossary.search': '用語集を検索', 'glossary.searchPlaceholder': '用語集名で絞り込み', 'glossary.select': '用語集一覧', 'glossary.new': '新規用語集', 'glossary.rename': '用語集名を変更', 'glossary.import': '用語集をインポート', 'glossary.export': '用語集をエクスポート', 'glossary.delete': '用語集を削除', 'glossary.newName': '新しい用語集名', 'glossary.newNamePlaceholder': '例：モンスター名', 'glossary.renamePrompt': '新しい用語集名を入力', 'glossary.termSelect': '用語を検索', 'glossary.termSearchPlaceholder': '原文または訳語を入力', 'glossary.searchTerm': '検索', 'glossary.add': '用語を追加', 'glossary.editTitle': '用語編集', 'glossary.source': '原文用語', 'glossary.sourcePlaceholder': '例：Potion', 'glossary.target': '訳語', 'glossary.targetPlaceholder': '例：ポーション', 'glossary.note': '用語メモ', 'glossary.notePlaceholder': '任意メモ', 'glossary.closeEditor': '用語編集を閉じる'
+  });
 
   function mergeI18nFallbacks() {
     window.RpgI18n = window.RpgI18n || {};
@@ -181,6 +246,7 @@
   function applyRuntimeI18n() {
     mergeI18nFallbacks();
     document.querySelectorAll('[data-i18n]').forEach((el) => {
+      if (['projectPath', 'engineBadge', 'engineHint', 'projectStatus', 'callTraceStatus'].includes(el.id)) return;
       const key = el.getAttribute('data-i18n');
       const text = translate(key);
       if (text && text !== key) el.textContent = text;
@@ -190,12 +256,15 @@
       const text = translate(key);
       if (text && text !== key) el.setAttribute('placeholder', text);
     });
-    document.querySelectorAll('option, .status-box, .stat-label, .glossary-status, .glossary-hint, button, span, div').forEach((el) => {
-      if (el.children.length) return;
-      const raw = (el.textContent || '').trim();
-      if (!/^[a-z]+\.[a-zA-Z0-9_.-]+$/.test(raw)) return;
-      const text = translate(raw);
-      if (text && text !== raw) el.textContent = text;
+    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+      const key = el.getAttribute('data-i18n-title');
+      const text = translate(key);
+      if (text && text !== key) el.setAttribute('title', text);
+    });
+    document.querySelectorAll('[data-i18n-aria-label]').forEach((el) => {
+      const key = el.getAttribute('data-i18n-aria-label');
+      const text = translate(key);
+      if (text && text !== key) el.setAttribute('aria-label', text);
     });
   }
 
@@ -213,12 +282,46 @@
     box.scrollTop = box.scrollHeight;
   }
 
-  window.showProjectStatus = (msg, kind = 'normal') => { const el = $('aiStatus'); if (el) { el.textContent = msg; el.dataset.kind = kind; } appendTrace('项目', msg, kind); };
-  window.showAiStatus = (msg, kind = 'normal') => { const el = $('aiStatus'); if (el) { el.textContent = msg; el.dataset.kind = kind; } appendTrace('AI翻译', msg, kind); };
-  window.showTraditionalStatus = (msg, kind = 'normal') => { const el = $('traditionalStatus'); if (el) { el.textContent = msg; el.dataset.kind = kind; } appendTrace('传统翻译', msg, kind); };
-  window.showToast = (msg, kind = 'normal') => { const el = $('aiStatus'); if (el) { el.textContent = msg; el.dataset.kind = kind; } appendTrace('提示', msg, kind); };
+  function setStatusBox(id, msg, kind = 'normal', traceTitle = '') {
+    const el = $(id);
+    if (el) { el.textContent = msg; el.dataset.kind = kind; }
+    if (traceTitle) appendTrace(traceTitle, msg, kind);
+  }
+
+  function clearPointerSelection() {
+    document.querySelectorAll('.selected, .is-active-pointer').forEach((el) => el.classList.remove('selected', 'is-active-pointer'));
+    const active = document.activeElement;
+    if (active && typeof active.blur === 'function') active.blur();
+  }
+
+  function runUiAction(label, task, { pending, success, error, statusId, traceTitle } = {}) {
+    const pendingText = pending || label;
+    const successText = success || `${label}成功`;
+    const errorText = error || `${label}失败`;
+    clearPointerSelection();
+    if (statusId) setStatusBox(statusId, pendingText, 'pending', traceTitle || label);
+    else appendTrace(traceTitle || label, pendingText, 'pending');
+    return Promise.resolve().then(task).then((result) => {
+      clearPointerSelection();
+      if (statusId) setStatusBox(statusId, successText, 'success', traceTitle || label);
+      else appendTrace(traceTitle || label, successText, 'success');
+      return result;
+    }).catch((err) => {
+      clearPointerSelection();
+      const message = err?.message || errorText;
+      if (statusId) setStatusBox(statusId, message, 'error', traceTitle || label);
+      else appendTrace(traceTitle || label, message, 'error');
+      throw err;
+    });
+  }
+
+  window.showProjectStatus = (msg, kind = 'normal') => setStatusBox('projectStatus', msg, kind, translate('trace.project'));
+  window.showAiStatus = (msg, kind = 'normal') => setStatusBox('aiStatus', msg, kind, translate('trace.aiTranslate'));
+  window.showTraditionalStatus = (msg, kind = 'normal') => setStatusBox('traditionalStatus', msg, kind, translate('trace.traditionalTranslate'));
+  window.showToast = (msg, kind = 'normal') => setStatusBox('projectStatus', msg, kind, translate('trace.notice'));
   window.traceCall = (title, detail = '', kind = 'normal') => appendTrace(title, detail, kind);
-  window.setCallTraceStatus = (msg, kind = 'normal') => appendTrace('状态', msg, kind);
+  window.setCallTraceStatus = (msg, kind = 'normal') => setStatusBox('callTraceStatus', msg, kind, translate('trace.status'));
+  window.runUiAction = runUiAction;
   window.setVersionLabel = () => {
     const badge = $('appVersionBadge'); if (badge) badge.textContent = '· 1.2.0';
     const copyright = $('appCopyright'); if (copyright) copyright.textContent = '© 2026 RPG 汉化工作台，保留所有权利。';
@@ -234,9 +337,23 @@
     };
     const label = $('globalAiModeLabel'); if (label) label.textContent = translate('workspace.ai');
     const currentValue = select.value || getState().aiSettings?.lastEntryAiMode || getState().aiSettings?.provider || 'baidu';
+    const isFocused = document.activeElement === select;
+    const previousSelection = select.value;
+    if (!select.dataset.bound) {
+      select.addEventListener('change', () => {
+        const provider = select.value || 'baidu';
+        const current = getState();
+        const next = { ...(current.aiSettings || {}), provider, lastEntryAiMode: provider };
+        if (provider === 'baidu' || provider === 'google') next.traditional = { ...(current.aiSettings?.traditional || {}), provider };
+        window.RpgAppStore?.setState?.({ ...current, aiSettings: next });
+        setStatusBox('aiStatus', `已切换至 ${provider}`, 'success', '辅助翻译平台');
+      });
+      select.dataset.bound = '1';
+    }
     select.innerHTML = '';
     modes.forEach((id) => { const opt = document.createElement('option'); opt.value = id; opt.textContent = labels[id] || id; select.appendChild(opt); });
     select.value = modes.includes(currentValue) ? currentValue : 'baidu';
+    if (isFocused && previousSelection && modes.includes(previousSelection)) select.value = previousSelection;
   }
 
   function updateTraditionalProviderUI() {
@@ -325,44 +442,46 @@
     updateAiProviderDefaults();
   }
 
-  function setStatus(id, message, kind = 'normal') {
-    const el = $(id); if (el) { el.textContent = message; el.dataset.kind = kind; }
-    appendTrace(id === 'traditionalStatus' ? '传统翻译' : '大模型翻译', message, kind);
-  }
   async function saveTraditionalSettings() {
-    const settings = collectTraditionalSettings(); const current = getState();
-    setStatus('traditionalStatus', '正在保存传统翻译设置…', 'pending');
-    window.RpgAppStore?.setState?.({ aiSettings: { ...(current.aiSettings || {}), traditional: settings } });
-    const result = await window.rpgWorkbench?.saveTranslatorSettings?.({ project: current.project, type: 'traditional', settings });
-    if (!result?.ok) throw new Error(result?.message || '传统翻译设置保存失败');
-    setStatus('traditionalStatus', '传统翻译设置已保存。', 'success');
+    return window.runUiAction?.('保存传统翻译设置', async () => {
+      const settings = collectTraditionalSettings(); const current = getState();
+      window.RpgAppStore?.setState?.({ aiSettings: { ...(current.aiSettings || {}), traditional: settings } });
+      const result = await window.rpgWorkbench?.saveTranslatorSettings?.({ type: 'traditional', settings });
+      if (!result?.ok) throw new Error(result?.message || '传统翻译设置保存失败');
+      return result;
+    }, { pending: '正在保存传统翻译设置…', success: '传统翻译设置已保存。', error: '传统翻译设置保存失败', statusId: 'traditionalStatus', traceTitle: '传统翻译设置' });
   }
   async function testTraditionalSettings() {
-    const settings = collectTraditionalSettings(); setStatus('traditionalStatus', '正在测试传统翻译…', 'pending');
-    const result = await window.rpgWorkbench?.testTranslatorSettings?.({ type: 'traditional', settings, sampleText: 'こんにちは、世界。' });
-    if (!result?.ok) throw new Error(result?.message || '传统翻译测试失败');
-    setStatus('traditionalStatus', result.message || '传统翻译测试成功。', 'success');
+    return window.runUiAction?.('测试传统翻译', async () => {
+      const settings = collectTraditionalSettings();
+      const result = await window.rpgWorkbench?.testTranslatorSettings?.({ type: 'traditional', settings, sampleText: 'こんにちは、世界。' });
+      if (!result?.ok) throw new Error(result?.message || '传统翻译测试失败');
+      return result;
+    }, { pending: '正在测试传统翻译…', success: '传统翻译测试成功。', error: '传统翻译测试失败', statusId: 'traditionalStatus', traceTitle: '传统翻译测试' });
   }
   async function saveAiSettings() {
-    const settings = collectAiSettings(); const current = getState();
-    setStatus('aiStatus', '正在保存大模型翻译设置…', 'pending');
-    window.RpgAppStore?.setState?.({ aiSettings: settings });
-    const result = await window.rpgWorkbench?.saveAiSettings?.({ project: current.project, ...settings });
-    if (!result?.ok) throw new Error(result?.message || '大模型翻译设置保存失败');
-    setStatus('aiStatus', '大模型翻译设置已保存。', 'success');
-    syncGlobalAiModeSelect(); syncAiSettingsFields(settings);
+    return window.runUiAction?.('保存大模型翻译设置', async () => {
+      const settings = collectAiSettings(); const current = getState();
+      window.RpgAppStore?.setState?.({ aiSettings: settings });
+      const result = await window.rpgWorkbench?.saveAiSettings?.({ ...settings });
+      if (!result?.ok) throw new Error(result?.message || '大模型翻译设置保存失败');
+      syncGlobalAiModeSelect(); syncAiSettingsFields(settings);
+      return result;
+    }, { pending: '正在保存大模型翻译设置…', success: '大模型翻译设置已保存。', error: '大模型翻译设置保存失败', statusId: 'aiStatus', traceTitle: '大模型翻译设置' });
   }
   async function testAiSettings() {
-    const settings = collectAiSettings(); setStatus('aiStatus', '正在测试大模型翻译…', 'pending');
-    const result = await window.rpgWorkbench?.aiTranslate?.({ sourceText: 'こんにちは、世界。', settings });
-    if (!result?.ok) throw new Error(result?.message || '大模型翻译测试失败');
-    setStatus('aiStatus', result.message || `测试成功：${result.translatedText || ''}`, 'success');
+    return window.runUiAction?.('测试大模型翻译', async () => {
+      const settings = collectAiSettings();
+      const result = await window.rpgWorkbench?.aiTranslate?.({ sourceText: 'こんにちは、世界。', settings });
+      if (!result?.ok) throw new Error(result?.message || '大模型翻译测试失败');
+      return result;
+    }, { pending: '正在测试大模型翻译…', success: '大模型翻译测试成功。', error: '大模型翻译测试失败', statusId: 'aiStatus', traceTitle: '大模型翻译测试' });
   }
 
   async function loadAndApplyAiSettings() {
     try {
-      const result = await window.rpgWorkbench?.getAiSettings?.({ project: getState().project || {} });
-      if (result?.ok && result.settings) { window.RpgAppStore?.setState?.({ aiSettings: result.settings }); syncAiSettingsFields(result.settings); }
+      const result = await window.rpgWorkbench?.getAiSettings?.();
+      if (result?.ok && result.settings) { window.RpgAppStore?.setState?.({ ...getState(), aiSettings: result.settings }); syncAiSettingsFields(result.settings); }
     } catch (_) {}
   }
 
@@ -372,6 +491,7 @@
     window.RpgEntries?.renderEntryList?.();
     window.RpgEntries?.renderCurrentEntry?.();
     window.RpgEntries?.updateCounts?.();
+    window.RpgProject?.syncProjectStatusFromState?.();
     applyRuntimeI18n();
   }
 
@@ -403,12 +523,12 @@
     $('themeBackgroundInput')?.addEventListener('input', () => window.RpgView?.updateThemePreview?.());
     $('applyThemeBackgroundBtn')?.addEventListener('click', () => window.RpgView?.persistUiSettings?.({ persist: false }));
     $('clearThemeBackgroundBtn')?.addEventListener('click', () => { if ($('themeBackgroundInput')) $('themeBackgroundInput').value = ''; window.RpgView?.persistUiSettings?.({ persist: false }); });
-    $('saveUiSettingsBtn')?.addEventListener('click', () => { window.RpgView?.persistUiSettings?.({ persist: true }); appendTrace('界面设置', '界面设置已保存。', 'success'); });
+    $('saveUiSettingsBtn')?.addEventListener('click', () => { window.RpgView?.persistUiSettings?.({ persist: true }); setStatusBox('projectStatus', '界面设置已保存。', 'success', '界面设置'); });
     $('pickThemeBackgroundBtn')?.addEventListener('click', async () => {
       try { const result = await window.rpgWorkbench?.pickThemeImageFile?.(); if (result?.filePath && $('themeBackgroundInput')) { $('themeBackgroundInput').value = result.filePath; window.RpgView?.persistUiSettings?.({ persist: false }); } } catch (e) { appendTrace('背景图片', e.message || '选择失败', 'error'); }
     });
     $('previewThemeBackgroundBtn')?.addEventListener('click', () => window.RpgView?.updateThemePreview?.());
-    $('resetUiThemeBtn')?.addEventListener('click', () => { window.RpgView?.resetUiSettings?.(); applyRuntimeI18n(); syncGlobalAiModeSelect(); render(); appendTrace('界面设置', '已恢复默认外观', 'success'); });
+    $('resetUiThemeBtn')?.addEventListener('click', () => { window.RpgView?.resetUiSettings?.(); applyRuntimeI18n(); syncGlobalAiModeSelect(); render(); setStatusBox('projectStatus', '已恢复默认外观', 'success', '界面设置'); });
   }
 
   window.RpgApp = {
@@ -430,8 +550,8 @@
     window.RpgView?.syncUiSettingsFields?.(); applyRuntimeI18n(); switchSettingsTab('ui'); closeSettings();
     await loadAndApplyAiSettings(); syncGlobalAiModeSelect(); bindShellActions();
     window.RpgGlossaryModule?.bindGlossaryActions?.(); window.RpgEntries?.bindEntryActions?.(); window.RpgProject?.bindProjectActions?.();
-    if (window.RpgExportModule?.init) window.RpgExportModule.init(() => { const s = getState(); return { project: s.project, glossary: s.glossary, aiSettings: s.aiSettings, entries: window.RpgEntries?.getExportEntries?.() || s.entries || [], draftPath: s.draftPath || '', lastPatchDir: s.lastPatchDir || '' }; });
-    window.setVersionLabel?.(); window.setCallTraceStatus?.('等待操作…', 'normal'); render(); window.RpgAppStore?.subscribe?.(() => render());
+    if (window.RpgExportModule?.init) window.RpgExportModule.init(() => { const s = getState(); return { project: s.project, glossary: s.glossary, aiSettings: s.aiSettings, progressState: s.progressState, groups: s.contextGroups || [], entries: window.RpgEntries?.getExportEntries?.() || s.entries || [], draftPath: s.draftPath || '', lastPatchDir: s.lastPatchDir || '' }; });
+    window.setVersionLabel?.(); window.setCallTraceStatus?.('等待操作…', 'normal'); render(); window.RpgAppStore?.subscribe?.(() => { window.RpgProject?.syncProjectStatusFromState?.(); render(); });
   };
 
   init().catch((e) => appendTrace('初始化失败', e.message || '未知错误', 'error'));

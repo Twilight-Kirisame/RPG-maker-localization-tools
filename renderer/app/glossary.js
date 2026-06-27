@@ -98,9 +98,11 @@
     }
     terms.forEach((term) => {
       const realIndex = getTerms().indexOf(term);
+      const sourceText = String(term.source || '').trim();
+      const targetText = String(term.target || '').trim();
       const row = document.createElement('div');
       row.className = 'glossary-item glossary-row';
-      row.innerHTML = `<div class="glossary-text"><strong>${term.source || '—'}</strong> → ${term.target || '—'}${term.note ? `<div class="glossary-note">${term.note}</div>` : ''}</div><div class="glossary-row-actions"><button class="glossary-edit" type="button">${t('common.edit')}</button><button class="glossary-delete" type="button">${t('common.delete')}</button></div>`;
+      row.innerHTML = `<div class="glossary-text"><strong>${sourceText || t('glossary.untitledSource') || t('common.none')}</strong> → ${targetText || t('glossary.untitledTarget') || t('common.none')}${term.note ? `<div class="glossary-note">${term.note}</div>` : ''}</div><div class="glossary-row-actions"><button class="glossary-edit" type="button">${t('common.edit')}</button><button class="glossary-delete" type="button">${t('common.delete')}</button></div>`;
       row.querySelector('.glossary-edit').addEventListener('click', () => openTermEditor(realIndex));
       row.querySelector('.glossary-delete').addEventListener('click', () => deleteTerm(realIndex).catch((e) => trace(e.message, 'error')));
       list.appendChild(row);

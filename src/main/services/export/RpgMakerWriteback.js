@@ -121,6 +121,13 @@ function expandMultilineDialogue(list, commandIndex, lines) {
 }
 
 /**
+ * 兼容旧形状（顶层 code/kind）与新形状（adapterMeta.code/kind）。
+ */
+function codeOf(entry) { return Number(entry?.code ?? entry?.adapterMeta?.code); }
+function kindOf(entry) { return entry?.kind ?? entry?.adapterMeta?.kind ?? entry?.textType ?? ''; }
+function pathOf(entry) { return entry?.path || entry?.adapterMeta?.rawPath || entry?.key || ''; }
+
+/**
  * 单条 entry → 待写回任务。返回 null 表示跳过（空译文 / 等同原文）。
  */
 function buildTask(entry) {
@@ -128,11 +135,11 @@ function buildTask(entry) {
   const target = String(entry.target ?? '').trim();
   if (!target) return null;
   if (entry.source && target === String(entry.source).trim()) return null;
-  const rawParts = parsePath(entry.path || entry.key || '');
+  const rawParts = parsePath(pathOf(entry));
   const parts = stripVirtualRoot(rawParts, entry.file);
   if (!parts.length) return null;
   const ctx = extractListContext(parts);
-  const isMultilineDialogue = Number(entry.code) === 401 && /\r?\n/.test(target);
+  const isMultilineDialogue = codeOf(entry) === 401 && /\r?\n/.test(target);
   return { entry, parts, ctx, target, isMultilineDialogue };
 }
 

@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('rpgWorkbench', {
   pickThemeImageFile: () => invoke('pick-theme-image-file'),
   loadProjectTexts: (rootDir) => invoke('load-project-texts', rootDir),
   scanProjectDataRoots: (rootDir) => invoke('scan-project-data-roots', rootDir),
+  saveProjectLastPosition: (payload) => invoke('save-project-last-position', payload),
+  loadProjectProgressState: (project) => invoke('load-project-progress-state', project),
   loadGlossary: (payload) => invoke('load-glossary', payload),
   listGlossaries: (payload) => invoke('list-glossaries', payload),
   saveGlossary: (payload) => invoke('save-glossary', payload),

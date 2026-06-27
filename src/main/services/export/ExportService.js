@@ -61,17 +61,36 @@ async function exportPatchFiles(payload) {
  * @param {Object} aiSettings
  * @returns {Object}
  */
-function buildDraft(project, entries, glossary, aiSettings) {
+function buildDraft(project, entries, glossary, aiSettings, progressState = null, groups = []) {
   return {
-    schema: 'rpg-localization-draft/v1',
+    schema: 'rpg-localization-draft/v2',
     project: { rootDir: project.rootDir, engine: project.engine },
     exportedAt: new Date().toISOString(),
     glossary,
     aiSettings,
+    progressState,
+    groups,
     entries: entries.map((e) => {
       const target = String(e.targetDraft ?? e.target ?? '');
-      const status = e.translationStatus || e.draftStatus || (target.trim() ? 'translated' : 'pending');
-      return { file: e.file, key: e.key, source: e.source, target, targetDraft: target, kind: e.kind, code: e.code, path: e.path, glossaryHits: (e.glossaryHits || []).map((t) => t.source), status };
+      const status = e.translationStatus || e.draftStatus || e.status?.translation || (target.trim() ? 'translated' : 'pending');
+      return {
+        file: e.file,
+        key: e.key,
+        source: e.source,
+        target,
+        targetDraft: target,
+        kind: e.kind,
+        code: e.code,
+        path: e.path,
+        textClass: e.textClass,
+        textType: e.textType,
+        groupId: e.groupId,
+        segmentIndex: e.segmentIndex,
+        segmentCount: e.segmentCount,
+        warnings: e.warnings || [],
+        glossaryHits: (e.glossaryHits || []).map((t) => t.source),
+        status,
+      };
     }),
   };
 }
@@ -82,12 +101,12 @@ function buildDraft(project, entries, glossary, aiSettings) {
  * @returns {Promise<Object>}
  */
 async function saveDraft(payload) {
-  const { project, entries, glossary, aiSettings } = payload || {};
+  const { project, entries, glossary, aiSettings, progressState, groups } = payload || {};
   if (!project?.rootDir) throw new Error('缺少项目根目录');
   const outDir = draftDirFor(project);
   ensureDir(outDir);
   const filePath = draftPathFor(project, 'work-draft');
-  await fsp.writeFile(filePath, JSON.stringify(buildDraft(project, entries || [], glossary || { terms: [] }, aiSettings || {}), null, 2), 'utf8');
+  await fsp.writeFile(filePath, JSON.stringify(buildDraft(project, entries || [], glossary || { terms: [] }, aiSettings || {}, progressState || null, groups || []), null, 2), 'utf8');
   return { ok: true, path: filePath, outputDir: outDir };
 }
 

@@ -131,9 +131,11 @@
   function bindProjectActions() {
     const pickFolderBtn = get('pickFolderBtn');
     const saveDraftBtn = get('saveDraftBtn');
+    const resetProjectBtn = get('resetProjectBtn');
 
     pickFolderBtn?.addEventListener('click', async () => {
       try {
+        const prev = window.RpgAppStore?.getState?.() || {};
         window.traceCall?.('打开项目', '开始调用系统目录选择器', 'pending');
         window.showProjectStatus?.(window.RpgView?.t?.('common.aiPending') || '正在处理', 'pending');
         const info = window.RpgAppController?.pickProjectFolder ? await window.RpgAppController.pickProjectFolder() : await window.rpgWorkbench.pickProjectFolder();
@@ -143,7 +145,6 @@
           return;
         }
         window.traceCall?.('打开项目', `选择结果 rootDir=${info.rootDir || 'N/A'}, engine=${info.engine || 'unknown'}`, 'success');
-        syncStatusFromProject(info);
         if (info.rootDir) await loadProject(info.rootDir);
       } catch (error) {
         window.traceCall?.('打开项目', error.message || '未知错误', 'error');

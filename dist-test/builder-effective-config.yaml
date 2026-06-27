@@ -1,0 +1,23 @@
+directories:
+  output: dist-test
+  buildResources: build
+appId: com.rpg.localization.workbench
+productName: RPG汉化工作台-测试版
+asar: true
+files:
+  - filter:
+      - main.js
+      - preload.js
+      - src/**/*
+      - renderer/**/*
+      - assets/**/*
+      - package.json
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+win:
+  signAndEditExecutable: false
+  target:
+    - portable
+extraMetadata:
+  name: rpg-localization-workbench-test
+electronVersion: 42.3.3

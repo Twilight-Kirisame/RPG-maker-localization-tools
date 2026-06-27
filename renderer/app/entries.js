@@ -74,9 +74,16 @@
     });
     const groupedFiles = [...map.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], document.getElementById('languageSelect')?.value === 'ja' ? 'ja' : 'zh-Hans-CN'))
-      .map(([file, items]) => ({ file, items: items.map((item, index) => ({ ...item, localIndex: index, sourceDraft: '', targetDraft: item.target || '' })) }));
+      .map(([file, items]) => ({ file, items: items.map((item, index) => ({ ...item, localIndex: index, sourceDraft: '', targetDraft: item.targetDraft ?? item.target ?? '' })) }));
     const currentFile = current.currentFile || groupedFiles[0]?.file || '';
-    window.RpgAppStore?.setState?.({ groupedFiles, currentFile, currentEntryIndex: current.currentEntryIndex || 0 });
+    window.RpgAppStore?.setState?.({
+      ...current,
+      groupedFiles,
+      currentFile,
+      currentEntryIndex: current.currentEntryIndex || 0,
+      project: current.project || null,
+      status: current.status || (current.project?.rootDir ? 'project-loaded' : 'idle'),
+    });
     return groupedFiles;
   }
 
@@ -92,6 +99,24 @@
     const status = translated ? 'translated' : 'pending';
     entry.translationStatus = status;
     entry.draftStatus = status;
+    entry.progress = { ...(entry.progress || {}), translated, lastEditedAt: translated ? new Date().toISOString() : (entry.progress?.lastEditedAt || '') };
+  }
+
+  function persistLastPosition(entry) {
+    const current = state();
+    if (!entry || !current.project?.rootDir || !isTranslated(entry)) return Promise.resolve(null);
+    const globalIndex = (current.groupedFiles || []).flatMap((group) => group.items || []).findIndex((item) => item.id === entry.id);
+    const payload = { project: current.project, entry, index: entry.localIndex ?? globalIndex };
+    const api = window.RpgAppController?.saveProjectLastPosition || window.rpgWorkbench?.saveProjectLastPosition;
+    return api?.(payload).then((result) => {
+      if (result?.state) {
+        const progressState = result.state;
+        window.RpgAppStore?.setState?.({ progressState, lastPosition: progressState.global || null });
+        renderProgressDashboard();
+        renderFileSelect();
+      }
+      return result;
+    }).catch(() => null);
   }
 
   function getExportEntries() {
@@ -140,12 +165,27 @@
     }
   }
 
+  function getSearchScope() {
+    return get('entrySearchScope')?.value || state().searchScope || 'current';
+  }
+
+  function matchesSearch(entry, q) {
+    if (!q) return true;
+    const haystack = `${entry.key || ''} ${entry.source || ''} ${entry.targetDraft || entry.target || ''} ${entry.file || ''} ${entry.textType || ''} ${entry.textClass || ''}`.toLowerCase();
+    return haystack.includes(q);
+  }
+
   function getFilteredItems() {
     const current = state();
-    const group = (current.groupedFiles || []).find((g) => g.file === current.currentFile);
-    if (!group) return [];
     const q = (current.searchText || '').trim().toLowerCase();
-    return group.items.filter((entry) => !q || `${entry.key} ${entry.source} ${entry.targetDraft || ''}`.toLowerCase().includes(q));
+    const scope = getSearchScope();
+    const groups = current.groupedFiles || [];
+    if (scope === 'all') {
+      return groups.flatMap((group) => (group.items || []).filter((entry) => matchesSearch(entry, q)).map((entry) => ({ ...entry, _searchScope: 'all' })));
+    }
+    const group = groups.find((g) => g.file === current.currentFile);
+    if (!group) return [];
+    return group.items.filter((entry) => matchesSearch(entry, q));
   }
 
   function insertTextIntoTarget(targetCell, insertText, mode = 'cursor') {
@@ -185,19 +225,22 @@
     renderCurrentEntry();
   }
 
+  function runEntryAction(label, task, statusId = 'aiStatus') {
+    return window.runUiAction?.(label, task, { pending: `${label}中…`, success: `${label}完成`, error: `${label}失败`, statusId, traceTitle: label });
+  }
+
   function renderEntryAiAction(entry, targetCell) {
     const bar = document.createElement('div');
     bar.className = 'paired-ai-bar';
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'secondary-btn paired-ai-btn';
-    btn.textContent = 'AI翻译';
-    btn.title = '使用当前选择的辅助翻译平台翻译本条文本';
+    btn.textContent = t('entry.aiTranslate');
+    btn.title = t('entry.aiTranslateTitle');
     btn.addEventListener('click', async (event) => {
       event.stopPropagation();
-      window.RpgAppStore?.setState?.({ currentEntryIndex: entry.localIndex });
-      window.showAiStatus?.(t('common.aiPending'), 'pending');
-      try {
+      await runEntryAction(t('entry.aiTranslate'), async () => {
+        window.RpgAppStore?.setState?.({ ...window.RpgAppStore?.getState?.(), currentEntryIndex: entry.localIndex });
         const current = window.RpgAppStore?.getState?.() || {};
         const selectedProvider = document.getElementById('globalAiModeSelect')?.value || current.aiSettings?.lastEntryAiMode || current.aiSettings?.provider || 'baidu';
         const settings = {
@@ -217,23 +260,16 @@
           project: current.project || null,
           entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path },
         });
-        if (result?.ok) {
-          entry.target = result.translatedText || '';
-          entry.targetDraft = entry.target;
-          targetCell.value = entry.target;
-          targetCell.classList.toggle('empty', !targetCell.value.trim());
-          window.showAiStatus?.(result.message || `已使用 ${result.provider || 'AI'} 完成翻译。`, 'success');
-          window.traceCall?.('辅助翻译', result.message || `已使用 ${result.provider || 'AI'} 完成翻译。`, 'success');
-          renderEntryList();
-          renderCurrentEntry();
-        } else {
-          window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error');
-          window.traceCall?.('辅助翻译', result?.message || t('common.aiTestFail'), 'error');
-        }
-      } catch (error) {
-        window.showAiStatus?.(error.message || t('common.aiTestFail'), 'error');
-        window.traceCall?.('辅助翻译', error.message || t('common.aiTestFail'), 'error');
-      }
+        if (!result?.ok) throw new Error(result?.message || t('common.aiTestFail'));
+        entry.target = result.translatedText || '';
+        entry.targetDraft = entry.target;
+        targetCell.value = entry.target;
+        targetCell.classList.toggle('empty', !targetCell.value.trim());
+        await persistLastPosition(entry);
+        renderEntryList();
+        renderCurrentEntry();
+        return result;
+      });
     });
     bar.appendChild(btn);
     return bar;
@@ -256,16 +292,16 @@
     container.innerHTML = '';
     const title = document.createElement('div');
     title.className = 'glossary-inline-title';
-    title.textContent = `术语命中 ${hits.length} 条`;
+    title.textContent = t('glossary.hitCount').replace('{count}', hits.length);
     container.appendChild(title);
     const controls = document.createElement('div');
     controls.className = 'glossary-inline-controls';
     const modeLabel = document.createElement('label');
     modeLabel.className = 'glossary-insert-mode-label';
-    modeLabel.appendChild(document.createTextNode('插入方式'));
+    modeLabel.appendChild(document.createTextNode(t('glossary.insertMode')));
     const modeSelect = document.createElement('select');
     modeSelect.className = 'glossary-insert-mode';
-    modeSelect.innerHTML = '<option value="cursor">插入到光标处</option><option value="replace">替换选中文本</option><option value="append">追加到末尾</option>';
+    modeSelect.innerHTML = `<option value="cursor">${t('glossary.insertCursor')}</option><option value="replace">${t('glossary.insertReplace')}</option><option value="append">${t('glossary.insertAppend')}</option>`;
     ['mousedown', 'click', 'change', 'focus'].forEach((eventName) => modeSelect.addEventListener(eventName, (e) => e.stopPropagation()));
     modeLabel.addEventListener('click', (e) => e.stopPropagation());
     modeLabel.appendChild(modeSelect);
@@ -276,24 +312,28 @@
     const allBtn = document.createElement('button');
     allBtn.type = 'button';
     allBtn.className = 'glossary-inline-btn glossary-inline-btn-all';
-    allBtn.textContent = '一键插入全部';
+    allBtn.textContent = t('glossary.insertAll');
     allBtn.addEventListener('click', () => {
-      insertAllGlossaryHits(entry, targetCell, modeSelect.value);
-      window.showAiStatus?.(`已插入全部术语，共 ${hits.length} 条。`, 'success');
+      runEntryAction(t('glossary.insertAll'), async () => {
+        insertAllGlossaryHits(entry, targetCell, modeSelect.value);
+        window.showAiStatus?.(t('glossary.insertAllDone').replace('{count}', hits.length), 'success');
+      });
     });
     actions.appendChild(allBtn);
     hits.forEach((term) => {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'glossary-inline-btn';
-      item.textContent = `插入：${term.source} → ${term.target}`;
+      item.textContent = t('glossary.insertOne').replace('{source}', term.source).replace('{target}', term.target);
       item.addEventListener('click', () => {
-        const next = insertTextIntoTarget(targetCell, term.target || '', modeSelect.value);
-        entry.targetDraft = next;
-        entry.target = next;
-        window.showAiStatus?.(`已将术语插入译文：${term.source}`, 'success');
-        renderEntryList();
-        renderCurrentEntry();
+        runEntryAction(t('glossary.insertOne'), async () => {
+          const next = insertTextIntoTarget(targetCell, term.target || '', modeSelect.value);
+          entry.targetDraft = next;
+          entry.target = next;
+          window.showAiStatus?.(t('glossary.insertOneDone').replace('{source}', term.source), 'success');
+          renderEntryList();
+          renderCurrentEntry();
+        });
       });
       actions.appendChild(item);
     });
@@ -604,30 +644,38 @@
     }
     items.forEach((entry) => {
       const current = state();
-      entry.glossaryHits = (current.glossary?.terms || []).filter((term) => term.enabled !== false && term.source && entry.source.includes(term.source));
+      const sourceEntry = entry._searchScope === 'all' ? (current.groupedFiles || []).flatMap((group) => group.items || []).find((item) => item.id === entry.id) || entry : entry;
+      sourceEntry.glossaryHits = (current.glossary?.terms || []).filter((term) => term.enabled !== false && term.source && sourceEntry.source.includes(term.source));
       const row = document.createElement('div');
-      const translated = isTranslated(entry);
-      const hitCount = (entry.glossaryHits || []).length;
-      const controlCharHit = /\\[VNCP]\[\d+\]/.test(entry.source || '');
-      row.className = `paired-row ${entry.localIndex === current.currentEntryIndex ? 'active' : ''} ${translated ? 'translated' : 'untranslated'} ${hitCount ? 'has-hits' : ''} ${controlCharHit ? 'has-controls' : ''}`;
+      const translated = isTranslated(sourceEntry);
+      const hitCount = (sourceEntry.glossaryHits || []).length;
+      const controlCharHit = /\\[VNCP]\[\d+\]/.test(sourceEntry.source || '');
+      row.className = `paired-row ${sourceEntry.localIndex === current.currentEntryIndex && sourceEntry.file === current.currentFile ? 'active' : ''} ${translated ? 'translated' : 'untranslated'} ${hitCount ? 'has-hits' : ''} ${controlCharHit ? 'has-controls' : ''}`;
       const sourceCell = document.createElement('div');
       sourceCell.className = 'paired-cell source';
       sourceCell.setAttribute('tabindex', '0');
-      sourceCell.textContent = entry.source || '—';
+      const fallbackSource = String(sourceEntry.source || '').trim();
+      sourceCell.textContent = fallbackSource || t('common.none');
       const sourceClickSelect = () => {
         const current = state();
-        current.currentEntryIndex = entry.localIndex;
+        window.RpgAppStore?.setState?.({
+          ...current,
+          currentFile: sourceEntry.file,
+          currentEntryIndex: sourceEntry.localIndex,
+          searchScope: sourceEntry._searchScope === 'all' ? 'all' : (current.searchScope || 'current'),
+          project: current.project || null,
+          status: current.status || (current.project?.rootDir ? 'project-loaded' : 'idle'),
+        });
         document.querySelectorAll('.paired-row.active').forEach((activeRow) => activeRow.classList.remove('active'));
         row.classList.add('active');
       };
       sourceCell.addEventListener('click', sourceClickSelect);
-      sourceCell.addEventListener('mousedown', sourceClickSelect);
       sourceCell.addEventListener('mouseup', () => sourceCell.classList.add('selected'));
       sourceCell.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') sourceCell.classList.add('selected'); });
       const targetCell = document.createElement('textarea');
       targetCell.className = `paired-cell target ${translated ? '' : 'empty'}`.trim();
-      targetCell.placeholder = entry.source || t('editor.targetPlaceholder');
-      targetCell.value = entry.targetDraft || entry.target || '';
+      targetCell.placeholder = sourceEntry.source || t('editor.targetPlaceholder');
+      targetCell.value = sourceEntry.targetDraft || sourceEntry.target || '';
       targetCell.addEventListener('click', (e) => e.stopPropagation());
       targetCell.addEventListener('mousedown', (e) => e.stopPropagation());
       targetCell.addEventListener('keydown', (e) => e.stopPropagation());
@@ -643,36 +691,64 @@
         renderWarningTags(tags, entry.warnings || []);
         updateCounts();
       });
+      targetCell.addEventListener('focus', () => targetCell.classList.remove('selected'));
+      targetCell.addEventListener('blur', () => targetCell.classList.remove('selected'));
       targetCell.addEventListener('focus', () => {
-        const current = state();
-        current.currentEntryIndex = entry.localIndex;
         document.querySelectorAll('.paired-row.active').forEach((activeRow) => activeRow.classList.remove('active'));
         row.classList.add('active');
       });
-      targetCell.addEventListener('blur', () => {
-        entry.target = targetCell.value;
-        entry.targetDraft = targetCell.value;
-        renderCurrentEntry();
+      targetCell.addEventListener('blur', async () => {
+        sourceEntry.target = targetCell.value;
+        sourceEntry.targetDraft = targetCell.value;
       });
-      const aiBar = renderEntryAiAction(entry, targetCell);
+      const aiBar = renderEntryAiAction(sourceEntry, targetCell);
       const meta = document.createElement('div');
       meta.className = 'paired-meta';
       const keyInfo = document.createElement('span');
-      keyInfo.textContent = `#${String(entry.localIndex + 1).padStart(3, '0')} · ${entry.key}`;
+      keyInfo.textContent = `${sourceEntry._searchScope === 'all' ? '[ALL] ' : ''}#${String(sourceEntry.localIndex + 1).padStart(3, '0')} · ${sourceEntry.key}`;
       const tags = document.createElement('span');
       tags.className = 'row-tags';
       const statusBtn = document.createElement('button');
       statusBtn.type = 'button';
       statusBtn.className = `tag status-toggle ${translated ? 'success-tag' : 'pending-tag'}`;
-      statusBtn.textContent = translated ? t('stats.translated') : '未翻译';
-      statusBtn.title = '点击切换已翻译/未翻译状态';
+      statusBtn.textContent = translated ? t('stats.translated') : t('progress.pending');
+      statusBtn.title = t('progress.toggleStatus');
       statusBtn.addEventListener('click', (event) => {
         event.stopPropagation();
-        markTranslated(entry, !isTranslated(entry));
-        renderEntryList();
-        renderCurrentEntry();
+        const nextTranslated = !isTranslated(sourceEntry);
+        markTranslated(sourceEntry, nextTranslated);
+        if (sourceEntry !== entry) markTranslated(entry, nextTranslated);
+        row.classList.toggle('translated', nextTranslated);
+        row.classList.toggle('untranslated', !nextTranslated);
+        statusBtn.classList.toggle('success-tag', nextTranslated);
+        statusBtn.classList.toggle('pending-tag', !nextTranslated);
+        statusBtn.textContent = nextTranslated ? t('stats.translated') : t('progress.pending');
+        updateCounts();
       });
       tags.appendChild(statusBtn);
+      const classTag = document.createElement('em');
+      classTag.className = 'tag class-tag';
+      classTag.textContent = t(`textClass.${sourceEntry.textClass || 'unknown'}`);
+      tags.appendChild(classTag);
+      const typeTag = document.createElement('em');
+      typeTag.className = 'tag type-tag';
+      typeTag.textContent = t(`textType.${sourceEntry.textType || 'generic-text'}`);
+      tags.appendChild(typeTag);
+      if (sourceEntry.groupId) {
+        const groupTag = document.createElement('em');
+        groupTag.className = 'tag group-tag';
+        groupTag.textContent = `${t('context.groupShort')}: ${sourceEntry.groupId.slice(0, 10)}`;
+        groupTag.title = sourceEntry.groupId;
+        tags.appendChild(groupTag);
+      }
+      const warnings = Array.isArray(sourceEntry.warnings) ? sourceEntry.warnings : [];
+      if (warnings.length) {
+        const warningTag = document.createElement('em');
+        warningTag.className = 'tag warning-tag';
+        warningTag.textContent = `${t('progress.warning')}: ${warnings.length}`;
+        warningTag.title = warnings.map((warning) => warning.message || warning.type || '').filter(Boolean).join('\n');
+        tags.appendChild(warningTag);
+      }
       if (hitCount) {
         const hitTag = document.createElement('em');
         hitTag.className = 'tag hit-tag';
@@ -690,7 +766,7 @@
       renderWarningTags(tags, entry.warnings || []);
       meta.appendChild(keyInfo);
       meta.appendChild(tags);
-      row.addEventListener('click', (e) => { if (e.target === targetCell || e.target === aiBar.querySelector('button') || e.target === sourceCell || e.target.closest?.('.glossary-inline') || e.target.closest?.('.status-toggle')) return; window.RpgAppStore?.setState?.({ currentEntryIndex: entry.localIndex }); renderEntryList(); renderCurrentEntry(); });
+      row.addEventListener('click', (e) => { if (e.target === targetCell || e.target === aiBar.querySelector('button') || e.target === sourceCell || e.target.closest?.('.glossary-inline') || e.target.closest?.('.status-toggle')) return; const current = state(); window.RpgAppStore?.setState?.({ ...current, currentFile: sourceEntry.file, currentEntryIndex: sourceEntry.localIndex, searchScope: sourceEntry._searchScope === 'all' ? 'all' : (current.searchScope || 'current'), project: current.project || null, status: current.status || (current.project?.rootDir ? 'project-loaded' : 'idle') }); renderEntryList(); renderCurrentEntry(); });
       row.appendChild(sourceCell);
       row.appendChild(targetCell);
       row.appendChild(aiBar);
@@ -698,6 +774,41 @@
       entryList.appendChild(row);
       renderGlossaryInline(row, entry, targetCell);
     });
+  }
+
+  function calculateClientProgress() {
+    const current = state();
+    const allEntries = (current.groupedFiles || []).flatMap((group) => group.items || []);
+    const fileProgress = (current.groupedFiles || []).map((group) => {
+      const total = group.items.length;
+      const translated = group.items.filter((entry) => isTranslated(entry)).length;
+      const warningCount = group.items.reduce((sum, entry) => sum + (Array.isArray(entry.warnings) ? entry.warnings.length : 0), 0);
+      return { file: group.file, total, translated, pending: total - translated, warningCount, percent: total ? Number(((translated / total) * 100).toFixed(2)) : 0 };
+    });
+    const total = allEntries.length;
+    const translated = allEntries.filter((entry) => isTranslated(entry)).length;
+    const globalProgress = { totalEntries: total, translatedEntries: translated, pendingEntries: total - translated, percent: total ? Number(((translated / total) * 100).toFixed(2)) : 0 };
+    return { allEntries, fileProgress, globalProgress };
+  }
+
+  function renderProgressDashboard() {
+    const current = state();
+    const { allEntries, fileProgress, globalProgress } = calculateClientProgress();
+    const file = fileProgress.find((item) => item.file === current.currentFile) || { total: 0, translated: 0, pending: 0, percent: 0 };
+    const globalText = get('globalProgressText');
+    const currentFileText = get('currentFileProgressText');
+    const lastPositionText = get('lastPositionText');
+    const nextPendingText = get('nextPendingText');
+    if (globalText) globalText.textContent = t('progress.summary').replace('{translated}', globalProgress.translatedEntries).replace('{total}', globalProgress.totalEntries).replace('{percent}', globalProgress.percent);
+    if (currentFileText) currentFileText.textContent = t('progress.summary').replace('{translated}', file.translated || 0).replace('{total}', file.total || 0).replace('{percent}', file.percent || 0);
+    const last = current.progressState?.global || current.lastPosition || {};
+    if (lastPositionText) {
+      lastPositionText.textContent = last.lastTranslatedFile ? `${last.lastTranslatedFile} · #${Number(last.lastTranslatedIndex ?? -1) + 1} · ${last.lastTranslatedKey || ''}` : t('progress.noLastPosition');
+      lastPositionText.title = [last.lastTranslatedSource, last.lastTranslatedTarget].filter(Boolean).join('\n');
+    }
+    const currentFileEntries = allEntries.filter((entry) => entry.file === current.currentFile);
+    const nextIndex = currentFileEntries.findIndex((entry, index) => index >= (current.currentEntryIndex || 0) && !isTranslated(entry));
+    if (nextPendingText) nextPendingText.textContent = nextIndex >= 0 ? `${t('progress.nextPending')}: #${String(nextIndex + 1).padStart(3, '0')}` : t('progress.noPending');
   }
 
   function updateCounts() {
@@ -752,11 +863,23 @@
   function bindEntryActions() {
     const fileSelect = get('fileSelect');
     const entrySearch = get('entrySearch');
+    const entrySearchScope = get('entrySearchScope');
     const aiTranslateBtn = get('aiTranslateBtn');
     const saveEntryBtn = get('saveEntryBtn');
     const clearTextsBtn = get('clearTextsBtn');
 
-    fileSelect?.addEventListener('change', () => { window.RpgAppStore?.setState?.({ currentFile: fileSelect.value, currentEntryIndex: 0 }); renderEntryList(); renderCurrentEntry(); });
+    fileSelect?.addEventListener('change', () => {
+      const current = state();
+      window.RpgAppStore?.setState?.({
+        ...current,
+        currentFile: fileSelect.value,
+        currentEntryIndex: 0,
+        project: current.project || null,
+        status: current.status || 'project-loaded',
+      });
+      renderEntryList();
+      renderCurrentEntry();
+    });
     entrySearch?.addEventListener('input', () => { window.RpgAppStore?.setState?.({ searchText: entrySearch.value }); renderEntryList(); });
     if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: cur.aiSettings || {}, glossary: cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { entry.target = result.translatedText || ''; entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
     if (saveEntryBtn) saveEntryBtn.addEventListener('click', () => { const entry = getCurrentEntry(); if (!entry) return; entry.target = (entry.targetDraft || entry.target || '').trim(); entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showToast?.(t('common.aiSaved'), 'success'); });

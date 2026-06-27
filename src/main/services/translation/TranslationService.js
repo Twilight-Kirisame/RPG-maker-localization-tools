@@ -71,12 +71,11 @@ function parseBaiduError(json, httpStatus) {
 }
 
 /**
- * 加载 AI 设置。
- * @param {Object} project
+ * 加载 AI 设置（全局存储）。
  * @returns {Promise<Object>}
  */
-async function loadAiSettings(project) {
-  const filePath = projectStoragePath(project, 'ai-settings.json');
+async function loadAiSettings() {
+  const filePath = appStoragePath('ai-settings.json');
   if (!fs.existsSync(filePath)) return { provider: 'mock', apiKey: '', baseUrl: '', model: '', prompt: defaultPrompt, traditional: {} };
   try {
     return JSON.parse(await fsp.readFile(filePath, 'utf8'));
@@ -86,29 +85,27 @@ async function loadAiSettings(project) {
 }
 
 /**
- * 保存 AI 设置。
- * @param {Object} project
+ * 保存 AI 设置（全局存储）。
  * @param {Object} settings
  * @returns {Promise<Object>}
  */
-async function saveAiSettings(project, settings) {
-  const filePath = projectStoragePath(project, 'ai-settings.json');
+async function saveAiSettings(settings) {
+  const filePath = appStoragePath('ai-settings.json');
   await fsp.writeFile(filePath, JSON.stringify(settings || {}, null, 2), 'utf8');
   return { ok: true, path: filePath };
 }
 
 /**
  * 保存翻译器设置。
- * @param {Object} project
  * @param {Object} payload
  * @returns {Promise<Object>}
  */
-async function saveTranslatorSettings(project, payload) {
-  const current = await loadAiSettings(project);
+async function saveTranslatorSettings(payload) {
+  const current = await loadAiSettings();
   const next = payload?.type === 'traditional'
     ? { ...current, traditional: payload.settings || {} }
     : { ...current, ...(payload?.settings || payload || {}) };
-  return saveAiSettings(project, next);
+  return saveAiSettings(next);
 }
 
 /**
@@ -241,9 +238,9 @@ function finalizeTranslated(rawText, settings, project, entry) {
   const text = String(rawText || '');
   if (!text) return { text };
   if (!settings?.autoSplit) return { text };
-  if (!entry || Number(entry.code) !== 401) return { text };
+  if (!entry || Number(entry.code ?? entry?.adapterMeta?.code) !== 401) return { text };
   const engine = project?.engine || 'RPG Maker MV/MZ';
-  const c = getConstraints(engine, entry.kind || 'dialogue-line');
+  const c = getConstraints(engine, entry.kind || entry?.adapterMeta?.kind || entry?.textType || 'dialogue-line');
   if (!c || !c.maxCharsPerLine) return { text };
   const { lines, overflow } = AutoSplit.split(text, c);
   if (lines.length <= 1) return { text };

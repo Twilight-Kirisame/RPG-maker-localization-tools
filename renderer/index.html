@@ -66,8 +66,8 @@
             <p id="projectPath" data-i18n="workspace.noProject">尚未打开项目</p>
           </div>
           <div class="hero-actions">
-            <button id="loadProjectBtn" class="secondary-btn" data-i18n="workspace.exportDraft" title="将当前翻译进度导出为草稿文件">导出草稿</button>
-            <button id="saveDraftBtn" class="secondary-btn" data-i18n="workspace.draftLoad" title="从已保存的 JSON 草稿文件恢复翻译内容">载入草稿</button>
+            <button id="loadProjectBtn" class="secondary-btn" data-i18n="workspace.exportDraft" data-i18n-title="workspace.exportDraftTitle" title="Export draft">导出草稿</button>
+            <button id="saveDraftBtn" class="secondary-btn" data-i18n="workspace.draftLoad" data-i18n-title="workspace.draftLoadTitle" title="Load draft">载入草稿</button>
             <button id="settingsBtn" class="secondary-btn settings-launch" data-i18n="workspace.settings">设置</button>
             <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" title="导出可回写的补丁目录">导出补丁</button>
             <button id="applyWritebackBtn" class="primary-btn" data-i18n="workspace.applyWriteback" title="把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）">写回游戏 JSON</button>
@@ -96,7 +96,25 @@
                 <h3 data-i18n="selector.title">双语编辑器</h3>
                 <span data-i18n="selector.hint">原文译文对照编辑，支持术语与辅助翻译</span>
               </div>
-              <button id="clearTextsBtn" class="secondary-btn danger-btn editor-clear-btn" data-i18n="workspace.clearTexts" title="清空当前 JSON 文件下所有译文行内容">清空当前 JSON 译文</button>
+              <button id="clearTextsBtn" class="secondary-btn danger-btn editor-clear-btn" data-i18n="workspace.clearTexts" data-i18n-title="workspace.clearTextsTitle" title="Clear translations">清空当前 JSON 译文</button>
+            </div>
+            <div class="progress-dashboard">
+              <div class="progress-card">
+                <span data-i18n="progress.global">项目进度</span>
+                <strong id="globalProgressText">0/0 · 0%</strong>
+              </div>
+              <div class="progress-card">
+                <span data-i18n="progress.currentFile">当前文件进度</span>
+                <strong id="currentFileProgressText">0/0 · 0%</strong>
+              </div>
+              <div class="progress-card progress-card-wide">
+                <span data-i18n="progress.lastPosition">上次翻译位置</span>
+                <strong id="lastPositionText" data-i18n="progress.noLastPosition">暂无上次翻译位置</strong>
+              </div>
+              <div class="progress-actions">
+                <button id="gotoLastPositionBtn" class="secondary-btn" data-i18n="progress.gotoLast">跳到上次位置</button>
+                <button id="nextPendingBtn" class="secondary-btn" data-i18n="progress.nextPending">下一个未翻译</button>
+              </div>
             </div>
             <div class="entry-toolbar translation-toolbar">
               <label>
@@ -109,6 +127,13 @@
               <label>
                 <span data-i18n="selector.search">搜索</span>
                 <input id="entrySearch" type="text" data-i18n-placeholder="selector.searchPlaceholder" placeholder="输入关键词过滤" />
+              </label>
+              <label class="search-scope-label">
+                <span data-i18n="selector.searchScope">搜索范围</span>
+                <select id="entrySearchScope">
+                  <option value="current" data-i18n="selector.searchScopeCurrent">当前 JSON</option>
+                  <option value="all" data-i18n="selector.searchScopeAll">全部 JSON</option>
+                </select>
               </label>
               <label class="ai-mode-global">
                 <span id="globalAiModeLabel">辅助翻译平台</span>
@@ -129,11 +154,11 @@
 
           <section class="panel call-trace-panel call-trace-panel-main">
             <div class="panel-header">
-              <h3>调用反馈</h3>
-              <span>操作状态</span>
+              <h3 data-i18n="trace.title">调用反馈</h3>
+              <span data-i18n="trace.operationStatus">操作状态</span>
             </div>
             <div id="callTrace" class="call-trace-box call-trace-box-main">
-              <div class="status-box">等待操作…</div>
+              <div class="status-box call-trace-placeholder" data-i18n="trace.waiting">等待操作…</div>
             </div>
           </section>
         </div>
@@ -141,7 +166,7 @@
         <div id="settingsModal" class="settings-modal hidden" aria-hidden="true">
           <div class="settings-backdrop" id="settingsBackdrop"></div>
           <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-            <button id="settingsCloseBtn" class="settings-close" aria-label="关闭设置">×</button>
+            <button id="settingsCloseBtn" class="settings-close" data-i18n-aria-label="settings.close" aria-label="Close settings">×</button>
             <div class="settings-tabs">
               <button class="settings-tab active" data-tab="ui" data-i18n="settings.tabUI">界面设置</button>
               <button class="settings-tab" data-tab="traditional" data-i18n="settings.tabTraditional">传统翻译</button>
@@ -368,7 +393,7 @@
                 <div id="termEditorModal" class="settings-modal hidden" aria-hidden="true">
                   <div class="settings-backdrop" id="termEditorBackdrop"></div>
                   <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="termEditorTitle">
-                    <button id="termEditorCloseBtn" class="settings-close" aria-label="关闭术语编辑">×</button>
+                    <button id="termEditorCloseBtn" class="settings-close" data-i18n-aria-label="glossary.closeEditor" aria-label="Close glossary editor">×</button>
                     <h3 id="termEditorTitle" data-i18n="glossary.editTitle">术语编辑</h3>
                     <label>
                       <span data-i18n="glossary.source">原文术语</span>
