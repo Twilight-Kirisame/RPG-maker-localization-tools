@@ -238,23 +238,24 @@ button, textarea, input, select { font: inherit; }
 }
 .paired-cell.target::placeholder { color: rgba(238, 242, 255, 0.28); }
 .paired-cell.target.empty { color: rgba(238, 242, 255, 0.28); }
-/* 译文绿色高亮：仅当行被显式标记为「已翻译」（用户通过状态按钮确认）时才显示，
-   AI 翻译填入的内容与用户编辑过程都保持非翻译态，颜色不变。 */
-.paired-row.translated .paired-cell.target:not(.empty) { color: #b6f0d0; }
-:root[data-theme="light"] .paired-row.translated .paired-cell.target:not(.empty) { color: #1f8a4c; }
-/* 译文框边框严格绑定到行的翻译状态：已翻译 = 绿色描边 + 极淡绿底；未翻译 = 琥珀描边提示。
-   has-warnings / focus / hover 的优先级更高（写在下方或本身就是伪类），不会被这里覆盖。 */
+/* ─── 已翻译/未翻译视觉状态 · 单一事实源 ─────────────────────────────────────
+   绿色文字 + 绿色描边 + 淡绿底 全部唯一绑定到行的 .translated class，
+   而行的 .translated class 又唯一绑定到 entry.translationStatus === 'translated'。
+   .empty 只表示"文本框是否为空"，不参与"已翻译"判定，所以即便用户在已翻译
+   状态下清空了文本框，按钮状态仍为已翻译，高亮也必须保持。 */
 .paired-row.translated .paired-cell.target {
+  color: #b6f0d0;
   border-color: rgba(50, 190, 120, 0.55);
   background: rgba(50, 190, 120, 0.06);
+}
+:root[data-theme="light"] .paired-row.translated .paired-cell.target {
+  color: #1f8a4c;
+  border-color: rgba(31, 138, 76, 0.45);
+  background: rgba(31, 138, 76, 0.06);
 }
 .paired-row.untranslated .paired-cell.target {
   border-color: rgba(255, 213, 107, 0.40);
   background: rgba(255, 213, 107, 0.04);
-}
-:root[data-theme="light"] .paired-row.translated .paired-cell.target {
-  border-color: rgba(31, 138, 76, 0.45);
-  background: rgba(31, 138, 76, 0.06);
 }
 :root[data-theme="light"] .paired-row.untranslated .paired-cell.target {
   border-color: rgba(202, 138, 4, 0.40);

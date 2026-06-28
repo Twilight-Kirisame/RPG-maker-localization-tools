@@ -1283,9 +1283,13 @@
       sourceCell.addEventListener('mouseup', () => sourceCell.classList.add('selected'));
       sourceCell.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') sourceCell.classList.add('selected'); });
       const targetCell = document.createElement('textarea');
-      targetCell.className = `paired-cell target ${translated ? '' : 'empty'}`.trim();
+      // .empty 类必须严格按"文本框是否为空"来加，不能再混入 translated 状态。
+      // 否则一条已经有 AI 译文（pending 状态）的行会被打上 .empty，导致后续无论怎么切换"已翻译"按钮，
+      // .empty 都不会被清掉，绿色文字规则 :not(.empty) 永远不匹配 → 视觉上"按钮切了但不变绿"。
+      const initialTargetText = String(sourceEntry.targetDraft || sourceEntry.target || '');
+      targetCell.className = `paired-cell target ${initialTargetText.trim() ? '' : 'empty'}`.trim();
       targetCell.placeholder = sourceEntry.source || t('editor.targetPlaceholder');
-      targetCell.value = sourceEntry.targetDraft || sourceEntry.target || '';
+      targetCell.value = initialTargetText;
       targetCell.addEventListener('click', (e) => e.stopPropagation());
       targetCell.addEventListener('mousedown', (e) => e.stopPropagation());
       targetCell.addEventListener('keydown', (e) => e.stopPropagation());
