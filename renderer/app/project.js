@@ -65,6 +65,9 @@
       displayName: incomingProject.displayName || currentProject.displayName || incomingProject.engine || currentProject.engine || 'unknown',
     };
     const glossary = info?.glossary || current.glossary;
+    // 项目加载 / 草稿加载时主进程会把"按分类聚合的术语合集"一并返回。命中检测与 AI 注入都走聚合版，
+    // 这样多个子库（如「角色名」「物品名」）只要分类相同就能同时参与命中。
+    const aggregatedGlossary = info?.aggregatedGlossary || current.aggregatedGlossary || null;
     const aiSettings = info?.aiSettings || current.aiSettings || {};
     if (!aiSettings.traditional) aiSettings.traditional = {};
     const hasProjectRoot = Boolean(project.rootDir);
@@ -81,6 +84,7 @@
       project,
       projectSignature,
       glossary,
+      aggregatedGlossary,
       aiSettings,
       entries: Array.isArray(info?.entries) ? info.entries : current.entries || [],
       status: recognized ? (info?.draft ? 'draft-loaded' : 'project-loaded') : 'project-empty',

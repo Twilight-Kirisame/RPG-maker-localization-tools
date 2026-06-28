@@ -355,6 +355,14 @@
                   <span data-i18n="glossary.select">术语库列表</span>
                   <select id="glossarySelect"></select>
                 </label>
+                <div class="glossary-category-row">
+                  <label class="glossary-category-label">
+                    <span data-i18n="glossary.category">分类</span>
+                    <input id="glossaryCategoryInput" type="text" data-i18n-placeholder="glossary.categoryPlaceholder" placeholder="default" />
+                  </label>
+                  <button id="applyGlossaryCategoryBtn" class="secondary-btn" data-i18n="glossary.applyCategory">应用分类</button>
+                </div>
+                <div id="glossaryAggregationHint" class="glossary-aggregation-hint hidden"></div>
                 <div class="inline-actions glossary-actions">
                   <button id="newGlossaryBtn" class="secondary-btn" data-i18n="glossary.new">新建术语库</button>
                   <button id="renameGlossaryBtn" class="primary-btn" data-i18n="glossary.rename">重命名术语库</button>
@@ -366,6 +374,10 @@
                   <label>
                     <span data-i18n="glossary.newName">新术语库名称</span>
                     <input id="newGlossaryName" type="text" data-i18n-placeholder="glossary.newNamePlaceholder" placeholder="例如：怪物名词" />
+                  </label>
+                  <label>
+                    <span data-i18n="glossary.newCategory">分类（同分类的子库会一起参与命中）</span>
+                    <input id="newGlossaryCategory" type="text" data-i18n-placeholder="glossary.categoryPlaceholder" placeholder="default" />
                   </label>
                   <div class="inline-actions">
                     <button id="confirmNewGlossaryBtn" class="primary-btn" data-i18n="common.confirm">确认建立</button>
@@ -396,17 +408,18 @@
                     <button id="termEditorCloseBtn" class="settings-close" data-i18n-aria-label="glossary.closeEditor" aria-label="Close glossary editor">×</button>
                     <h3 id="termEditorTitle" data-i18n="glossary.editTitle">术语编辑</h3>
                     <label>
-                      <span data-i18n="glossary.source">原文术语</span>
+                      <span data-i18n="glossary.source">原名</span>
                       <input id="termSource" type="text" data-i18n-placeholder="glossary.sourcePlaceholder" placeholder="例如: Potion" />
                     </label>
                     <label>
-                      <span data-i18n="glossary.target">译文术语</span>
+                      <span data-i18n="glossary.target">译名</span>
                       <input id="termTarget" type="text" data-i18n-placeholder="glossary.targetPlaceholder" placeholder="例如: 药水" />
                     </label>
                     <label>
                       <span data-i18n="glossary.note">术语备注</span>
                       <input id="termNote" type="text" data-i18n-placeholder="glossary.notePlaceholder" placeholder="可选备注" />
                     </label>
+                    <div id="termFieldError" class="term-field-error hidden" role="alert" aria-live="polite"></div>
                     <div class="inline-actions">
                       <button id="confirmTermBtn" class="primary-btn" data-i18n="common.confirm">确认</button>
                       <button id="cancelTermBtn" class="secondary-btn" data-i18n="common.cancel">取消</button>

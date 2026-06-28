@@ -18,6 +18,51 @@
     window.RpgAppStore?.setState?.({ glossary: { ...current, terms: Array.isArray(terms) ? terms : [] } });
   }
 
+  /**
+   * 从主进程拉取「同分类聚合后的术语合集」并写回 store。
+   * 命中检测（renderEntryList）和 AI 注入都会消费 aggregatedGlossary.terms。
+   * 只要保存了任何一个子库 / 改了分类 / 新建删除子库都要调一次，保证多库聚合命中始终是最新的。
+   */
+  async function refreshAggregatedGlossary() {
+    const current = state();
+    if (!current.project?.rootDir || !window.rpgWorkbench?.loadAggregatedGlossary) return null;
+    try {
+      const category = current.glossary?.category || 'default';
+      const result = await window.rpgWorkbench.loadAggregatedGlossary({
+        project: current.project,
+        category,
+        currentGlossary: current.glossary,
+      });
+      if (result?.ok && result.aggregated) {
+        window.RpgAppStore?.setState?.({ aggregatedGlossary: result.aggregated });
+        // 命中显示依赖术语合集，刷新后立刻重渲染条目列表
+        window.RpgApp?.renderEntryList?.();
+        renderAggregationHint();
+        return result.aggregated;
+      }
+    } catch (_) {
+      // 静默：聚合失败不影响主流程，命中检测会回退到当前库的 terms
+    }
+    return null;
+  }
+
+  function renderAggregationHint() {
+    const hintEl = get('glossaryAggregationHint');
+    if (!hintEl) return;
+    const aggregated = state().aggregatedGlossary;
+    if (!aggregated || !Array.isArray(aggregated.contributingGlossaries) || aggregated.contributingGlossaries.length <= 1) {
+      hintEl.textContent = '';
+      hintEl.classList.add('hidden');
+      return;
+    }
+    hintEl.textContent = format('glossary.aggregationHint', {
+      count: aggregated.contributingGlossaries.length,
+      category: aggregated.category || 'default',
+      terms: (aggregated.terms || []).length,
+    });
+    hintEl.classList.remove('hidden');
+  }
+
   function syncUI() {
     const current = state();
     const status = get('glossaryStatus');
@@ -25,11 +70,15 @@
     const hint = get('glossaryHint');
     const nameInput = get('glossaryName');
     const searchInput = get('termSearch');
+    const categoryInput = get('glossaryCategoryInput');
     if (nameInput) nameInput.value = current.glossary?.glossaryName || 'default';
     if (status) status.textContent = `${current.glossary?.projectName || t('glossary.currentProject')} / ${current.glossary?.glossaryName || 'default'}`;
     if (count) count.textContent = String(getTerms().length);
     if (hint) hint.textContent = getTerms().length ? format('glossary.termCountHint', { count: getTerms().length }) : t('glossary.emptyHint');
     if (searchInput && document.activeElement !== searchInput) searchInput.value = current.glossaryFilterText || '';
+    // 分类输入框反映当前活动术语库的分类，编辑时立即激活"应用分类"按钮
+    if (categoryInput && document.activeElement !== categoryInput) categoryInput.value = current.glossary?.category || 'default';
+    renderAggregationHint();
   }
 
   function openTermEditor(index = -1) {
@@ -39,11 +88,27 @@
     get('termSource').value = term?.source || '';
     get('termTarget').value = term?.target || '';
     get('termNote').value = term?.note || '';
+    clearTermFieldError();
     get('termEditorModal')?.classList.remove('hidden');
   }
 
   function closeTermEditor() {
+    clearTermFieldError();
     get('termEditorModal')?.classList.add('hidden');
+  }
+
+  function showTermFieldError(messageKey) {
+    const errorEl = get('termFieldError');
+    if (!errorEl) return;
+    errorEl.textContent = t(messageKey);
+    errorEl.classList.remove('hidden');
+  }
+
+  function clearTermFieldError() {
+    const errorEl = get('termFieldError');
+    if (!errorEl) return;
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
   }
 
   async function persistGlossary(message) {
@@ -53,14 +118,41 @@
     if (!result?.ok) throw new Error(result?.message || t('glossary.saveFailed'));
     if (message) trace(message, 'success');
     window.RpgProject?.syncStatusFromProject?.({ project: current.project, glossary: result.glossary || current.glossary, aiSettings: current.aiSettings, warnings: [] });
+    // 保存后立刻刷新同分类的聚合术语集，保证刚加的术语能在工作区命中
+    await refreshAggregatedGlossary();
     return result;
   }
 
   async function saveTermFromEditor() {
-    const source = get('termSource')?.value?.trim() || '';
-    const target = get('termTarget')?.value?.trim() || '';
+    const sourceInput = get('termSource');
+    const targetInput = get('termTarget');
+    const source = sourceInput?.value?.trim() || '';
+    const target = targetInput?.value?.trim() || '';
     const note = get('termNote')?.value?.trim() || '';
-    if (!source || !target) return;
+    // 字段缺失时：弹窗提示并把焦点送到第一个为空的字段；同时在弹窗下方保留红字提示作为兜底。
+    // 直接 alert 是为了避免用户误以为"确认按钮无反应"——必须给一个明显的视觉/交互反馈。
+    if (!source && !target) {
+      const msg = t('glossary.fieldRequired');
+      showTermFieldError('glossary.fieldRequired');
+      window.alert(msg);
+      sourceInput?.focus();
+      return;
+    }
+    if (!source) {
+      const msg = t('glossary.fieldRequiredSource');
+      showTermFieldError('glossary.fieldRequiredSource');
+      window.alert(msg);
+      sourceInput?.focus();
+      return;
+    }
+    if (!target) {
+      const msg = t('glossary.fieldRequiredTarget');
+      showTermFieldError('glossary.fieldRequiredTarget');
+      window.alert(msg);
+      targetInput?.focus();
+      return;
+    }
+    clearTermFieldError();
     const current = state();
     const terms = [...getTerms()];
     const next = { source, target, note, enabled: true };
@@ -143,8 +235,10 @@
 
   function setGlossary(next) {
     const current = state();
-    window.RpgAppStore?.setState?.({ glossary: { projectName: next?.projectName || current.glossary?.projectName || '', glossaryName: next?.glossaryName || current.glossary?.glossaryName || 'default', terms: Array.isArray(next?.terms) ? next.terms : [] } });
+    window.RpgAppStore?.setState?.({ glossary: { projectName: next?.projectName || current.glossary?.projectName || '', glossaryName: next?.glossaryName || current.glossary?.glossaryName || 'default', category: next?.category || current.glossary?.category || 'default', terms: Array.isArray(next?.terms) ? next.terms : [] } });
     render();
+    // 当前选中的术语库或其内容变化时，重算项目级聚合，避免命中检测对着旧库
+    refreshAggregatedGlossary();
   }
 
   async function loadGlossary(name) {
@@ -166,7 +260,16 @@
     return result;
   }
 
-  function showNewGlossaryPanel() { hideRenameGlossaryPanel(); const panel = get('newGlossaryInline'); const input = get('newGlossaryName'); panel?.classList.remove('hidden'); if (input) { input.value = ''; input.focus(); } }
+  function showNewGlossaryPanel() {
+    hideRenameGlossaryPanel();
+    const panel = get('newGlossaryInline');
+    const input = get('newGlossaryName');
+    const categoryInput = get('newGlossaryCategory');
+    panel?.classList.remove('hidden');
+    if (input) { input.value = ''; input.focus(); }
+    // 默认沿用当前活动子库的分类，便于多个子库自然聚合到同一分类
+    if (categoryInput) categoryInput.value = state().glossary?.category || 'default';
+  }
   function hideNewGlossaryPanel() { get('newGlossaryInline')?.classList.add('hidden'); }
   function showRenameGlossaryPanel() {
     hideNewGlossaryPanel();
@@ -187,9 +290,12 @@
   async function createGlossaryFromInline() {
     const current = state();
     const name = String(get('newGlossaryName')?.value || `glossary-${Date.now()}`).trim() || `glossary-${Date.now()}`;
+    // 新建子库时让用户指定分类（默认继承当前活动子库的分类，以便归到同一组聚合命中）
+    const requestedCategory = String(get('newGlossaryCategory')?.value || '').trim();
+    const category = requestedCategory || current.glossary?.category || 'default';
     if (!current.project?.rootDir) throw new Error(t('glossary.loadProjectFirst'));
     if (!window.rpgWorkbench?.saveGlossaryAs) throw new Error(t('glossary.saveAsApiMissing'));
-    const nextGlossary = { projectName: current.glossary?.projectName || current.project?.name || '', glossaryName: name, terms: [] };
+    const nextGlossary = { projectName: current.glossary?.projectName || current.project?.name || '', glossaryName: name, category, terms: [] };
     trace('正在新建术语库…', 'normal');
     const result = await window.rpgWorkbench.saveGlossaryAs({ project: current.project, glossary: nextGlossary, defaultName: name });
     if (!result?.ok) {
@@ -203,6 +309,8 @@
     hideNewGlossaryPanel();
     trace(format('glossary.createdAt', { name: window.RpgAppStore?.getState?.().glossary?.glossaryName || name, path: result.path || '' }), 'success');
     render();
+    // 新子库即便初始为空也要立刻参与命中聚合（避免后续添加术语时聚合不更新）
+    await refreshAggregatedGlossary();
     return result;
   }
 
@@ -234,6 +342,8 @@
     await refreshList();
     setGlossary(result.glossary);
     trace(format('glossary.imported', { name: result.glossaryName }), 'success');
+    // 导入后命中聚合需要重新构建
+    await refreshAggregatedGlossary();
   }
 
   async function deleteGlossary() {
@@ -246,6 +356,8 @@
     const names = await refreshList();
     await loadGlossary(names[0] || 'default');
     trace(format('glossary.deleted', { name }), 'success');
+    // 删除子库后聚合应剔除其贡献
+    await refreshAggregatedGlossary();
   }
 
   async function renameCurrentGlossary(nextNameFromInput) {
@@ -263,6 +375,33 @@
     await loadGlossary(result.glossaryName || nextName);
     renderGlossaryOptions();
     trace(format('glossary.renamed', { from: oldName, to: result.glossaryName || nextName }), 'success');
+    // 重命名后 contributingGlossaries 的 name 会变，重新聚合
+    await refreshAggregatedGlossary();
+  }
+
+  /**
+   * 修改当前术语库的分类标签。从 #glossaryCategoryInput 读取分类名，
+   * 调用主进程后刷新当前 store + 列表 + 聚合。
+   */
+  async function updateCurrentGlossaryCategory() {
+    const current = state();
+    if (!current.project?.rootDir || !current.glossary?.glossaryName) return;
+    if (!window.rpgWorkbench?.updateGlossaryCategory) throw new Error(t('glossary.updateCategoryApiMissing'));
+    const input = get('glossaryCategoryInput');
+    const nextCategory = String(input?.value || 'default').trim() || 'default';
+    if (nextCategory === (current.glossary?.category || 'default')) return;
+    trace(format('glossary.categoryUpdating', { name: current.glossary.glossaryName, category: nextCategory }), 'normal');
+    const result = await window.rpgWorkbench.updateGlossaryCategory({
+      project: current.project,
+      glossaryName: current.glossary.glossaryName,
+      category: nextCategory,
+    });
+    if (!result?.ok) throw new Error(result?.message || t('glossary.categoryUpdateFailed'));
+    // 更新本地 store 的 glossary.category，避免后续聚合用错分类
+    window.RpgAppStore?.setState?.({ glossary: { ...current.glossary, category: result.category } });
+    trace(format('glossary.categoryUpdated', { name: current.glossary.glossaryName, category: result.category }), 'success');
+    await refreshAggregatedGlossary();
+    syncUI();
   }
 
   function bindGlossaryActions() {
@@ -292,6 +431,12 @@
     get('cancelTermBtn')?.addEventListener('click', () => closeTermEditor());
     get('termEditorBackdrop')?.addEventListener('click', () => closeTermEditor());
     get('termEditorCloseBtn')?.addEventListener('click', () => closeTermEditor());
+    // 用户开始输入即清除原先的红字校验提示，避免修复后还看到旧报错。
+    get('termSource')?.addEventListener('input', () => clearTermFieldError());
+    get('termTarget')?.addEventListener('input', () => clearTermFieldError());
+    // 分类管理：把当前活动子库改入指定分类，所有同分类子库自动聚合命中
+    get('applyGlossaryCategoryBtn')?.addEventListener('click', () => updateCurrentGlossaryCategory().catch((e) => trace(e.message, 'error')));
+    get('glossaryCategoryInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') updateCurrentGlossaryCategory().catch((er) => trace(er.message, 'error')); });
     get('glossarySelect')?.addEventListener('change', (e) => loadGlossary(e.target.value).catch((er) => trace(er.message, 'error')));
     const glossarySearchInput = get('glossarySearch');
     glossarySearchInput?.addEventListener('input', () => {
@@ -315,7 +460,9 @@
       glossaryFilterText: current.glossaryFilterText || '',
     });
     syncUI();
+    // 项目或活动子库变化都会改变聚合范围，刷新一次保证命中检测对得上
+    refreshAggregatedGlossary();
   }
 
-  window.RpgGlossaryModule = { syncUI, openTermEditor, closeTermEditor, render, refreshList, loadGlossary, saveGlossary, setGlossary, showNewGlossaryPanel, hideNewGlossaryPanel, showRenameGlossaryPanel, hideRenameGlossaryPanel, createGlossaryFromInline, exportGlossary, importGlossary, deleteGlossary, renameCurrentGlossary, bindGlossaryActions, updateContext };
+  window.RpgGlossaryModule = { syncUI, openTermEditor, closeTermEditor, render, refreshList, loadGlossary, saveGlossary, setGlossary, showNewGlossaryPanel, hideNewGlossaryPanel, showRenameGlossaryPanel, hideRenameGlossaryPanel, createGlossaryFromInline, exportGlossary, importGlossary, deleteGlossary, renameCurrentGlossary, bindGlossaryActions, updateContext, refreshAggregatedGlossary, updateCurrentGlossaryCategory };
 })();

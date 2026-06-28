@@ -8,7 +8,7 @@ const path = require('path');
 const { dialog, ipcMain, shell } = require('electron');
 const { detectEngine, collectProjectTexts } = require('../services/project/ProjectTextService');
 const { pickAdapter } = require('../services/engine/registry');
-const { detectGlossaryHits, ensureProjectGlossary } = require('../services/glossary/GlossaryService');
+const { detectGlossaryHits, ensureProjectGlossary, loadAggregatedGlossary } = require('../services/glossary/GlossaryService');
 const { loadAiSettings } = require('../services/translation/TranslationService');
 const { loadDraft, applyDraftToEntries } = require('../services/export/ExportService');
 const { calculateGlobalProgress, calculateFileProgress, calculateCurrentFileProgress } = require('../services/localization/ProgressService');
@@ -82,7 +82,9 @@ function registerProjectIpc() {
       const draft = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       const rootDir = draft?.project?.rootDir || path.dirname(path.dirname(filePath));
       const project = rootDir && fs.existsSync(rootDir) ? collectProjectTexts(rootDir) : { rootDir: rootDir || '', engine: 'unknown', entries: [] };
-      const glossary = draft?.glossary || (rootDir ? await ensureProjectGlossary(project) : { projectName: '', glossaryName: 'default', terms: [] });
+      const glossary = draft?.glossary || (rootDir ? await ensureProjectGlossary(project) : { projectName: '', glossaryName: 'default', category: 'default', terms: [] });
+      // 草稿加载也要把同分类的聚合术语集一并算好，后续命中检测与 AI 注入才能命中所有子库
+      const aggregatedGlossary = rootDir ? await loadAggregatedGlossary(project, glossary?.category, glossary) : { category: 'default', terms: [], contributingGlossaries: [] };
       const aiSettings = draft?.aiSettings || (rootDir ? await loadAiSettings() : { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' });
       const entries = Array.isArray(draft?.entries) ? applyDraftToEntries(project.entries || [], draft.entries) : (project.entries || []);
       const progressState = await rebuildProjectProgressState(project, entries, draft?.progressState || draft?.projectProgressState || null);
@@ -90,7 +92,7 @@ function registerProjectIpc() {
       const globalProgress = calculateGlobalProgress(entries);
       const currentFileProgress = calculateCurrentFileProgress(entries, entries[0]?.file || '');
       const warnings = ['已从草稿文件恢复翻译内容。'];
-      return { ok: true, draft, project, glossary, aiSettings, entries, warnings, draftPath: filePath, progressState, fileProgress, globalProgress, currentFileProgress, groups: project.groups || [] };
+      return { ok: true, draft, project, glossary, aggregatedGlossary, aiSettings, entries, warnings, draftPath: filePath, progressState, fileProgress, globalProgress, currentFileProgress, groups: project.groups || [] };
     } catch (error) {
       return { ok: false, message: error.message || '草稿文件读取失败' };
     }
@@ -106,8 +108,11 @@ function registerProjectIpc() {
     project.engine = project.engine || adapter.displayName;
     project.adapterId = adapter.id;
     const glossary = await ensureProjectGlossary(project);
+    // 同时聚合项目下同分类的所有子库，命中检测应跨子库求并集，
+    // 让用户把术语按用途拆成多个子库后依然能完整命中。
+    const aggregated = await loadAggregatedGlossary(project, glossary?.category, glossary);
     const aiSettings = await loadAiSettings(project);
-    let entries = detectGlossaryHits(project.entries || [], glossary);
+    let entries = detectGlossaryHits(project.entries || [], aggregated);
     const draft = await loadDraft(rootDir);
     if (draft?.entries?.length) entries = applyDraftToEntries(entries, draft.entries);
     const previousProgressState = await loadProjectProgressState(project);
@@ -121,7 +126,7 @@ function registerProjectIpc() {
     if (Array.isArray(project.warnings) && project.warnings.length) warnings.push(...project.warnings);
     if (!project.dataRoots?.length && adapter.id === 'rpgmaker-mvmz') warnings.push('未自动发现可扫描的数据目录');
     if (!entries.length) warnings.push('未扫描到可提取的文本条目');
-    return normalizeProjectPayload(project, { project, glossary, aiSettings, entries, warnings, progressState, fileProgress, globalProgress, currentFileProgress, groups: project.groups || [], rootDir });
+    return normalizeProjectPayload(project, { project, glossary, aggregatedGlossary: aggregated, aiSettings, entries, warnings, progressState, fileProgress, globalProgress, currentFileProgress, groups: project.groups || [], rootDir });
   });
 
   ipcMain.handle('save-project-last-position', async (_event, payload = {}) => {

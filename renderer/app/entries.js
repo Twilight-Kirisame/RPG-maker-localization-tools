@@ -88,7 +88,15 @@
     });
     const groupedFiles = [...map.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], document.getElementById('languageSelect')?.value === 'ja' ? 'ja' : 'zh-Hans-CN'))
-      .map(([file, items]) => ({ file, items: items.map((item, index) => ({ ...item, localIndex: index, sourceDraft: '', targetDraft: item.targetDraft ?? item.target ?? '' })) }));
+      .map(([file, items]) => ({ file, items: items.map((item, index) => {
+        // 老草稿迁移：旧版数据可能只有 target、缺少 translationStatus，沿用原"有内容即已翻译"语义。
+        // 这里在 build 阶段一次性物化为 'translated'，让后续 isTranslated 严格依据 status 判断，
+        // 避免 AI 写入后又被 fallback 自动判定为已翻译。
+        const targetText = String(item.targetDraft ?? item.target ?? '');
+        const existingStatus = item.translationStatus || item.draftStatus || '';
+        const resolvedStatus = existingStatus || (targetText.trim() ? 'translated' : 'pending');
+        return { ...item, localIndex: index, sourceDraft: '', targetDraft: targetText, translationStatus: resolvedStatus, draftStatus: resolvedStatus };
+      }) }));
     const currentFile = current.currentFile || groupedFiles[0]?.file || '';
     window.RpgAppStore?.setState?.({
       ...current,
@@ -102,11 +110,10 @@
   }
 
   function isTranslated(entry) {
-    const target = String(entry?.targetDraft ?? entry?.target ?? '').trim();
+    // 状态由用户通过状态按钮 / 草稿迁移显式设定。AI 写入和用户编辑只动 target，不动 status，
+    // 因此这里严格依据 status 判断，不再回退到"有 target 即视为已翻译"。
     const status = entry?.translationStatus || entry?.draftStatus || '';
-    if (status === 'translated') return true;
-    if (status === 'pending') return false;
-    return Boolean(target);
+    return status === 'translated';
   }
 
   function markTranslated(entry, translated) {
@@ -114,6 +121,14 @@
     entry.translationStatus = status;
     entry.draftStatus = status;
     entry.progress = { ...(entry.progress || {}), translated, lastEditedAt: translated ? new Date().toISOString() : (entry.progress?.lastEditedAt || '') };
+  }
+
+  // 把"AI 翻译填入"或"用户编辑"等仅写入草稿文本的动作，与「已翻译/未翻译」状态解耦：
+  // 只更新 target / targetDraft，不修改 translationStatus。状态切换属于行尾的状态按钮。
+  function applyDraftWithoutMarking(entry, nextText) {
+    if (!entry) return;
+    entry.target = nextText;
+    entry.targetDraft = nextText;
   }
 
   function persistLastPosition(entry) {
@@ -270,13 +285,14 @@
         const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({
           sourceText: entry.source,
           settings,
-          glossary: current.glossary || null,
+          // 把同分类聚合后的术语集传给 AI 注入（GlossaryInjector），让多子库的术语都参与 replace / prompt 注入
+          glossary: current.aggregatedGlossary || current.glossary || null,
           project: current.project || null,
           entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path },
         });
         if (!result?.ok) throw new Error(result?.message || t('common.aiTestFail'));
-        entry.target = result.translatedText || '';
-        entry.targetDraft = entry.target;
+        // AI 写入的内容只更新草稿文本，不擅自把状态切到「已翻译」——保持当前状态由用户通过状态按钮确认。
+        applyDraftWithoutMarking(entry, result.translatedText || '');
         targetCell.value = entry.target;
         targetCell.classList.toggle('empty', !targetCell.value.trim());
         await persistLastPosition(entry);
@@ -1054,7 +1070,8 @@
             expectedCount: selectedEntries.length,
             baseSettings,
             project: current.project || null,
-            glossary: current.glossary || null,
+            // 上下文组同样优先使用聚合术语集，保证多子库的术语都对 AI 可见
+            glossary: current.aggregatedGlossary || current.glossary || null,
             maxRetries: 2,
             onProgress: (msg) => window.showAiStatus?.(msg, 'pending'),
           });
@@ -1075,9 +1092,8 @@
           renderPreviewLines();
           selectedEntries.forEach((entry, idx) => {
             const seg = result.segments[idx] || '';
-            entry.target = seg;
-            entry.targetDraft = seg;
-            markTranslated(entry, Boolean(seg.trim()));
+            // AI 写入只更新草稿文本，不自动转为「已翻译」——后续点击「应用到选中」或单行的状态按钮才会切换状态。
+            applyDraftWithoutMarking(entry, seg);
           });
           renderEntryList();
           renderCurrentEntry();
@@ -1237,7 +1253,9 @@
     items.forEach((entry) => {
       const current = state();
       const sourceEntry = entry._searchScope === 'all' ? (current.groupedFiles || []).flatMap((group) => group.items || []).find((item) => item.id === entry.id) || entry : entry;
-      sourceEntry.glossaryHits = (current.glossary?.terms || []).filter((term) => term.enabled !== false && term.source && sourceEntry.source.includes(term.source));
+      // 命中检测优先用"同分类聚合"的术语合集；缺失时回退到当前活动子库的术语，保持向后兼容。
+      const hitTerms = (current.aggregatedGlossary?.terms || current.glossary?.terms || []);
+      sourceEntry.glossaryHits = hitTerms.filter((term) => term.enabled !== false && term.source && sourceEntry.source.includes(term.source));
       const row = document.createElement('div');
       const translated = isTranslated(sourceEntry);
       const hitCount = (sourceEntry.glossaryHits || []).length;
@@ -1272,9 +1290,8 @@
       targetCell.addEventListener('mousedown', (e) => e.stopPropagation());
       targetCell.addEventListener('keydown', (e) => e.stopPropagation());
       targetCell.addEventListener('input', () => {
-        entry.targetDraft = targetCell.value;
-        entry.target = targetCell.value;
-        if (targetCell.value.trim() && entry.translationStatus !== 'pending') markTranslated(entry, true);
+        // 用户编辑只更新草稿文本，不擅自翻转「已翻译/未翻译」状态——这一切换权属于行尾的状态按钮。
+        applyDraftWithoutMarking(entry, targetCell.value);
         entry.warnings = validateLocal(entry, getProjectEngine());
         row.classList.toggle('translated', isTranslated(entry));
         row.classList.toggle('untranslated', !isTranslated(entry));
@@ -1415,15 +1432,19 @@
     if (entryCount) entryCount.textContent = String((current.groupedFiles || []).length);
     if (translatedCount) translatedCount.textContent = `${translated}/${total} · ${percent}%`;
     if (glossaryHitCount) glossaryHitCount.textContent = String((current.entries || []).reduce((sum, item) => sum + ((item.glossaryHits || []).length), 0));
-    // 同步刷新文件下拉里每个 JSON 的百分比
+    // 同步刷新文件下拉里每个 JSON 的百分比，以及顶部进度面板的三个文本与"下一未翻译"指针。
+    // 顶部面板曾只在 persistLastPosition 之后刷新，导致状态按钮切换 / 用户输入 / AI 回填后
+    // 全局/当前文件/下一未翻译三组数字与实际列表脱节，这里把它们绑到 updateCounts 链路上。
     renderFileSelect();
+    renderProgressDashboard();
   }
 
   function renderCurrentEntry() {
     const entry = getCurrentEntry();
     if (!entry) { updateCounts(); return; }
     const current = state();
-    entry.glossaryHits = (current.glossary?.terms || []).filter((term) => term.enabled !== false && term.source && entry.source.includes(term.source));
+    const hitTerms = (current.aggregatedGlossary?.terms || current.glossary?.terms || []);
+    entry.glossaryHits = hitTerms.filter((term) => term.enabled !== false && term.source && entry.source.includes(term.source));
     updateCounts();
   }
 
@@ -1473,7 +1494,7 @@
       renderCurrentEntry();
     });
     entrySearch?.addEventListener('input', () => { window.RpgAppStore?.setState?.({ searchText: entrySearch.value }); renderEntryList(); });
-    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: cur.aiSettings || {}, glossary: cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { entry.target = result.translatedText || ''; entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
+    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: cur.aiSettings || {}, glossary: cur.aggregatedGlossary || cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { applyDraftWithoutMarking(entry, result.translatedText || ''); renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
     if (saveEntryBtn) saveEntryBtn.addEventListener('click', () => { const entry = getCurrentEntry(); if (!entry) return; entry.target = (entry.targetDraft || entry.target || '').trim(); entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showToast?.(t('common.aiSaved'), 'success'); });
     clearTextsBtn?.addEventListener('click', () => clearAllTranslations());
 
