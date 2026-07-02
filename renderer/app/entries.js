@@ -1498,6 +1498,15 @@
       renderCurrentEntry();
     });
     entrySearch?.addEventListener('input', () => { window.RpgAppStore?.setState?.({ searchText: entrySearch.value }); renderEntryList(); });
+    // "搜索范围"下拉此前只有 DOM 值，没有 change 监听 → 切换后 renderEntryList 不会被触发，
+    // 底部条目列表停留在旧的作用域。这里把最新 scope 写入 state 并强制重渲染条目列表和当前条目，
+    // 保证 getFilteredItems（读取 getSearchScope()）看到最新值。
+    entrySearchScope?.addEventListener('change', () => {
+      const nextScope = entrySearchScope.value === 'all' ? 'all' : 'current';
+      window.RpgAppStore?.setState?.({ searchScope: nextScope });
+      renderEntryList();
+      renderCurrentEntry();
+    });
     if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: cur.aiSettings || {}, glossary: cur.aggregatedGlossary || cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { applyDraftWithoutMarking(entry, result.translatedText || ''); renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
     if (saveEntryBtn) saveEntryBtn.addEventListener('click', () => { const entry = getCurrentEntry(); if (!entry) return; entry.target = (entry.targetDraft || entry.target || '').trim(); entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showToast?.(t('common.aiSaved'), 'success'); });
     clearTextsBtn?.addEventListener('click', () => clearAllTranslations());
