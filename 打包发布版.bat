@@ -15,11 +15,18 @@ echo ========================================
 echo RPG Localization Workbench Packager
 echo ========================================
 echo.
-echo 1. Build stable release  (dist/)
-echo 2. Build test release    (dist-test/)
+echo 1. Build Windows stable release   (dist/,      .exe)
+echo 2. Build Windows test release     (dist-test/, .exe)
+echo 3. Build macOS   stable release   (dist/,      .zip x64+arm64)
+echo 4. Build macOS   test release     (dist-test/, .zip x64+arm64)
+echo.
+echo    [Note] macOS DMG cannot be produced on Windows (requires macOS
+echo    native tools). We emit ZIPs signed with identity=null; users
+echo    should unzip and drag the .app to /Applications, then
+echo    "xattr -d com.apple.quarantine /Applications/*.app" to launch.
 echo.
 set "BUILD_KIND=1"
-set /p "BUILD_KIND=Choose build type [1/2] [default=1]: "
+set /p "BUILD_KIND=Choose build type [1/2/3/4] [default=1]: "
 if not defined BUILD_KIND set "BUILD_KIND=1"
 
 set "BUILD_NAME="
@@ -29,24 +36,40 @@ set "CLEAN_DIR="
 
 if "%BUILD_KIND%"=="1" goto stable
 if "%BUILD_KIND%"=="2" goto test
+if "%BUILD_KIND%"=="3" goto macstable
+if "%BUILD_KIND%"=="4" goto mactest
 goto invalid
 
 :stable
-set "BUILD_NAME=stable"
+set "BUILD_NAME=Windows stable"
 set "OUTPUT_DIR=dist"
 set "NPM_SCRIPT=dist"
 set "CLEAN_DIR=dist"
 goto selected
 
 :test
-set "BUILD_NAME=test"
+set "BUILD_NAME=Windows test"
 set "OUTPUT_DIR=dist-test"
 set "NPM_SCRIPT=dist:test"
 set "CLEAN_DIR=dist-test"
 goto selected
 
+:macstable
+set "BUILD_NAME=macOS stable (zip only)"
+set "OUTPUT_DIR=dist"
+set "NPM_SCRIPT=dist:mac:winhost"
+set "CLEAN_DIR=dist"
+goto selected
+
+:mactest
+set "BUILD_NAME=macOS test (zip only)"
+set "OUTPUT_DIR=dist-test"
+set "NPM_SCRIPT=dist:mac:winhost:test"
+set "CLEAN_DIR=dist-test"
+goto selected
+
 :invalid
-echo [ERROR] Invalid selection. Please enter 1 or 2.
+echo [ERROR] Invalid selection. Please enter 1, 2, 3 or 4.
 pause
 exit /b 1
 

@@ -9,8 +9,14 @@
     "dev": "electron .",
     "dist": "electron-builder --win portable",
     "dist:test": "electron-builder --win portable --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
+    "dist:mac": "electron-builder --mac dmg zip",
+    "dist:mac:test": "electron-builder --mac dmg zip --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
+    "dist:mac:winhost": "electron-builder --mac zip --x64 --arm64",
+    "dist:mac:winhost:test": "electron-builder --mac zip --x64 --arm64 --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
     "pack": "electron-builder --win dir",
     "pack:test": "electron-builder --win dir --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
+    "pack:mac": "electron-builder --mac dir",
+    "pack:mac:test": "electron-builder --mac dir --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
     "lint": "echo \"No linter configured\""
   },
   "description": "RPG Maker 汉化工作台",
@@ -42,6 +48,21 @@
       "target": [
         "portable"
       ]
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "identity": null,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "writeUpdateInfo": false,
+      "sign": false
     },
     "extraMetadata": {
       "name": "rpg-localization-workbench"

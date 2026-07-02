@@ -700,6 +700,18 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
 .entry-view-mode > span:first-child { font-size: 12px; color: var(--muted); margin: 0; }
 .entry-view-mode .secondary-btn { padding: 8px 16px; border-radius: 999px; font-size: 13px; }
 .entry-view-mode .secondary-btn.active { background: linear-gradient(135deg, var(--accent-a), var(--accent-b)); color: #fff; }
+/* 单条 / 上下文组模式的滚动同步开关 */
+.entry-view-mode-sync {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  user-select: none;
+  margin-left: auto;                   /* 推到右端，与两个模式按钮拉开距离 */
+}
+.entry-view-mode-sync input[type="checkbox"] { margin: 0; cursor: pointer; }
+.entry-view-mode-sync:hover { color: var(--text); border-color: rgba(124,140,255,0.35); }
+:root[data-theme="light"] .entry-view-mode-sync { background: rgba(42,56,86,0.06); }
 
 /* ===== 上下文行模式 ===== */
 .context-group-panel { display: grid; gap: 10px; min-width: 0; }

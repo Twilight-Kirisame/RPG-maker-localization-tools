@@ -17,6 +17,41 @@
   let _ctxGroupListFilterFocused = false;
   let _ctxGroupListFilterCaret = 0;
 
+  // ── 单条 / 上下文组两个模式的滚动位置记忆（模块级，跨 render / re-bind 共享）─────
+  // 组模式内部的 .context-group-entry-list 是每次渲染时新建的 DOM，无法一次挂载复用。
+  // 用 modeScroll 记住"两模式各自的最近 scrollTop"，再由 wireEntryScrollTracking 在
+  // 每次渲染完成后：① 给当前模式的滚动容器挂 scroll 监听把变化写回 modeScroll，
+  //                ② 把 modeScroll[当前模式] 回填到容器 scrollTop（RAF 中执行以等 DOM 落定）。
+  const modeScroll = { single: 0, group: 0 };
+  function _getScrollElForMode(mode) {
+    const entryListEl = document.getElementById('entryList');
+    if (!entryListEl) return null;
+    if (mode === 'group') return entryListEl.querySelector('.context-group-entry-list') || entryListEl;
+    return entryListEl;
+  }
+  function wireEntryScrollTracking() {
+    const activeMode = (window.RpgAppStore?.getState?.() || {}).entryViewMode || 'single';
+    const el = _getScrollElForMode(activeMode);
+    if (!el) return;
+    if (el.dataset.modeScrollBound !== '1') {
+      el.dataset.modeScrollBound = '1';
+      el.addEventListener('scroll', () => {
+        const mode = (window.RpgAppStore?.getState?.() || {}).entryViewMode || 'single';
+        modeScroll[mode] = el.scrollTop || 0;
+        // 开了同步开关就把另一模式的记忆也同步过来，下次切模式时不会"跳回"
+        if ((window.RpgAppStore?.getState?.() || {}).entryModeScrollSync) {
+          const other = mode === 'single' ? 'group' : 'single';
+          modeScroll[other] = modeScroll[mode];
+        }
+      }, { passive: true });
+    }
+    // 回填记忆位置（等本轮渲染的 DOM 稳定）
+    requestAnimationFrame(() => {
+      const target = _getScrollElForMode(activeMode);
+      if (target) target.scrollTop = modeScroll[activeMode] || 0;
+    });
+  }
+
   // 与主进程 EngineConstraints.js 保持同步。每按键校验，不走 IPC。
   const ENGINE_CONSTRAINTS = {
     'RPG Maker MV/MZ': {
@@ -1244,10 +1279,16 @@
     if (!entryList) return;
     entryList.innerHTML = '';
     const currentMode = state().entryViewMode || 'single';
-    if (currentMode === 'group') { renderGroupMode(); return; }
+    if (currentMode === 'group') {
+      renderGroupMode();
+      // 组模式内部的 .context-group-entry-list 是每次渲染新建的 DOM，需重新挂 scroll 监听并回填位置
+      wireEntryScrollTracking();
+      return;
+    }
     const items = getFilteredItems();
     if (!items.length) {
       entryList.innerHTML = `<div class="status-box">${t('common.none')}</div>`;
+      wireEntryScrollTracking();
       return;
     }
     items.forEach((entry) => {
@@ -1387,6 +1428,8 @@
       entryList.appendChild(row);
       renderGlossaryInline(row, entry, targetCell);
     });
+    // 单条模式渲染完成后回填 / 挂载滚动监听（组模式的分支已在上面自行调用过）
+    wireEntryScrollTracking();
   }
 
   function calculateClientProgress() {
@@ -1513,20 +1556,44 @@
 
     const singleBtn = get('singleEntryModeBtn');
     const groupBtn = get('contextGroupModeBtn');
+    const scrollSyncToggle = get('entryModeScrollSyncToggle');
     const reflectMode = (mode) => {
       singleBtn?.classList.toggle('active', mode === 'single');
       groupBtn?.classList.toggle('active', mode === 'group');
     };
+
+    // 换模式流程：先把当前模式的滚动位置记下来 → 若同步开着，把新模式记忆位置同步过去
+    // → 写 state / 更新按钮外观 → 重渲染（wireEntryScrollTracking 会在 render 末尾回填 scrollTop）。
+    function switchMode(nextMode) {
+      const prevMode = state().entryViewMode || 'single';
+      if (prevMode === nextMode) return;
+      const prevEl = _getScrollElForMode(prevMode);
+      if (prevEl) modeScroll[prevMode] = prevEl.scrollTop || 0;
+      if (state().entryModeScrollSync) {
+        modeScroll[nextMode] = modeScroll[prevMode];
+      }
+      window.RpgAppStore?.setState?.({ entryViewMode: nextMode });
+      reflectMode(nextMode);
+      renderEntryList();
+    }
+
     reflectMode(state().entryViewMode || 'single');
-    singleBtn?.addEventListener('click', () => {
-      window.RpgAppStore?.setState?.({ entryViewMode: 'single' });
-      reflectMode('single');
-      renderEntryList();
-    });
-    groupBtn?.addEventListener('click', () => {
-      window.RpgAppStore?.setState?.({ entryViewMode: 'group' });
-      reflectMode('group');
-      renderEntryList();
+    if (scrollSyncToggle) scrollSyncToggle.checked = Boolean(state().entryModeScrollSync);
+    singleBtn?.addEventListener('click', () => switchMode('single'));
+    groupBtn?.addEventListener('click', () => switchMode('group'));
+
+    // 同步开关：从未勾选切到勾选时，强制把非活动模式的记忆位置对齐到当前模式的当前位置，
+    // 让下一次切模式立刻看到"位置一致"的效果，而不是等到滚过一次再对齐。
+    scrollSyncToggle?.addEventListener('change', () => {
+      const enabled = Boolean(scrollSyncToggle.checked);
+      window.RpgAppStore?.setState?.({ entryModeScrollSync: enabled });
+      if (enabled) {
+        const activeMode = state().entryViewMode || 'single';
+        const el = _getScrollElForMode(activeMode);
+        if (el) modeScroll[activeMode] = el.scrollTop || 0;
+        const other = activeMode === 'single' ? 'group' : 'single';
+        modeScroll[other] = modeScroll[activeMode];
+      }
     });
 
     // 跳转：通用工具，确保组模式 → 单条模式，定位文件 + 索引，滚动到目标行
