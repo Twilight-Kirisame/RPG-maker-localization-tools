@@ -3,15 +3,17 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # 当你推行类似 v1.0.1 的标签时自动触发打包
+      - 'v*'
 
 jobs:
   release:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      # 【关键修复 1】关闭 fail-fast。这样即使 macOS 报错挂了，Windows 的打包也会坚持跑完，两边互不干扰。
+      fail-fast: false 
       matrix:
-        os: [windows-latest, macos-latest] # 同时在微软和苹果的云端服务器上打包
+        os: [windows-latest, macos-latest]
 
     steps:
       - name: Check out git repository
@@ -20,13 +22,14 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # 【关键修复 2】将 Node.js 版本明确改为 22 (LTS)，匹配当前 Actions 环境，消除 Deprecated 警告
+          node-version: 22 
 
       - name: Install dependencies
         run: npm install
 
       - name: Build Electron App
-        run: npm run build # 确保该命令能同时处理各自平台的编译
+        run: npm run build
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
