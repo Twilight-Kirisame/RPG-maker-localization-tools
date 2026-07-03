@@ -319,7 +319,8 @@
         window.traceCall?.('辅助翻译', `使用 ${selectedProvider} 翻译：${entry.key || entry.source?.slice(0, 20) || ''}`, 'pending');
         const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({
           sourceText: entry.source,
-          settings,
+          // provider 隔离：只把当前 provider 桶的 apiKey/baseUrl/model/prompt 平铺到顶层给主进程用
+          settings: (window.RpgApp?.flattenAiSettingsForBackend?.(settings) || settings),
           // 把同分类聚合后的术语集传给 AI 注入（GlossaryInjector），让多子库的术语都参与 replace / prompt 注入
           glossary: current.aggregatedGlossary || current.glossary || null,
           project: current.project || null,
@@ -809,7 +810,7 @@
       }
       const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({
         sourceText: masked,
-        settings,
+        settings: (window.RpgApp?.flattenAiSettingsForBackend?.(settings) || settings),
         glossary: glossary || null,
         project: project || null,
         entry: { file: '', key: '', kind: 'context-group-traditional', code: null, path: '' },
@@ -917,7 +918,7 @@
 
       const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({
         sourceText: userMessage,
-        settings,
+        settings: (window.RpgApp?.flattenAiSettingsForBackend?.(settings) || settings),
         glossary: glossary || null,
         project: project || null,
         entry: { file: '', key: '', kind: 'context-group', code: null, path: '' },
@@ -1550,7 +1551,7 @@
       renderEntryList();
       renderCurrentEntry();
     });
-    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: cur.aiSettings || {}, glossary: cur.aggregatedGlossary || cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { applyDraftWithoutMarking(entry, result.translatedText || ''); renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
+    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: (window.RpgApp?.flattenAiSettingsForBackend?.(cur.aiSettings || {}) || cur.aiSettings || {}), glossary: cur.aggregatedGlossary || cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { applyDraftWithoutMarking(entry, result.translatedText || ''); renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
     if (saveEntryBtn) saveEntryBtn.addEventListener('click', () => { const entry = getCurrentEntry(); if (!entry) return; entry.target = (entry.targetDraft || entry.target || '').trim(); entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showToast?.(t('common.aiSaved'), 'success'); });
     clearTextsBtn?.addEventListener('click', () => clearAllTranslations());
 

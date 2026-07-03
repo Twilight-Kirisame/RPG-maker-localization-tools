@@ -22,6 +22,13 @@ const providerDefaults = {
     endpoint: '/chat/completions',
     model: 'deepseek-v4-flash',
   },
+  // Kimi / 月之暗面 —— OpenAI 兼容协议。官网：https://platform.kimi.ai
+  // base_url 必须带 /v1（区别于 DeepSeek 的裸 host），程序自动拼 /chat/completions。
+  kimi: {
+    baseUrl: 'https://api.moonshot.ai/v1',
+    endpoint: '/chat/completions',
+    model: 'moonshot-v1-8k',
+  },
 };
 
 const baiduLanguageMap = {
@@ -70,17 +77,69 @@ function parseBaiduError(json, httpStatus) {
   return `百度翻译失败 HTTP ${httpStatus}`;
 }
 
+// 支持的 LLM 供应商列表 —— 每一家在 providers 桶里都有独立的 { apiKey, baseUrl, model, prompt }
+// 各自互不覆盖。mock 也进桶只为形状一致，实际不消费 apiKey/baseUrl。
+const LLM_PROVIDER_KEYS = ['mock', 'deepseek', 'kimi', 'openai', 'gemini', 'claude', 'custom'];
+const EMPTY_PROVIDER_BUCKET = () => ({ apiKey: '', baseUrl: '', model: '', prompt: '' });
+
+/**
+ * 老配置（平铺 apiKey/baseUrl/model/prompt）迁移到新结构（providers.<provider>.*）。
+ * 只在当前 provider 的桶为空时把老字段搬进去，避免覆盖用户已经在某家配好的密钥。
+ * @param {Object} raw
+ * @returns {Object}
+ */
+function migrateAiSettings(raw) {
+  const settings = { ...(raw || {}) };
+  const provider = settings.provider || 'deepseek';
+  const providers = { ...(settings.providers || {}) };
+  LLM_PROVIDER_KEYS.forEach((key) => {
+    if (!providers[key] || typeof providers[key] !== 'object') providers[key] = EMPTY_PROVIDER_BUCKET();
+    else providers[key] = { ...EMPTY_PROVIDER_BUCKET(), ...providers[key] };
+  });
+  const legacyBucket = {
+    apiKey: settings.apiKey || '',
+    baseUrl: settings.baseUrl || '',
+    model: settings.model || '',
+    prompt: settings.prompt || '',
+  };
+  const existing = providers[provider] || EMPTY_PROVIDER_BUCKET();
+  const existingHasValue = Boolean(existing.apiKey || existing.baseUrl || existing.model || existing.prompt);
+  if (!existingHasValue) {
+    providers[provider] = { ...existing, ...legacyBucket };
+  }
+  settings.providers = providers;
+  return settings;
+}
+
+/**
+ * 从设置里抽出"当前 provider 应当使用"的实际配置。
+ * 优先读 providers[provider]（新结构）；若该桶为空则回退到顶层的老字段（兼容旧配置）。
+ * @param {Object} settings
+ * @returns {{apiKey:string, baseUrl:string, model:string, prompt:string}}
+ */
+function pickProviderConfig(settings) {
+  const provider = settings?.provider || 'mock';
+  const bucket = (settings?.providers && settings.providers[provider]) || null;
+  const apiKey = String((bucket?.apiKey ?? settings?.apiKey ?? '') || '');
+  const baseUrl = String((bucket?.baseUrl ?? settings?.baseUrl ?? '') || '');
+  const model = String((bucket?.model ?? settings?.model ?? '') || '');
+  const promptRaw = bucket?.prompt ?? settings?.prompt ?? '';
+  return { apiKey, baseUrl, model, prompt: String(promptRaw || '') };
+}
+
 /**
  * 加载 AI 设置（全局存储）。
  * @returns {Promise<Object>}
  */
 async function loadAiSettings() {
   const filePath = appStoragePath('ai-settings.json');
-  if (!fs.existsSync(filePath)) return { provider: 'mock', apiKey: '', baseUrl: '', model: '', prompt: defaultPrompt, traditional: {} };
+  const emptyDefault = migrateAiSettings({ provider: 'mock', apiKey: '', baseUrl: '', model: '', prompt: defaultPrompt, traditional: {} });
+  if (!fs.existsSync(filePath)) return emptyDefault;
   try {
-    return JSON.parse(await fsp.readFile(filePath, 'utf8'));
+    const parsed = JSON.parse(await fsp.readFile(filePath, 'utf8'));
+    return migrateAiSettings(parsed);
   } catch {
-    return { provider: 'mock', apiKey: '', baseUrl: '', model: '', prompt: defaultPrompt, traditional: {} };
+    return emptyDefault;
   }
 }
 
@@ -91,8 +150,10 @@ async function loadAiSettings() {
  */
 async function saveAiSettings(settings) {
   const filePath = appStoragePath('ai-settings.json');
-  await fsp.writeFile(filePath, JSON.stringify(settings || {}, null, 2), 'utf8');
-  return { ok: true, path: filePath };
+  // 保存时也走一遍 migrate，保证磁盘上的形状规范；即使调用方只送来平铺字段也会被折进 providers。
+  const normalized = migrateAiSettings(settings || {});
+  await fsp.writeFile(filePath, JSON.stringify(normalized, null, 2), 'utf8');
+  return { ok: true, path: filePath, settings: normalized };
 }
 
 /**
@@ -190,9 +251,22 @@ function normalizeDeepseekBaseUrl(baseUrl) {
   return raw.replace(/\/v1$/i, '');
 }
 
+// Kimi / 月之暗面：与 DeepSeek 相反，base_url 必须带 /v1；容错处理常见误填。
+function normalizeKimiBaseUrl(baseUrl) {
+  const raw = String(baseUrl || providerDefaults.kimi.baseUrl).trim().replace(/\/+$/, '');
+  if (!raw) return providerDefaults.kimi.baseUrl;
+  const stripped = raw.replace(/\/chat\/completions$/i, '').replace(/\/+$/, '');
+  if (/\/v1$/i.test(stripped)) return stripped;
+  return `${stripped}/v1`;
+}
+
 function normalizeChatCompletionUrl(provider, baseUrl) {
   const defaults = providerDefaults[provider] || {};
-  const rawBase = provider === 'deepseek' ? normalizeDeepseekBaseUrl(baseUrl) : String(baseUrl || defaults.baseUrl || '').trim();
+  const rawBase = provider === 'deepseek'
+    ? normalizeDeepseekBaseUrl(baseUrl)
+    : provider === 'kimi'
+      ? normalizeKimiBaseUrl(baseUrl)
+      : String(baseUrl || defaults.baseUrl || '').trim();
   const raw = rawBase.replace(/\/+$/, '');
   if (!raw) return '';
   if (/\/chat\/completions$/i.test(raw)) return raw;
@@ -215,7 +289,9 @@ function buildDeepseekExtraBody(model) {
 
 function parseAiError(json, provider, status) {
   const detail = json?.error?.message || json?.message || json?.msg || '';
-  const hint = provider === 'deepseek' && status === 404 ? '；DeepSeek 官方 OpenAI 兼容 base_url 是 https://api.deepseek.com，对话接口为 /chat/completions。请不要把 /v1 或其它不存在路径当作完整接口地址。' : '';
+  const deepseekHint = provider === 'deepseek' && status === 404 ? '；DeepSeek 官方 OpenAI 兼容 base_url 是 https://api.deepseek.com，对话接口为 /chat/completions。请不要把 /v1 或其它不存在路径当作完整接口地址。' : '';
+  const kimiHint = provider === 'kimi' && (status === 404 || status === 401) ? '；Kimi 的 base_url 是 https://api.moonshot.ai/v1，程序会自动拼 /chat/completions；请不要重复填 /chat/completions 结尾，也不要漏掉 /v1。API Key 需在 https://platform.kimi.ai 控制台创建。' : '';
+  const hint = deepseekHint || kimiHint;
   return detail ? `AI 调用失败 HTTP ${status}：${detail}${hint}` : `AI 调用失败 HTTP ${status}${hint}`;
 }
 
@@ -252,8 +328,11 @@ async function buildAiTranslate(payload) {
   const provider = settings.provider || 'mock';
   if (!sourceText) return { ok: false, provider, message: '缺少待翻译文本' };
 
+  // 按 provider 隔离取配置：providers[provider] 优先，缺失回退到顶层（老结构兼容）
+  const providerConfig = pickProviderConfig(settings);
+
   const injectionMode = settings.glossaryInjectionMode || 'off';
-  const basePrompt = settings.prompt || defaultPrompt;
+  const basePrompt = providerConfig.prompt || settings.prompt || defaultPrompt;
   const injection = applyInjection({ sourceText, systemPrompt: basePrompt, glossary, mode: injectionMode });
   const effectiveSource = injection.effectiveSource;
   const systemPrompt = injection.systemPrompt;
@@ -263,8 +342,8 @@ async function buildAiTranslate(payload) {
 
   // 缓存查询：mock 不参与缓存（避免污染调试结果）
   const modelForCache = provider === 'deepseek'
-    ? normalizeDeepseekModel(settings.model)
-    : (provider === 'baidu' || provider === 'traditional-baidu' ? `baidu:${(settings.traditional || settings).targetLang || 'zh'}` : String(settings.model || ''));
+    ? normalizeDeepseekModel(providerConfig.model)
+    : (provider === 'baidu' || provider === 'traditional-baidu' ? `baidu:${(settings.traditional || settings).targetLang || 'zh'}` : String(providerConfig.model || ''));
   const cacheKey = provider !== 'mock' && project?.rootDir
     ? TranslationCache.keyFor({ provider, model: modelForCache, systemPrompt, source: effectiveSource })
     : null;
@@ -288,13 +367,15 @@ async function buildAiTranslate(payload) {
     const finalized = finalizeTranslated(result.translatedText, settings, project, entry);
     return { ...result, translatedText: finalized.text, splitLines: finalized.splitLines, splitOverflow: finalized.splitOverflow, ...glossaryMeta };
   }
-  if (!settings.apiKey) return { ok: false, provider, message: 'API Key 未配置' };
+  if (!providerConfig.apiKey) return { ok: false, provider, message: 'API Key 未配置' };
 
   const normalizedBaseUrl = provider === 'deepseek'
-    ? normalizeDeepseekBaseUrl(settings.baseUrl)
-    : String(settings.baseUrl || '').trim();
+    ? normalizeDeepseekBaseUrl(providerConfig.baseUrl)
+    : provider === 'kimi'
+      ? normalizeKimiBaseUrl(providerConfig.baseUrl)
+      : String(providerConfig.baseUrl || '').trim();
   const baseUrl = normalizeChatCompletionUrl(provider, normalizedBaseUrl);
-  const model = provider === 'deepseek' ? normalizeDeepseekModel(settings.model) : String(settings.model || '').trim();
+  const model = provider === 'deepseek' ? normalizeDeepseekModel(providerConfig.model) : String(providerConfig.model || '').trim();
   if (!baseUrl || !model) return { ok: false, provider, message: '接口地址或模型未配置' };
 
   try {
@@ -315,7 +396,7 @@ async function buildAiTranslate(payload) {
     }
     const response = await fetch(baseUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${providerConfig.apiKey}` },
       body: JSON.stringify(payloadBody),
     });
     const json = await response.json().catch(() => ({}));
@@ -330,4 +411,4 @@ async function buildAiTranslate(payload) {
   }
 }
 
-module.exports = { loadAiSettings, saveAiSettings, saveTranslatorSettings, testTraditional, buildAiTranslate };
+module.exports = { loadAiSettings, saveAiSettings, saveTranslatorSettings, testTraditional, buildAiTranslate, migrateAiSettings, pickProviderConfig, LLM_PROVIDER_KEYS };

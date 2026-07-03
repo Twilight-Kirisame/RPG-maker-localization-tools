@@ -2,7 +2,23 @@
   const state = {
     project: null,
     glossary: { projectName: '', glossaryName: 'default', terms: [] },
-    aiSettings: { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '', lastEntryAiMode: 'baidu', traditional: {} },
+    aiSettings: {
+      provider: 'deepseek',
+      // 按供应商隔离：每家独立存 apiKey / baseUrl / model / prompt，切换 provider 时前一家不被覆盖。
+      providers: {
+        mock:     { apiKey: '', baseUrl: '',                          model: '',                   prompt: '' },
+        deepseek: { apiKey: '', baseUrl: 'https://api.deepseek.com',  model: 'deepseek-v4-flash',  prompt: '' },
+        kimi:     { apiKey: '', baseUrl: 'https://api.moonshot.ai/v1', model: 'moonshot-v1-8k',    prompt: '' },
+        openai:   { apiKey: '', baseUrl: '',                          model: '',                   prompt: '' },
+        gemini:   { apiKey: '', baseUrl: '',                          model: '',                   prompt: '' },
+        claude:   { apiKey: '', baseUrl: '',                          model: '',                   prompt: '' },
+        custom:   { apiKey: '', baseUrl: '',                          model: '',                   prompt: '' },
+      },
+      // 兼容旧代码路径的顶层影像（同步自当前活动 provider 桶），只在渲染层持续维护，不作为真实源。
+      apiKey: '', baseUrl: '', model: '', prompt: '',
+      lastEntryAiMode: 'baidu',
+      traditional: {},
+    },
     entries: [],
     groupedFiles: [],
     currentFile: '',

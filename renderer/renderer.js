@@ -413,42 +413,179 @@
     if (provider === 'deepseek') {
       if (baseUrlInput && (!preserveUserInput || !baseUrlInput.value.trim() || /api\.deepseek\.com\/v1\/?$/i.test(baseUrlInput.value.trim()))) baseUrlInput.value = 'https://api.deepseek.com';
       if (!getSelectedAiModel()) syncAiModelSelector('deepseek-v4-flash');
+    } else if (provider === 'kimi') {
+      // Kimi 官方 base_url 必须带 /v1；若用户填了 platform.kimi.ai 或 api.moonshot.cn 之类旧域名，也自动纠正
+      if (baseUrlInput && (!preserveUserInput || !baseUrlInput.value.trim() || /moonshot\.cn/i.test(baseUrlInput.value.trim()))) {
+        baseUrlInput.value = 'https://api.moonshot.ai/v1';
+      }
+      if (!getSelectedAiModel()) syncAiModelSelector('moonshot-v1-8k');
     }
   }
+
+  // ============ AI 配置作用域隔离 ============
+  // 单一事实源是 aiSettings.providers[provider] 桶。切换 provider 时先把当前表单值写回旧桶，
+  // 再从新桶读值回填表单；写盘时保留所有桶；发到主进程时把当前桶字段"平铺"到顶层做兼容。
+  const LLM_PROVIDER_KEYS = ['mock', 'deepseek', 'kimi', 'openai', 'gemini', 'claude', 'custom'];
+  const emptyProviderBucket = () => ({ apiKey: '', baseUrl: '', model: '', prompt: '' });
+  const providerDefaultBaseUrl = { deepseek: 'https://api.deepseek.com', kimi: 'https://api.moonshot.ai/v1' };
+  const providerDefaultModel = { deepseek: 'deepseek-v4-flash', kimi: 'moonshot-v1-8k' };
+  // 按 provider 提供模型下拉预设。用户仍可选"自定义"手动输入。
+  // Kimi 型号来自官网 https://platform.kimi.ai/docs/models（2026 年在售，kimi-latest 已停用）。
+  const PROVIDER_MODEL_PRESETS = {
+    deepseek: [
+      { value: 'deepseek-v4-flash', label: 'deepseek-v4-flash（官方推荐，非思考）' },
+      { value: 'deepseek-v4-pro',   label: 'deepseek-v4-pro（官方推荐，思考）' },
+      { value: 'deepseek-chat',     label: 'deepseek-chat（旧兼容名，将弃用）' },
+      { value: 'deepseek-reasoner', label: 'deepseek-reasoner（旧兼容名，将弃用）' },
+    ],
+    kimi: [
+      { value: 'moonshot-v1-8k',            label: 'moonshot-v1-8k（8K 上下文，最便宜，推荐日常翻译）' },
+      { value: 'moonshot-v1-32k',           label: 'moonshot-v1-32k（32K 上下文）' },
+      { value: 'moonshot-v1-128k',          label: 'moonshot-v1-128k（128K 上下文，长文本）' },
+      { value: 'kimi-k2.6',                 label: 'kimi-k2.6（旗舰智能，多模态，256K）' },
+      { value: 'kimi-k2.7-code',            label: 'kimi-k2.7-code（代码/结构化输出最强）' },
+      { value: 'kimi-k2.7-code-highspeed',  label: 'kimi-k2.7-code-highspeed（高速版）' },
+    ],
+    openai: [],
+    gemini: [],
+    claude: [],
+    custom: [],
+    mock:   [],
+  };
+
+  // 根据当前 provider 重建模型下拉的 <option> 列表；末尾始终追加"自定义模型"。
+  function refreshAiModelOptions(provider, selectedModel) {
+    const select = $('aiModelSelect');
+    if (!select) return;
+    const preset = PROVIDER_MODEL_PRESETS[provider] || [];
+    const customLabel = window.RpgView?.t?.('ai.modelCustom') || '自定义模型';
+    select.innerHTML = '';
+    preset.forEach((item) => {
+      const opt = document.createElement('option');
+      opt.value = item.value;
+      opt.textContent = item.label;
+      select.appendChild(opt);
+    });
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = customLabel;
+    customOpt.setAttribute('data-i18n', 'ai.modelCustom');
+    select.appendChild(customOpt);
+    syncAiModelSelector(selectedModel || '');
+  }
+
+  function migrateAiSettingsShape(raw) {
+    const settings = { ...(raw || {}) };
+    const provider = settings.provider || 'deepseek';
+    const providers = { ...(settings.providers || {}) };
+    LLM_PROVIDER_KEYS.forEach((key) => {
+      providers[key] = { ...emptyProviderBucket(), ...(providers[key] || {}) };
+    });
+    // 旧配置迁移：若当前 provider 桶为空但顶层有旧值，把旧值搬进去（一次性）
+    const legacyBucket = {
+      apiKey: settings.apiKey || '',
+      baseUrl: settings.baseUrl || '',
+      model: settings.model || '',
+      prompt: settings.prompt || '',
+    };
+    const existing = providers[provider] || emptyProviderBucket();
+    const existingHasValue = Boolean(existing.apiKey || existing.baseUrl || existing.model || existing.prompt);
+    if (!existingHasValue) providers[provider] = { ...existing, ...legacyBucket };
+    settings.providers = providers;
+    return settings;
+  }
+
+  function getActiveBucket(settings, provider) {
+    const p = provider || settings?.provider || 'deepseek';
+    const bucket = settings?.providers?.[p] || emptyProviderBucket();
+    return { ...emptyProviderBucket(), ...bucket };
+  }
+
+  // 发送给主进程时把当前 provider 桶字段平铺到顶层，兼容既有的旧代码路径。
+  function flattenAiSettingsForBackend(settings) {
+    const s = migrateAiSettingsShape(settings);
+    const bucket = getActiveBucket(s, s.provider);
+    return { ...s, ...bucket };
+  }
+
+  // 从当前表单值组装出"新旧融合"的完整设置：只覆盖当前 provider 桶，其它桶保持不变。
   function collectAiSettings() {
-    const current = getState().aiSettings || {};
+    const current = migrateAiSettingsShape(getState().aiSettings || {});
     const provider = $('aiProvider')?.value || current.provider || 'deepseek';
-    const baseUrl = provider === 'deepseek' ? 'https://api.deepseek.com' : ($('aiBaseUrl')?.value || '');
+    // deepseek 与 kimi 的 baseUrl 有官方约定；用户在这些 provider 下的 baseUrl 输入按官方值回滚
+    // （deepseek 强制官方短地址；kimi 至少要带 /v1）
+    let formBaseUrl;
+    if (provider === 'deepseek') formBaseUrl = providerDefaultBaseUrl.deepseek;
+    else if (provider === 'kimi') {
+      const typed = ($('aiBaseUrl')?.value || '').trim();
+      formBaseUrl = typed || providerDefaultBaseUrl.kimi;
+    } else {
+      formBaseUrl = $('aiBaseUrl')?.value || '';
+    }
+    const formModel = getSelectedAiModel() || (provider === 'deepseek' ? providerDefaultModel.deepseek : (provider === 'kimi' ? providerDefaultModel.kimi : ''));
+    const nextBucket = {
+      apiKey: $('aiApiKey')?.value || '',
+      baseUrl: formBaseUrl,
+      model: formModel,
+      prompt: $('aiPrompt')?.value || '',
+    };
+    const nextProviders = { ...(current.providers || {}), [provider]: nextBucket };
+    const bucketMirror = nextProviders[provider] || emptyProviderBucket();
     return {
       ...current,
       provider,
-      apiKey: $('aiApiKey')?.value || '',
-      baseUrl,
-      model: getSelectedAiModel() || (provider === 'deepseek' ? 'deepseek-v4-flash' : ''),
-      prompt: $('aiPrompt')?.value || '',
+      providers: nextProviders,
+      // 顶层影像仅供旧代码路径读；保存后端时会 flatten 一次覆盖
+      apiKey: bucketMirror.apiKey,
+      baseUrl: bucketMirror.baseUrl,
+      model: bucketMirror.model,
+      prompt: bucketMirror.prompt,
       traditional: collectTraditionalSettings(),
       lastEntryAiMode: $('globalAiModeSelect')?.value || current.lastEntryAiMode || current.provider || 'baidu',
       glossaryInjectionMode: $('aiGlossaryMode')?.value || current.glossaryInjectionMode || 'off',
       autoSplit: $('aiAutoSplit') ? !!$('aiAutoSplit').checked : !!current.autoSplit,
     };
   }
+
   function syncAiSettingsFields(settings = getState().aiSettings || {}) {
-    if ($('traditionalProvider')) $('traditionalProvider').value = settings.traditional?.provider || 'baidu';
-    if ($('baiduAppId')) $('baiduAppId').value = settings.traditional?.baiduAppId || settings.traditional?.appId || '';
-    if ($('baiduSecretKey')) $('baiduSecretKey').value = settings.traditional?.baiduSecretKey || settings.traditional?.secretKey || '';
-    if ($('googleApiKey')) $('googleApiKey').value = settings.traditional?.googleApiKey || settings.traditional?.apiKey || '';
-    if ($('translateSourceLang')) $('translateSourceLang').value = settings.traditional?.sourceLang || 'auto';
-    if ($('translateTargetLang')) $('translateTargetLang').value = settings.traditional?.targetLang || 'zh-CN';
-    if ($('aiProvider')) $('aiProvider').value = settings.provider || 'deepseek';
-    if ($('aiApiKey')) $('aiApiKey').value = settings.apiKey || '';
-    if ($('aiBaseUrl')) $('aiBaseUrl').value = settings.provider === 'deepseek' ? 'https://api.deepseek.com' : (settings.baseUrl || '');
-    syncAiModelSelector(settings.model || (settings.provider === 'deepseek' ? 'deepseek-v4-flash' : ''));
-    if ($('aiPrompt')) $('aiPrompt').value = settings.prompt || '';
-    if ($('globalAiModeSelect')) $('globalAiModeSelect').value = settings.lastEntryAiMode || settings.provider || 'baidu';
-    if ($('aiGlossaryMode')) $('aiGlossaryMode').value = settings.glossaryInjectionMode || 'off';
-    if ($('aiAutoSplit')) $('aiAutoSplit').checked = !!settings.autoSplit;
+    const normalized = migrateAiSettingsShape(settings);
+    const activeProvider = normalized.provider || 'deepseek';
+    const bucket = getActiveBucket(normalized, activeProvider);
+    if ($('traditionalProvider')) $('traditionalProvider').value = normalized.traditional?.provider || 'baidu';
+    if ($('baiduAppId')) $('baiduAppId').value = normalized.traditional?.baiduAppId || normalized.traditional?.appId || '';
+    if ($('baiduSecretKey')) $('baiduSecretKey').value = normalized.traditional?.baiduSecretKey || normalized.traditional?.secretKey || '';
+    if ($('googleApiKey')) $('googleApiKey').value = normalized.traditional?.googleApiKey || normalized.traditional?.apiKey || '';
+    if ($('translateSourceLang')) $('translateSourceLang').value = normalized.traditional?.sourceLang || 'auto';
+    if ($('translateTargetLang')) $('translateTargetLang').value = normalized.traditional?.targetLang || 'zh-CN';
+    if ($('aiProvider')) $('aiProvider').value = activeProvider;
+    // 关键：apiKey / baseUrl / model / prompt 都从"当前 provider 的桶"里取，而不是顶层字段
+    if ($('aiApiKey')) $('aiApiKey').value = bucket.apiKey || '';
+    if ($('aiBaseUrl')) {
+      $('aiBaseUrl').value = activeProvider === 'deepseek'
+        ? providerDefaultBaseUrl.deepseek
+        : activeProvider === 'kimi'
+          ? (bucket.baseUrl || providerDefaultBaseUrl.kimi)
+          : (bucket.baseUrl || '');
+    }
+    // 按当前 provider 重建下拉的可选模型列表；把桶里的 model 值选中，未命中就回落到"自定义"
+    refreshAiModelOptions(activeProvider, bucket.model || (activeProvider === 'deepseek' ? providerDefaultModel.deepseek : activeProvider === 'kimi' ? providerDefaultModel.kimi : ''));
+    if ($('aiPrompt')) $('aiPrompt').value = bucket.prompt || '';
+    if ($('globalAiModeSelect')) $('globalAiModeSelect').value = normalized.lastEntryAiMode || activeProvider || 'baidu';
+    if ($('aiGlossaryMode')) $('aiGlossaryMode').value = normalized.glossaryInjectionMode || 'off';
+    if ($('aiAutoSplit')) $('aiAutoSplit').checked = !!normalized.autoSplit;
     updateTraditionalProviderUI();
     updateAiProviderDefaults();
+    // 按 provider 显隐对应的教程提示块
+    refreshProviderTutorialVisibility(activeProvider);
+  }
+
+  // 教程提示块的显隐：只显示当前 provider 对应的那一块，避免用户在切换 provider 时看到多套说明
+  function refreshProviderTutorialVisibility(provider) {
+    const nodes = document.querySelectorAll('[data-ai-tutorial]');
+    nodes.forEach((el) => {
+      const scope = el.getAttribute('data-ai-tutorial');
+      el.classList.toggle('hidden', scope !== provider);
+    });
   }
 
   async function saveTraditionalSettings() {
@@ -472,16 +609,22 @@
     return window.runUiAction?.('保存大模型翻译设置', async () => {
       const settings = collectAiSettings(); const current = getState();
       window.RpgAppStore?.setState?.({ aiSettings: settings });
-      const result = await window.rpgWorkbench?.saveAiSettings?.({ ...settings });
+      // 送到主进程时做一次 flatten：既写入完整的 providers 分桶，也把当前桶字段平铺到顶层供旧路径读
+      const result = await window.rpgWorkbench?.saveAiSettings?.(flattenAiSettingsForBackend(settings));
       if (!result?.ok) throw new Error(result?.message || '大模型翻译设置保存失败');
-      syncGlobalAiModeSelect(); syncAiSettingsFields(settings);
+      // 主进程 saveAiSettings 会返回 normalized 后的 settings —— 用它覆盖 store，保持前后端形状一致
+      if (result?.settings) {
+        window.RpgAppStore?.setState?.({ aiSettings: migrateAiSettingsShape(result.settings) });
+      }
+      syncGlobalAiModeSelect();
+      syncAiSettingsFields(getState().aiSettings || settings);
       return result;
     }, { pending: '正在保存大模型翻译设置…', success: '大模型翻译设置已保存。', error: '大模型翻译设置保存失败', statusId: 'aiStatus', traceTitle: '大模型翻译设置' });
   }
   async function testAiSettings() {
     return window.runUiAction?.('测试大模型翻译', async () => {
       const settings = collectAiSettings();
-      const result = await window.rpgWorkbench?.aiTranslate?.({ sourceText: 'こんにちは、世界。', settings });
+      const result = await window.rpgWorkbench?.aiTranslate?.({ sourceText: 'こんにちは、世界。', settings: flattenAiSettingsForBackend(settings) });
       if (!result?.ok) throw new Error(result?.message || '大模型翻译测试失败');
       return result;
     }, { pending: '正在测试大模型翻译…', success: '大模型翻译测试成功。', error: '大模型翻译测试失败', statusId: 'aiStatus', traceTitle: '大模型翻译测试' });
@@ -490,7 +633,12 @@
   async function loadAndApplyAiSettings() {
     try {
       const result = await window.rpgWorkbench?.getAiSettings?.();
-      if (result?.ok && result.settings) { window.RpgAppStore?.setState?.({ ...getState(), aiSettings: result.settings }); syncAiSettingsFields(result.settings); }
+      if (result?.ok && result.settings) {
+        // 加载后立即 migrate 到分桶结构，保证内存里永远只有一份规范形状
+        const migrated = migrateAiSettingsShape(result.settings);
+        window.RpgAppStore?.setState?.({ ...getState(), aiSettings: migrated });
+        syncAiSettingsFields(migrated);
+      }
     } catch (_) {}
   }
 
@@ -511,7 +659,40 @@
     $('settingsBackdrop')?.addEventListener('click', () => closeSettings());
     document.querySelectorAll('.settings-tab').forEach((btn) => btn.addEventListener('click', () => switchSettingsTab(btn.dataset.tab || 'ui')));
     $('traditionalProvider')?.addEventListener('change', updateTraditionalProviderUI);
-    $('aiProvider')?.addEventListener('change', () => updateAiProviderDefaults({ preserveUserInput: false }));
+    // provider 切换：先把当前表单里的 apiKey/baseUrl/model/prompt 写回旧 provider 桶，
+    // 再把新 provider 桶的值回填到表单。中间不走 backend、不覆盖顶层影像的其它 provider 桶。
+    $('aiProvider')?.addEventListener('change', () => {
+      const current = migrateAiSettingsShape(getState().aiSettings || {});
+      const prevProvider = current.provider || 'deepseek';
+      const nextProvider = $('aiProvider')?.value || prevProvider;
+      // 1) 快照当前表单值到旧 provider 桶（不修改其它桶）
+      const capturedOldBucket = {
+        apiKey: $('aiApiKey')?.value || '',
+        baseUrl: prevProvider === 'deepseek'
+          ? providerDefaultBaseUrl.deepseek
+          : prevProvider === 'kimi'
+            ? (($('aiBaseUrl')?.value || '').trim() || providerDefaultBaseUrl.kimi)
+            : ($('aiBaseUrl')?.value || ''),
+        model: getSelectedAiModel() || (prevProvider === 'deepseek' ? providerDefaultModel.deepseek : prevProvider === 'kimi' ? providerDefaultModel.kimi : ''),
+        prompt: $('aiPrompt')?.value || '',
+      };
+      const nextProviders = { ...(current.providers || {}), [prevProvider]: capturedOldBucket };
+      // 2) 切换到新 provider 并回填新桶
+      const newBucket = getActiveBucket({ ...current, providers: nextProviders }, nextProvider);
+      const nextSettings = {
+        ...current,
+        provider: nextProvider,
+        providers: nextProviders,
+        apiKey: newBucket.apiKey,
+        baseUrl: newBucket.baseUrl,
+        model: newBucket.model,
+        prompt: newBucket.prompt,
+      };
+      window.RpgAppStore?.setState?.({ aiSettings: nextSettings });
+      // 3) 视图同步：直接从 nextSettings 读桶（不去 preserve 现有输入，因为我们要"回填"新 provider 的历史值）
+      syncAiSettingsFields(nextSettings);
+      updateAiProviderDefaults({ preserveUserInput: false });
+    });
     $('aiModelSelect')?.addEventListener('change', () => syncAiModelSelector(getSelectedAiModel()));
     $('saveTraditionalSettingsBtn')?.addEventListener('click', () => saveTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || '保存失败', 'error')));
     $('testTraditionalBtn')?.addEventListener('click', () => testTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || '测试失败', 'error')));
@@ -546,6 +727,7 @@
     syncUiSettingsFields: (...args) => window.RpgView?.syncUiSettingsFields?.(...args),
     collectUiSettings: (...args) => window.RpgView?.persistUiSettings?.(...args),
     collectTraditionalSettings, collectAiSettings, syncAiSettingsFields, updateTraditionalProviderUI,
+    flattenAiSettingsForBackend, migrateAiSettingsShape,
     buildGroupedFiles: (...args) => window.RpgEntries?.buildGroupedFiles?.(...args),
     renderFileSelect: (...args) => window.RpgEntries?.renderFileSelect?.(...args),
     renderEntryList: (...args) => window.RpgEntries?.renderEntryList?.(...args),
