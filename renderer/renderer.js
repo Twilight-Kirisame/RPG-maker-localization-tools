@@ -416,8 +416,12 @@
       if (baseUrlInput && (!preserveUserInput || !baseUrlInput.value.trim() || /api\.deepseek\.com\/v1\/?$/i.test(baseUrlInput.value.trim()))) baseUrlInput.value = 'https://api.deepseek.com';
       if (!getSelectedAiModel()) syncAiModelSelector('deepseek-v4-flash');
     } else if (provider === 'kimi') {
-      // Kimi 官方 base_url 必须带 /v1；若用户填了 platform.kimi.ai 或 api.moonshot.cn 之类旧域名，也自动纠正
-      if (baseUrlInput && (!preserveUserInput || !baseUrlInput.value.trim() || /moonshot\.cn/i.test(baseUrlInput.value.trim()))) {
+      // Kimi 有两条独立的端点，密钥不通用：
+      //   · platform.moonshot.cn（国内官方）→ https://api.moonshot.cn/v1
+      //   · platform.kimi.ai       （国际官方）→ https://api.moonshot.ai/v1
+      // 我们只在字段为空时填一个默认（.ai），绝不改写用户已经填好的 .cn / .ai / 自建镜像，
+      // 避免"用国内 Key 却被强制打到国际端点"这种 401。
+      if (baseUrlInput && (!preserveUserInput || !baseUrlInput.value.trim())) {
         baseUrlInput.value = 'https://api.moonshot.ai/v1';
       }
       if (!getSelectedAiModel()) syncAiModelSelector('moonshot-v1-8k');
@@ -655,6 +659,28 @@
   }
 
   function bindShellActions() {
+    // 密钥输入框的"眼睛"切换按钮：点击时把对应 input 的 type 在 password / text 之间翻转。
+    // 用事件委托挂到 document，避免设置面板重新构建时监听器丢失。
+    if (!document.body.dataset.secretToggleBound) {
+      document.body.dataset.secretToggleBound = '1';
+      document.addEventListener('click', (event) => {
+        const btn = event.target.closest?.('.secret-toggle');
+        if (!btn) return;
+        const inputId = btn.getAttribute('data-secret-toggle');
+        const input = inputId ? document.getElementById(inputId) : null;
+        if (!input) return;
+        const willReveal = input.type === 'password';
+        input.type = willReveal ? 'text' : 'password';
+        btn.classList.toggle('revealed', willReveal);
+        btn.setAttribute('aria-pressed', willReveal ? 'true' : 'false');
+        const t = window.RpgView?.t;
+        const nextTitle = willReveal
+          ? (t?.('ai.toggleKeyHide') || '隐藏密钥')
+          : (t?.('ai.toggleKeyShow') || '显示密钥');
+        btn.setAttribute('title', nextTitle);
+        btn.setAttribute('aria-label', nextTitle);
+      });
+    }
     $('settingsBtn')?.addEventListener('click', () => openSettings('ui'));
     $('openGlossaryManagerBtn')?.addEventListener('click', () => openSettings('glossary'));
     $('settingsCloseBtn')?.addEventListener('click', () => closeSettings());

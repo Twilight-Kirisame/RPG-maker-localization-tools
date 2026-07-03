@@ -467,6 +467,52 @@ ul { padding-left: 18px; color: #cdd5ea; }
 .settings-tab.active { background: linear-gradient(135deg, #7c8cff, #905cff); }
 .settings-pane { display: grid; gap: 14px; }
 .settings-hint { color: #b8c0d9; font-size: 13px; line-height: 1.6; }
+/* 密钥输入框 + 眼睛切换按钮 —— 用于 API Key / 百度密钥 / Google API Key 等 */
+.secret-input {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.secret-input input[type="password"],
+.secret-input input[type="text"] {
+  width: 100%;
+  padding-right: 40px;              /* 给右侧的眼睛按钮腾出位置，避免文本被盖住 */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+.secret-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: color .15s, background .15s;
+}
+.secret-toggle:hover { color: var(--text); background: rgba(124, 140, 255, 0.14); }
+.secret-toggle:focus-visible { outline: 2px solid var(--accent-a); outline-offset: 1px; }
+/* SVG 眼睛图标：默认"睁眼"（密文态，点击后变明文）；.revealed 时切成"闭眼" */
+.secret-eye {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="black" stroke-width="1.8"/></svg>') no-repeat center / contain;
+          mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="black" stroke-width="1.8"/></svg>') no-repeat center / contain;
+}
+.secret-toggle.revealed .secret-eye {
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7c2.4 0 4.4.9 6 2M22 12s-3.5 7-10 7c-2.4 0-4.4-.9-6-2"/><path fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" d="M3 3l18 18"/></svg>');
+          mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7c2.4 0 4.4.9 6 2M22 12s-3.5 7-10 7c-2.4 0-4.4-.9-6-2"/><path fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" d="M3 3l18 18"/></svg>');
+}
+.secret-toggle.revealed { color: var(--accent-a); }
 /* 大模型 provider 教程块：只对当前 provider 显示，其它默认 hidden */
 .ai-provider-tutorial {
   margin-top: 4px;

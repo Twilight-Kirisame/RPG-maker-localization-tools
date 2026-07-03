@@ -290,7 +290,11 @@ function buildDeepseekExtraBody(model) {
 function parseAiError(json, provider, status) {
   const detail = json?.error?.message || json?.message || json?.msg || '';
   const deepseekHint = provider === 'deepseek' && status === 404 ? '；DeepSeek 官方 OpenAI 兼容 base_url 是 https://api.deepseek.com，对话接口为 /chat/completions。请不要把 /v1 或其它不存在路径当作完整接口地址。' : '';
-  const kimiHint = provider === 'kimi' && (status === 404 || status === 401) ? '；Kimi 的 base_url 是 https://api.moonshot.ai/v1，程序会自动拼 /chat/completions；请不要重复填 /chat/completions 结尾，也不要漏掉 /v1。API Key 需在 https://platform.kimi.ai 控制台创建。' : '';
+  const kimiHint = provider === 'kimi' && (status === 401 || status === 403)
+    ? '；Kimi 有两条独立端点，密钥不通用：\n· 国际版：platform.kimi.ai 创建的 Key 必须用 base_url = https://api.moonshot.ai/v1\n· 国内版：platform.moonshot.cn 创建的 Key 必须用 base_url = https://api.moonshot.cn/v1\n收到 401 通常是"用 A 端点的 Key 打了 B 端点"或 Key 已停用/额度耗尽，请回控制台核对来源与余额后重试。'
+    : provider === 'kimi' && status === 404
+      ? '；Kimi 的 base_url 必须带 /v1（例如 https://api.moonshot.ai/v1 或 https://api.moonshot.cn/v1），程序会自动拼 /chat/completions；请不要把 /chat/completions 也填进 base_url，也不要漏掉 /v1。'
+      : '';
   const hint = deepseekHint || kimiHint;
   return detail ? `AI 调用失败 HTTP ${status}：${detail}${hint}` : `AI 调用失败 HTTP ${status}${hint}`;
 }

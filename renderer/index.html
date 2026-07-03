@@ -258,13 +258,23 @@
                   </label>
                   <label>
                     <span data-i18n="settings.baiduSecret">百度翻译开放平台密钥</span>
-                    <input id="baiduSecretKey" type="password" data-i18n-placeholder="settings.baiduSecretPlaceholder" placeholder="请输入密钥" />
+                    <span class="secret-input">
+                      <input id="baiduSecretKey" type="password" data-i18n-placeholder="settings.baiduSecretPlaceholder" placeholder="请输入密钥" autocomplete="off" />
+                      <button type="button" class="secret-toggle" data-secret-toggle="baiduSecretKey" data-i18n-title="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
+                        <span class="secret-eye" aria-hidden="true"></span>
+                      </button>
+                    </span>
                   </label>
                 </div>
                 <div id="traditionalProviderGoogle" class="traditional-provider-pane hidden">
                   <label>
                     <span data-i18n="settings.googleApiKey">Google API Key</span>
-                    <input id="googleApiKey" type="password" data-i18n-placeholder="settings.googleApiKeyPlaceholder" placeholder="请输入 API Key" />
+                    <span class="secret-input">
+                      <input id="googleApiKey" type="password" data-i18n-placeholder="settings.googleApiKeyPlaceholder" placeholder="请输入 API Key" autocomplete="off" />
+                      <button type="button" class="secret-toggle" data-secret-toggle="googleApiKey" data-i18n-title="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
+                        <span class="secret-eye" aria-hidden="true"></span>
+                      </button>
+                    </span>
                   </label>
                   <label>
                     <span data-i18n="settings.sourceLang">源语言</span>
@@ -296,7 +306,12 @@
                 </label>
                 <label>
                   <span data-i18n="ai.apiKey">API Key</span>
-                  <input id="aiApiKey" type="password" data-i18n-placeholder="ai.apiKeyPlaceholder" placeholder="你的 API Key" />
+                  <span class="secret-input">
+                    <input id="aiApiKey" type="password" data-i18n-placeholder="ai.apiKeyPlaceholder" placeholder="你的 API Key" autocomplete="off" />
+                    <button type="button" class="secret-toggle" data-secret-toggle="aiApiKey" data-i18n-title="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
+                      <span class="secret-eye" aria-hidden="true"></span>
+                    </button>
+                  </span>
                 </label>
                 <label>
                   <span data-i18n="ai.baseUrl">接口地址</span>
@@ -307,12 +322,12 @@
                 <div class="settings-hint ai-provider-tutorial hidden" data-ai-tutorial="kimi">
                   <strong data-i18n="ai.kimiTutorialTitle">Kimi（月之暗面）配置教程</strong>
                   <ol>
-                    <li data-i18n="ai.kimiStep1">1. 打开 <a href="https://platform.kimi.ai" target="_blank" rel="noopener">platform.kimi.ai</a>（旧域名 platform.moonshot.cn 已迁移），使用月之暗面账号登录。</li>
-                    <li data-i18n="ai.kimiStep2">2. 在控制台「API Keys」页面点击「新建 API Key」，创建后复制 sk-开头的密钥，粘贴到上方「API Key」输入框。</li>
-                    <li data-i18n="ai.kimiStep3">3. 接口地址保持默认 <code>https://api.moonshot.ai/v1</code>（必须带 /v1；程序会自动拼 /chat/completions）。</li>
+                    <li data-i18n="ai.kimiStep1">1. 选择端点：Kimi 有两条独立端点，密钥不通用：<br>· 国际版：登录 <a href="https://platform.kimi.ai" target="_blank" rel="noopener">platform.kimi.ai</a>，对应 base_url <code>https://api.moonshot.ai/v1</code>。<br>· 国内版：登录 <a href="https://platform.moonshot.cn" target="_blank" rel="noopener">platform.moonshot.cn</a>，对应 base_url <code>https://api.moonshot.cn/v1</code>。<br><strong>务必把 Key 与其来源端点配对</strong>，跨端点使用会得到 HTTP 401 Invalid Authentication。</li>
+                    <li data-i18n="ai.kimiStep2">2. 在对应控制台的「API Keys」页面点击「新建 API Key」，复制 sk- 开头的密钥，粘贴到上方「API Key」输入框（右侧眼睛可切换显示）。</li>
+                    <li data-i18n="ai.kimiStep3">3. 「接口地址」按你的账号来源二选一填：<code>https://api.moonshot.ai/v1</code>（国际）或 <code>https://api.moonshot.cn/v1</code>（国内）。必须带 /v1，程序自动拼 /chat/completions。</li>
                     <li data-i18n="ai.kimiStep4">4. 模型下拉里推荐日常翻译选 <code>moonshot-v1-8k</code>（8K 上下文最便宜）；长文本或整段对话可选 <code>moonshot-v1-32k</code> / <code>moonshot-v1-128k</code>；追求最强质量可选 <code>kimi-k2.6</code>。</li>
                     <li data-i18n="ai.kimiStep5">5. <strong>已停用</strong>：<code>kimi-latest</code>（2026-01-28 下线）与 <code>kimi-k2-*-preview</code> 系列（2026-05-25 下线），不要使用。</li>
-                    <li data-i18n="ai.kimiStep6">6. 保存后点击「测试大模型翻译」验证；失败请回控制台确认余额与 Key 权限。</li>
+                    <li data-i18n="ai.kimiStep6">6. 保存后点击「测试大模型翻译」验证；若得到 401 大概率是端点与 Key 来源不匹配，请回控制台核对来源与余额后重试。</li>
                   </ol>
                 </div>
                 <label>
