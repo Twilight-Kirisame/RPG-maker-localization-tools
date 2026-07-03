@@ -288,6 +288,7 @@
                   <select id="aiProvider">
                     <option value="mock" data-i18n="ai.providerMock">本地示例</option>
                     <option value="deepseek" data-i18n="ai.providerDeepseek">DeepSeek</option>
+                    <option value="kimi" data-i18n="ai.providerKimi">Kimi（月之暗面）</option>
                     <option value="gemini" data-i18n="ai.providerGemini">Gemini</option>
                     <option value="claude" data-i18n="ai.providerClaude">Claude / Anthropic</option>
                     <option value="custom" data-i18n="ai.providerCustom">自定义 OpenAI 兼容接口</option>
@@ -301,7 +302,19 @@
                   <span data-i18n="ai.baseUrl">接口地址</span>
                   <input id="aiBaseUrl" type="text" data-i18n-placeholder="ai.baseUrlPlaceholder" placeholder="https://api.deepseek.com" />
                 </label>
-                <div class="settings-hint" data-i18n="ai.deepseekBaseUrlHint">DeepSeek 官方 base_url 是 https://api.deepseek.com，程序会自动调用 /chat/completions；请不要填写 /v1/chat/completions。</div>
+                <div class="settings-hint" data-ai-tutorial="deepseek" data-i18n="ai.deepseekBaseUrlHint">DeepSeek 官方 base_url 是 https://api.deepseek.com，程序会自动调用 /chat/completions；请不要填写 /v1/chat/completions。</div>
+                <!-- Kimi / 月之暗面 配置教程：只在 provider=kimi 时显示 -->
+                <div class="settings-hint ai-provider-tutorial hidden" data-ai-tutorial="kimi">
+                  <strong data-i18n="ai.kimiTutorialTitle">Kimi（月之暗面）配置教程</strong>
+                  <ol>
+                    <li data-i18n="ai.kimiStep1">1. 打开 <a href="https://platform.kimi.ai" target="_blank" rel="noopener">platform.kimi.ai</a>（旧域名 platform.moonshot.cn 已迁移），使用月之暗面账号登录。</li>
+                    <li data-i18n="ai.kimiStep2">2. 在控制台「API Keys」页面点击「新建 API Key」，创建后复制 sk-开头的密钥，粘贴到上方「API Key」输入框。</li>
+                    <li data-i18n="ai.kimiStep3">3. 接口地址保持默认 <code>https://api.moonshot.ai/v1</code>（必须带 /v1；程序会自动拼 /chat/completions）。</li>
+                    <li data-i18n="ai.kimiStep4">4. 模型下拉里推荐日常翻译选 <code>moonshot-v1-8k</code>（8K 上下文最便宜）；长文本或整段对话可选 <code>moonshot-v1-32k</code> / <code>moonshot-v1-128k</code>；追求最强质量可选 <code>kimi-k2.6</code>。</li>
+                    <li data-i18n="ai.kimiStep5">5. <strong>已停用</strong>：<code>kimi-latest</code>（2026-01-28 下线）与 <code>kimi-k2-*-preview</code> 系列（2026-05-25 下线），不要使用。</li>
+                    <li data-i18n="ai.kimiStep6">6. 保存后点击「测试大模型翻译」验证；失败请回控制台确认余额与 Key 权限。</li>
+                  </ol>
+                </div>
                 <label>
                   <span data-i18n="ai.model">模型</span>
                   <select id="aiModelSelect">
