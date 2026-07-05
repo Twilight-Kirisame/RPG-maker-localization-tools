@@ -5,7 +5,9 @@ v1.1 及更早版本的变更日志请参见 [README.md#更新日志](./README.m
 
 ---
 
-## [v1.2.0] - 2026-07-05
+## v1.2 — 上下文组重构、AI 对齐引擎与大型项目懒加载
+
+**发布日期**：2026-07-05
 
 ### 核心改进
 
@@ -105,13 +107,17 @@ node scripts/test-lazy-load.js "/path/to/large-rpg-project"   # 懒加载回归
 
 ---
 
-## [v1.1.1] - 合并修复与回归保护
+## v1.1.1 — 合并修复与回归保护
+
+**发布日期**：见 README.md 更新日志。
 
 - 修复 git 合并后 8 个文件残留的 conflict markers。
 - entry 形状升级到 LocalizationEntry，新增 `adapterMeta`、`textClass`、`textType`、`semanticRole`、`groupId`、`context`、`constraints`、`progress`、`status`、`hash` 等字段；Writeback / Validator / TranslationService / smoke 全部兼容新旧形状。
 - 新增 `scripts/smoke-mainproc-require.js` 与 `scripts/smoke-load-project.js` 两个不依赖 Electron 的冒烟脚本。
 
-## [v1.1.0] - 本地化全链路升级
+## v1.1 — 本地化全链路升级
+
+**发布日期**：见 README.md 更新日志。
 
 - 术语库 AI 注入（replace / prompt）。
 - AI 译文哈希缓存（LRU 10k、每项目独立 JSON、debounce 写盘）。
@@ -122,7 +128,3 @@ node scripts/test-lazy-load.js "/path/to/large-rpg-project"   # 懒加载回归
 - 双语编辑器：文件下拉百分比、单条/上下文组显示模式、warning tag、设置面板开关。
 - 恢复 stable / test 双轨打包与 `打包发布版.bat`。
 - 新增 `scripts/smoke-writeback.js` 与 `assets/test-projects/mv-mini/`。
-
----
-
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
