@@ -44,6 +44,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     },
     "win": {
+      "icon": "assets/app-icon.ico",
       "signAndEditExecutable": false,
       "target": [
         "portable"
