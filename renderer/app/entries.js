@@ -78,17 +78,17 @@
     const c = getConstraints(engine || 'RPG Maker MV/MZ', entry.kind);
     if (!c) return warnings;
     const lines = target.split(/\r?\n/);
-    if (c.maxLines > 0 && lines.length > c.maxLines) warnings.push({ code: 'too-many-lines', message: `${lines.length}/${c.maxLines} 行`, actual: lines.length, max: c.maxLines });
+    if (c.maxLines > 0 && lines.length > c.maxLines) warnings.push({ code: 'too-many-lines', message: tf('validation.tooManyLines', { actual: lines.length, max: c.maxLines }), actual: lines.length, max: c.maxLines });
     if (c.maxCharsPerLine > 0) {
       lines.forEach((line, idx) => {
-        if (line.length > c.maxCharsPerLine) warnings.push({ code: 'line-too-long', message: `第${idx + 1}行${line.length}/${c.maxCharsPerLine}字`, line: idx + 1, length: line.length, max: c.maxCharsPerLine });
+        if (line.length > c.maxCharsPerLine) warnings.push({ code: 'line-too-long', message: tf('validation.lineTooLong', { line: idx + 1, actual: line.length, max: c.maxCharsPerLine }), line: idx + 1, length: line.length, max: c.maxCharsPerLine });
       });
     }
     if (c.preserveControlCodes) {
       const src = String(entry.source || '').match(CTRL_RE) || [];
       const dst = new Set(target.match(CTRL_RE) || []);
       const missing = src.filter((code) => !dst.has(code));
-      if (missing.length) warnings.push({ code: 'control-char-missing', message: `缺控制码 ${missing.join(' ')}`, missing });
+      if (missing.length) warnings.push({ code: 'control-char-missing', message: tf('validation.missingControlCodes', { codes: missing.join(' ') }), missing });
     }
     return warnings;
   }
@@ -144,6 +144,16 @@
     return groupedFiles;
   }
 
+  function buildGroupedFilesForFile(file, entries) {
+    const items = (entries || []).map((item, index) => {
+      const targetText = String(item.targetDraft ?? item.target ?? '');
+      const existingStatus = item.translationStatus || item.draftStatus || '';
+      const resolvedStatus = existingStatus || (targetText.trim() ? 'translated' : 'pending');
+      return { ...item, localIndex: index, sourceDraft: '', targetDraft: targetText, translationStatus: resolvedStatus, draftStatus: resolvedStatus };
+    });
+    return { file, items };
+  }
+
   function isTranslated(entry) {
     // 状态由用户通过状态按钮 / 草稿迁移显式设定。AI 写入和用户编辑只动 target，不动 status，
     // 因此这里严格依据 status 判断，不再回退到"有 target 即视为已翻译"。
@@ -197,21 +207,27 @@
     if (!fileSelect) return;
     const prevValue = fileSelect.value || current.currentFile || '';
     fileSelect.innerHTML = '';
-    (current.groupedFiles || []).forEach((group) => {
-      const items = group.items || [];
+    const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
+    const sourceList = useLazyLoad ? (current.fileList || []) : (current.groupedFiles || []);
+    sourceList.forEach((item) => {
+      const file = useLazyLoad ? item.file : item.file;
+      const group = useLazyLoad ? (current.groupedFiles || []).find((g) => g.file === file) : item;
+      const items = group?.items || [];
       const total = items.length;
-      const translated = items.filter((item) => isTranslated(item)).length;
+      const translated = items.filter((entry) => isTranslated(entry)).length;
       const percent = total ? Math.round((translated / total) * 100) : 0;
       const option = document.createElement('option');
-      option.value = group.file;
-      option.textContent = `${group.file}  (${translated}/${total} · ${percent}%)`;
+      option.value = file;
+      const sizeText = useLazyLoad ? ` (${(item.size > 1024 * 1024 ? (item.size / 1024 / 1024).toFixed(1) + 'MB' : (item.size / 1024).toFixed(0) + 'KB')})` : '';
+      const loadedMark = useLazyLoad ? (item.loaded ? ' ✓' : '') : '';
+      option.textContent = `${file}${sizeText}  ${tf('progress.summary', { translated, total, percent })}${loadedMark}`;
       option.dataset.percent = String(percent);
       if (percent === 100) option.dataset.status = 'done';
       else if (percent > 0) option.dataset.status = 'partial';
       else option.dataset.status = 'pending';
       fileSelect.appendChild(option);
     });
-    if (!(current.groupedFiles || []).length) fileSelect.innerHTML = `<option value="">${t('common.none')}</option>`;
+    if (!sourceList.length) fileSelect.innerHTML = `<option value="">${t('common.none')}</option>`;
     if (prevValue) fileSelect.value = prevValue;
     // 当前文件徽标（如果 HTML 里挂了 #currentFileProgressBadge 占位就更新它，没挂也无害）
     const badge = get('currentFileProgressBadge');
@@ -230,7 +246,12 @@
   }
 
   function getSearchScope() {
-    return get('entrySearchScope')?.value || state().searchScope || 'current';
+    const current = state();
+    const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
+    const scope = get('entrySearchScope')?.value || current.searchScope || 'current';
+    // 懒加载模式下只有已加载文件在内存中，不支持跨全部文件搜索
+    if (useLazyLoad && scope === 'all') return 'current';
+    return scope;
   }
 
   function matchesSearch(entry, q) {
@@ -290,7 +311,13 @@
   }
 
   function runEntryAction(label, task, statusId = 'aiStatus') {
-    return window.runUiAction?.(label, task, { pending: `${label}中…`, success: `${label}完成`, error: `${label}失败`, statusId, traceTitle: label });
+    return window.runUiAction?.(label, task, {
+      pending: tf('common.actionPending', { action: label }),
+      success: tf('common.actionSuccess', { action: label }),
+      error: tf('common.actionError', { action: label }),
+      statusId,
+      traceTitle: label
+    });
   }
 
   function renderEntryAiAction(entry, targetCell) {
@@ -316,7 +343,7 @@
           settings.traditional = { ...(current.aiSettings?.traditional || {}), provider: selectedProvider };
         }
         window.RpgAppStore?.setState?.({ aiSettings: settings });
-        window.traceCall?.('辅助翻译', `使用 ${selectedProvider} 翻译：${entry.key || entry.source?.slice(0, 20) || ''}`, 'pending');
+        window.traceCall?.(t('trace.assistPlatform'), `使用 ${selectedProvider} 翻译：${entry.key || entry.source?.slice(0, 20) || ''}`, 'pending');
         const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({
           sourceText: entry.source,
           // provider 隔离：只把当前 provider 桶的 apiKey/baseUrl/model/prompt 平铺到顶层给主进程用
@@ -581,7 +608,7 @@
    * 【JSON 协议】专用 system prompt：明确告诉模型输入 / 输出都是 JSON 对象，且键必须一对一。
    */
   function buildGroupSystemPromptJson(basePrompt, expectedCount) {
-    const userPart = String(basePrompt || '你是一个专业的 RPG Maker 游戏汉化助手，请将原文自然准确地翻译成简体中文。').trim();
+    const userPart = String(basePrompt || t('ai.defaultSystemPrompt')).trim();
     const protocol = [
       '',
       '====== [上下文组翻译协议 · JSON 结构化模式 · 程序自动注入] ======',
@@ -665,7 +692,7 @@
    *      （见 buildGroupUserMessage），因为非思考型模型对 user role 的注意力更高。
    */
   function buildGroupSystemPrompt(basePrompt) {
-    const userPart = String(basePrompt || '你是一个专业的 RPG Maker 游戏汉化助手，请将原文自然准确地翻译成简体中文。').trim();
+    const userPart = String(basePrompt || t('ai.defaultSystemPrompt')).trim();
     const protocol = [
       '',
       '====== [上下文组翻译协议 · 程序自动注入，请严格遵守] ======',
@@ -1473,13 +1500,16 @@
     const entryCount = get('entryCount');
     const translatedCount = get('translatedCount');
     const glossaryHitCount = get('glossaryHitCount');
+    const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
     const allEntries = (current.groupedFiles || []).flatMap((group) => group.items || []);
-    const total = allEntries.length || (current.entries || []).length;
+    const totalLoaded = allEntries.length;
     const translated = allEntries.filter((item) => isTranslated(item)).length;
-    const percent = total ? Math.round((translated / total) * 100) : 0;
-    if (entryCount) entryCount.textContent = String((current.groupedFiles || []).length);
-    if (translatedCount) translatedCount.textContent = `${translated}/${total} · ${percent}%`;
-    if (glossaryHitCount) glossaryHitCount.textContent = String((current.entries || []).reduce((sum, item) => sum + ((item.glossaryHits || []).length), 0));
+    const percent = totalLoaded ? Math.round((translated / totalLoaded) * 100) : 0;
+    if (entryCount) entryCount.textContent = String(useLazyLoad ? (current.fileList || []).length : (current.groupedFiles || []).length);
+    if (translatedCount) translatedCount.textContent = useLazyLoad
+      ? `${translated}/${totalLoaded} · ${percent}%`
+      : `${translated}/${totalLoaded} · ${percent}%`;
+    if (glossaryHitCount) glossaryHitCount.textContent = String(allEntries.reduce((sum, item) => sum + ((item.glossaryHits || []).length), 0));
     // 同步刷新文件下拉里每个 JSON 的百分比，以及顶部进度面板的三个文本与"下一未翻译"指针。
     // 顶部面板曾只在 persistLastPosition 之后刷新，导致状态按钮切换 / 用户输入 / AI 回填后
     // 全局/当前文件/下一未翻译三组数字与实际列表脱节，这里把它们绑到 updateCounts 链路上。
@@ -1529,17 +1559,24 @@
     const saveEntryBtn = get('saveEntryBtn');
     const clearTextsBtn = get('clearTextsBtn');
 
-    fileSelect?.addEventListener('change', () => {
+    fileSelect?.addEventListener('change', async () => {
       const current = state();
+      const selectedFile = fileSelect.value;
+      const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
+      const isLoaded = useLazyLoad ? (current.fileList || []).find((f) => f.file === selectedFile)?.loaded : true;
       window.RpgAppStore?.setState?.({
         ...current,
-        currentFile: fileSelect.value,
+        currentFile: selectedFile,
         currentEntryIndex: 0,
         project: current.project || null,
         status: current.status || 'project-loaded',
       });
-      renderEntryList();
-      renderCurrentEntry();
+      if (useLazyLoad && !isLoaded && window.RpgProject?.loadFile) {
+        await window.RpgProject.loadFile(selectedFile);
+      } else {
+        renderEntryList();
+        renderCurrentEntry();
+      }
     });
     entrySearch?.addEventListener('input', () => { window.RpgAppStore?.setState?.({ searchText: entrySearch.value }); renderEntryList(); });
     // "搜索范围"下拉此前只有 DOM 值，没有 change 监听 → 切换后 renderEntryList 不会被触发，
@@ -1687,5 +1724,5 @@
     });
   }
 
-  window.RpgEntries = { getCurrentEntry, buildGroupedFiles, getExportEntries, renderFileSelect, getFilteredItems, renderEntryList, updateCounts, renderCurrentEntry, clearAllTranslations, syncListState, bindEntryActions };
+  window.RpgEntries = { getCurrentEntry, buildGroupedFiles, buildGroupedFilesForFile, getExportEntries, renderFileSelect, getFilteredItems, renderEntryList, updateCounts, renderCurrentEntry, clearAllTranslations, syncListState, bindEntryActions };
 })();

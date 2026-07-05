@@ -129,11 +129,20 @@
 ## 完整变更文件清单
 
 ```
-modified:   renderer/app/entries.js          (核心：~600 行新增/重写)
-modified:   renderer/app/bootstrap.js        (i18n 三语词典补全 ~40 key)
+modified:   renderer/app/entries.js          (核心：~600 行新增/重写；懒加载支持)
+modified:   renderer/app/bootstrap.js        (i18n 三语词典补全 ~40 key + stats.files)
+modified:   renderer/app/controller.js       (新增 loadFileEntries)
+modified:   renderer/app/project.js          (懒加载项目加载/文件切换)
+modified:   renderer/export-module.js        (懒加载模式下导出/写回保护)
 modified:   renderer/styles.css              (UI 紧凑化 + 进度网格新增 ~80 行)
-modified:   src/main/services/translation/TranslationService.js  (response_format 透传，1 处 4 行)
+modified:   src/main/services/engine/RpgMakerAdapter.js           (listFiles/extractFile 接口)
+modified:   src/main/services/engines/adapters/RpgMakerAdapter.js (listFiles/extractFile 实现)
+modified:   src/main/services/engines/EngineRegistry.js           (懒加载阈值与路由)
+modified:   src/main/services/project/ProjectTextService.js       (collectProjectFiles/collectFileTexts)
+modified:   src/main/ipc/project.ipc.js      (load-project-texts 懒加载分支 + 新 IPC)
+modified:   src/preload/preload.js           (暴露新 IPC)
 new file:   CHANGELOG_pending.md             (本文档)
+new file:   scripts/test-lazy-load.js        (懒加载回归脚本)
 unchanged:  README.md                        (与远端 v1.1.1 完全一致)
 ```
 
@@ -200,11 +209,24 @@ unchanged:  README.md                        (与远端 v1.1.1 完全一致)
 - 没有任何分页 / 流式 / 过滤逻辑 —— 一次性把整个项目载完
 
 **修复方向**（v1.3 重点）：
-1. **IPC 分页**：`load-project-texts` 只返回元数据（文件列表 + 进度），按文件 `load-file-entries(fileId)` 按需拉取
+1. **IPC 分页**：`load-project-texts` 只返回元数据（文件列表 + 进度），按文件 `load-file-entries(fileId)` 按需拉取 ✅ **已实现**
 2. **entry 序列化瘦身**：传 renderer 时去掉 hash / context.groupSource 等大字段，需要时按 ID 索取
 3. **异步化提取**：`fs.readFile`（promise 版）+ `p-limit` 并发 8–16，避免主线程同步阻塞
 4. **maxEntriesWarning**：超过 5 万条时弹窗提示用户"项目超大，建议分文件加载"，给用户感知
 5. **内存压力监控**（可选）：`process.memoryUsage().heapUsed > 1GB` 时主动 GC 并截断
+
+**实际实现（本轮完成）**
+- 新增阈值：`LAZY_LOAD_FILE_SIZE_BYTES=512KB`、`LAZY_LOAD_TOTAL_SIZE_BYTES=50MB`、`LAZY_LOAD_TOTAL_ENTRIES=50000`
+- 当项目满足任一阈值时，`load-project-texts` 改为返回 `useLazyLoad=true` + `files[]`（文件索引），不返回全部 entries
+- 新增 IPC：`load-project-file-list`、`load-file-entries(rootDir, filePath)`
+- 渲染端首次只加载文件列表，默认加载第一个文件；用户切换文件时按需拉取；已加载文件做缓存
+- 懒加载模式下禁用跨全部文件搜索（只能搜索当前文件），导出/写回给出明确提示
+- 新增回归脚本：`scripts/test-lazy-load.js`
+- SHNwin 实测：`listFiles` 20–70ms，单文件提取 15–220ms，首次内存占用从 129k 条条目降至单个文件最多约 2k 条
+
+**尚存限制**
+- 导出草稿/补丁/写回 JSON 在懒加载模式下目前会提示"请先加载全部文件"；完整流式导出需要后续迭代
+- 单文件条目过多（如 CommonEvents.json 1,877 条）时渲染仍可能轻微卡顿，但不再导致整体闪退
 
 ### C. 已知次要遗留
 
@@ -241,9 +263,17 @@ node scripts/smoke-load-project.js        # load-project-texts IPC 完整链路
 node scripts/smoke-writeback.js           # 提取→注入→断行→写回→断言
 ```
 
-建议为 v1.2 新增：
+新增懒加载验证脚本：
+
+```bash
+node scripts/test-lazy-load.js "F:/フリーゲーム/ソウルハンターノノ/SHNwin"
+```
+
+建议为 v1.3 新增：
 
 ```bash
 # 待开发：上下文组 JSON 协议端到端冒烟
 node scripts/smoke-context-group-json.js  # mock provider + fake JSON response 全链路对齐验证
+# 待开发：流式导出/写回冒烟（懒加载模式下导出完整项目）
+node scripts/smoke-lazy-export.js
 ```

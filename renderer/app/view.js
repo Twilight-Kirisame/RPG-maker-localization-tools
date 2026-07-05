@@ -164,9 +164,11 @@
     const text = document.getElementById('themeBackgroundPreviewText');
     if (!preview || !image || !text) return;
     const value = String(backgroundImage || '').trim();
+    const previewHint = window.RpgView?.t?.('settings.previewClickToOpen') || '点击查看原图';
     if (!value) {
       preview.classList.remove('has-image', 'can-open');
       image.style.backgroundImage = 'none';
+      image.dataset.previewHint = previewHint;
       text.textContent = (window.RpgI18n?.[localStorage.getItem(storageKeys.language) || defaults.language] || {})['settings.previewEmpty'] || '当前未设置图片背景';
       preview.dataset.previewUrl = '';
       return;
@@ -174,6 +176,7 @@
     const normalized = /^https?:\/\//i.test(value) || /^file:/i.test(value) ? value : value.replace(/\\/g, '/');
     preview.classList.add('has-image', 'can-open');
     image.style.backgroundImage = `url("${normalized}")`;
+    image.dataset.previewHint = previewHint;
     text.textContent = value;
     preview.dataset.previewUrl = normalized;
   }

@@ -117,6 +117,11 @@
       'glossary.exported': '已导出术语库：{name}{path}',
       'glossary.imported': '已导入术语库：{name}',
       'glossary.deleted': '已删除术语库：{name}',
+      'glossary.saving': '正在保存术语库…',
+      'glossary.creating': '正在新建术语库…',
+      'glossary.exporting': '正在导出术语库…',
+      'glossary.importing': '正在导入术语库…',
+      'glossary.renaming': '正在重命名术语库：{from} → {to}',
       'glossary.loadProjectFirst': '请先打开项目',
       'glossary.importApiMissing': '导入接口未注册',
       'glossary.saveFailed': '术语库保存失败',
@@ -125,6 +130,10 @@
       'glossary.exportFailed': '导出失败',
       'glossary.importFailed': '导入失败',
       'glossary.deleteFailed': '删除失败',
+      'validation.tooManyLines': '{actual}/{max} 行',
+      'validation.lineTooLong': '第{line}行{actual}/{max}字',
+      'validation.missingControlCodes': '缺控制码 {codes}',
+      'ai.defaultSystemPrompt': '你是一个专业的 RPG Maker 游戏汉化助手，请将原文自然准确地翻译成简体中文。',
       'glossary.rename': '重命名术语库',
       'glossary.renamePrompt': '请输入新的术语库名称',
       'glossary.renameApiMissing': '重命名接口未注册',
@@ -141,11 +150,35 @@
       'glossary.categoryUpdateFailed': '更新分类失败',
       'glossary.updateCategoryApiMissing': '更新分类接口未注册',
       'settings.close': '关闭设置',
+      'project.recognized': '已识别',
+      'project.recognizedHint': '已识别到项目结构，可继续导入与翻译。',
+      'project.dataRootsFound': '已扫描到 {count} 个文本目录',
+      'project.dataRootsEmpty': '未扫描到文本目录',
+      'project.statusLoaded': '项目已加载',
+      'project.statusDraft': '草稿已加载',
+      'project.statusLoading': '正在加载项目…',
+      'project.ready': '项目已就绪：{path}',
+      'trace.projectStatus': '项目状态打点',
+      'trace.openProject': '打开项目',
+      'trace.loadDraftBtn': '载入草稿按钮',
+      'trace.prepareRead': '准备读取：{path}',
+      'trace.callSystemDirPicker': '开始调用系统目录选择器',
+      'trace.userCancel': '用户取消选择',
+      'trace.pickResult': '选择结果 rootDir={rootDir}, engine={engine}',
+      'trace.mainProcessReturn': '主进程返回 entries={entries}, warnings={warnings}',
+      'trace.startPickDraftFile': '开始选择草稿文件',
+      'trace.draftOpened': '已打开 {path}',
+      'common.processing': '正在处理',
+      'common.unknownError': '未知错误',
+      'common.operationFailed': '操作失败',
+      'draft.loadFailed': '草稿加载失败',
+      'draft.loaded': '已载入草稿：{path}',
       'project.scanDataRoots': '扫描文本位置',
       'project.scanDataRootsDone': '已发现文本目录：{count} 个',
       'project.scanDataRootsEmpty': '未发现可扫描的数据目录，请检查项目结构。',
       'project.scanDataRootsFailed': '扫描文本位置失败：{message}',
       'project.scanDataRootsMissing': '请先打开项目再扫描文本位置。',
+      'project.scanningDataRoots': '正在扫描文本目录…',
       'common.none': '暂无条目',
       'common.item': '条',
       'common.edit': '编辑',
@@ -164,7 +197,20 @@
       'trace.notice': '提示',
       'trace.status': '状态',
       'trace.assistPlatform': '辅助翻译平台',
-      'ai.status': '请选择翻译模式后开始翻译。',
+      'trace.providerSwitched': '已切换至 {provider}',
+      'trace.uiSettings': '界面设置',
+      'trace.uiSettingsSaved': '界面设置已保存。',
+      'trace.backgroundImage': '背景图片',
+      'trace.selectFailed': '选择失败',
+      'trace.defaultThemeRestored': '已恢复默认外观',
+      'trace.waiting': '等待操作…',
+      'trace.initFailed': '初始化失败',
+      'trace.unknownError': '未知错误',
+      'trace.aiSettings': '大模型翻译设置',
+      'trace.aiTest': '大模型翻译测试',
+      'trace.traditionalSettings': '传统翻译设置',
+      'trace.traditionalTest': '传统翻译测试',
+      'app.copyright': '© 2026 RPG 汉化工作台，保留所有权利。',
       'ai.providerBaidu': '百度翻译',
       'ai.providerGoogle': '谷歌翻译',
       'ai.providerDeepseek': 'DeepSeek',
@@ -177,19 +223,81 @@
       'ai.modelPlaceholder': '输入自定义模型名',
       'ai.modelCustom': '自定义模型',
       'ai.deepseekBaseUrlHint': 'DeepSeek 官方 base_url 是 https://api.deepseek.com，程序会自动调用 /chat/completions；请不要填写 /v1/chat/completions。',
-      'ai.prompt': '系统提示词'
+      'ai.prompt': '系统提示词',
+    
+      'action.openProjectFolder': '打开项目目录',
+      'action.loadProjectTexts': '载入项目文本',
+      'action.saveTranslatorSettings': '保存翻译设置',
+      'action.testTranslatorSettings': '测试翻译设置',
+      'action.aiTranslate': 'AI 翻译',
+      'action.saveProjectLastPosition': '保存翻译位置',
+      'action.loadProjectProgressState': '读取项目进度',
+      'action.getUiSettings': '读取界面设置',
+      'action.saveUiSettings': '保存界面设置',
+      'trace.actionStart': '动作开始',
+      'trace.actionSuccess': '动作完成',
+      'trace.actionFailed': '动作失败',
+      'error.projectRequired': '{action}前请先打开并载入项目',
+      'error.saveDraftApiMissing': '草稿导出接口未注入',
+      'error.exportDraftFailed': '导出草稿失败',
+      'error.exportPatchApiMissing': '补丁导出接口未注入',
+      'error.exportPatchFailed': '导出补丁失败',
+      'error.writebackApiMissing': '写回接口未注入',
+      'error.writebackFailed': '写回失败',
+      'action.exportDraft': '导出草稿',
+      'action.exportPatch': '导出补丁',
+      'action.writebackJson': '写回 JSON',
+      'export.draftPending': '正在导出草稿…',
+      'export.draftSuccess': '草稿导出完成',
+      'export.draftError': '草稿导出失败',
+      'export.patchPending': '正在导出补丁…',
+      'export.patchSuccess': '补丁导出完成',
+      'export.patchError': '补丁导出失败',
+      'trace.writebackClicked': '点击写回游戏 JSON',
+      'action.openPatchDir': '打开补丁目录',
+      'error.noPatchDir': '没有可打开的补丁目录',
+      'error.openDirApiMissing': '打开目录接口未注入',
+      'action.openingPatchDir': '正在打开补丁目录…',
+      'action.patchDirOpened': '补丁目录已打开',
+      'action.openPatchDirFailed': '打开补丁目录失败',
+      'writeback.summary': '已写回 {count} 个 JSON 文件（含 {errors} 条错误）',
     },
     en: {
       'common.none': 'No items', 'common.item': 'item', 'common.edit': 'Edit', 'common.delete': 'Delete', 'common.confirm': 'Confirm', 'common.cancel': 'Cancel',
+      'common.processing': 'Processing', 'common.unknownError': 'Unknown error', 'common.operationFailed': 'Operation failed',
+      'project.recognized': 'Recognized', 'project.recognizedHint': 'Project structure recognized. You can proceed to import and translate.', 'project.dataRootsFound': 'Found {count} text directories', 'project.dataRootsEmpty': 'No text directories found', 'project.statusLoaded': 'Project loaded', 'project.statusDraft': 'Draft loaded', 'project.statusLoading': 'Loading project…', 'project.ready': 'Project ready: {path}',
+      'trace.projectStatus': 'Project status trace', 'trace.openProject': 'Open project', 'trace.loadDraftBtn': 'Load draft button', 'trace.prepareRead': 'Preparing to read: {path}', 'trace.callSystemDirPicker': 'Calling system directory picker', 'trace.userCancel': 'User cancelled selection', 'trace.pickResult': 'Pick result rootDir={rootDir}, engine={engine}', 'trace.mainProcessReturn': 'Main process returned entries={entries}, warnings={warnings}', 'trace.startPickDraftFile': 'Starting draft file selection', 'trace.draftOpened': 'Opened {path}',
+      'draft.loadFailed': 'Failed to load draft', 'draft.loaded': 'Draft loaded: {path}',
+      'trace.actionStart': 'Action started', 'trace.actionSuccess': 'Action completed', 'trace.actionFailed': 'Action failed',
+      'action.openProjectFolder': 'Open project folder', 'action.loadProjectTexts': 'Load project texts', 'action.saveTranslatorSettings': 'Save translator settings', 'action.testTranslatorSettings': 'Test translator settings', 'action.aiTranslate': 'AI translate', 'action.saveProjectLastPosition': 'Save translation position', 'action.loadProjectProgressState': 'Load project progress', 'action.getUiSettings': 'Get UI settings', 'action.saveUiSettings': 'Save UI settings',
+      'error.projectRequired': 'Please open and load a project before {action}', 'error.saveDraftApiMissing': 'Draft export API not injected', 'error.exportDraftFailed': 'Export draft failed', 'error.exportPatchApiMissing': 'Patch export API not injected', 'error.exportPatchFailed': 'Export patch failed', 'error.writebackApiMissing': 'Writeback API not injected', 'error.writebackFailed': 'Writeback failed',
+      'action.exportDraft': 'Export draft', 'action.exportPatch': 'Export patch', 'action.writebackJson': 'Write back JSON',
+      'export.draftPending': 'Exporting draft…', 'export.draftSuccess': 'Draft export completed', 'export.draftError': 'Draft export failed', 'export.patchPending': 'Exporting patch…', 'export.patchSuccess': 'Patch export completed', 'export.patchError': 'Patch export failed',
+      'trace.writebackClicked': 'Clicked write back to game JSON', 'action.openPatchDir': 'Open patch directory', 'error.noPatchDir': 'No patch directory to open', 'error.openDirApiMissing': 'Open directory API not injected', 'action.openingPatchDir': 'Opening patch directory…', 'action.patchDirOpened': 'Patch directory opened', 'action.openPatchDirFailed': 'Failed to open patch directory',
+      'writeback.summary': 'Wrote back {count} JSON files ({errors} errors)',
       'glossary.currentProject': 'Current Project', 'glossary.emptyHint': 'The current glossary is empty. You can add terms directly.', 'glossary.termCountHint': 'This glossary contains {count} terms.',
       'workspace.ai': 'AI Assist Platform', 'workspace.exportDraft': 'Export Draft', 'workspace.exportDraftTitle': 'Export the current translation progress as a draft file', 'workspace.draftLoad': 'Load Draft', 'workspace.draftLoadTitle': 'Restore translations from a saved JSON draft file', 'workspace.settings': 'Settings', 'workspace.export': 'Export Patch', 'workspace.exportTitle': 'Export a patch directory that can be written back to the game', 'workspace.resetProject': 'Reset', 'workspace.resetProjectTitle': 'Clear the current project and return to an unloaded state', 'workspace.resetConfirm': 'This will return the UI to an unloaded-project state. Saved drafts and autosaved progress can still be recovered via Load Draft. Continue?', 'workspace.resetDone': 'Reset to unloaded-project state.', 'workspace.clearTexts': 'Clear Current JSON Translations', 'workspace.clearTextsTitle': 'Clear all translation lines in the current JSON file', 'workspace.clearConfirm': 'This will clear all translations in the current JSON file and mark them as untranslated. Continue?',
       'stats.groups': 'Text Groups', 'stats.progress': 'Total / Translated', 'stats.translated': 'Translated', 'stats.hits': 'Glossary Hits',
       'ai.status': 'Choose a translation mode to start.',
+      'trace.providerSwitched': 'Switched to {provider}',
+      'trace.uiSettings': 'UI Settings',
+      'trace.uiSettingsSaved': 'UI settings saved.',
+      'trace.backgroundImage': 'Background Image',
+      'trace.selectFailed': 'Selection failed',
+      'trace.defaultThemeRestored': 'Default appearance restored',
+      'trace.waiting': 'Waiting for operation…',
+      'trace.initFailed': 'Initialization failed',
+      'trace.unknownError': 'Unknown error',
+      'trace.aiSettings': 'LLM Translation Settings',
+      'trace.aiTest': 'LLM Translation Test',
+      'trace.traditionalSettings': 'Traditional Translation Settings',
+      'trace.traditionalTest': 'Traditional Translation Test',
+      'app.copyright': '© 2026 RPG Localization Workbench. All rights reserved.',
       'ai.providerBaidu': 'Baidu Translate', 'ai.providerGoogle': 'Google Translate', 'ai.providerDeepseek': 'DeepSeek', 'ai.providerKimi': 'Kimi (Moonshot AI)', 'ai.providerGemini': 'Gemini', 'ai.providerClaude': 'Claude / Anthropic', 'ai.providerCustom': 'Custom OpenAI-Compatible API',
       'progress.global': 'Project Progress',
-      'progress.global': 'Project Progress', 'progress.currentFile': 'Current File Progress', 'progress.file': 'File Progress', 'progress.translated': 'Translated', 'progress.pending': 'Pending', 'progress.reviewed': 'Reviewed', 'progress.warning': 'Warnings', 'progress.lastPosition': 'Last Translation Position', 'progress.continueLast': 'Continue Last Translation', 'progress.gotoLast': 'Go to Last Position', 'progress.nextPending': 'Next Pending', 'progress.previousPending': 'Previous Pending', 'progress.filterPending': 'Pending Only', 'progress.filterWarnings': 'Warnings Only', 'progress.filterContextual': 'Contextual Only', 'progress.filterAtomic': 'Atomic Only', 'progress.noLastPosition': 'No previous translation position', 'progress.noPending': 'No pending entries', 'progress.summary': '{translated}/{total} · {percent}%', 'progress.toggleStatus': 'Click to toggle translated/pending status',
+      'progress.global': 'Project Progress', 'progress.currentFile': 'Current File Progress', 'progress.file': 'File Progress', 'progress.translated': 'Translated', 'progress.pending': 'Pending', 'progress.reviewed': 'Reviewed', 'progress.warning': 'Warnings', 'progress.lastPosition': 'Last Translation Position', 'progress.continueLast': 'Continue Last Translation', 'progress.gotoLast': 'Go to Last Position', 'progress.nextPending': 'Next Pending', 'progress.previousPending': 'Previous Pending', 'progress.filterPending': 'Pending Only', 'progress.filterWarnings': 'Warnings Only', 'progress.filterContextual': 'Contextual Only', 'progress.filterAtomic': 'Atomic Only', 'progress.noLastPosition': 'No previous translation position', 'progress.noPending': 'No pending entries', 'progress.summary': '{translated}/{total} · {percent}%', 'progress.toggleStatus': 'Click to toggle translated/pending status', 'project.scanningDataRoots': 'Scanning text directories…', 'validation.tooManyLines': '{actual}/{max} lines', 'validation.lineTooLong': 'Line {line}: {actual}/{max} chars', 'validation.missingControlCodes': 'Missing control codes: {codes}', 'ai.defaultSystemPrompt': 'You are a professional RPG Maker game localization assistant. Please translate the source text naturally and accurately into Simplified Chinese.',
       'context.viewMode': 'View Mode', 'context.singleMode': 'Single Entry Mode', 'context.groupMode': 'Context Group Mode', 'context.scrollSync': 'Sync scroll position', 'context.scrollSyncTitle': "When checked, scroll positions of Single Entry and Context Group modes stay in sync; enabling the checkbox aligns the inactive mode's position to the currently active one.", 'context.noGroups': 'No context groups in current file', 'context.groupTargetPlaceholder': 'Enter the translated text for this context group', 'context.groupLineCount': 'How many lines should this be split into', 'context.groupBoundaryTitle': 'Suggested split points', 'context.groupSplitHint': 'Insert ---SPLIT--- inside the combined translation above to mark line breaks. Applying will split by markers or line breaks into selected entries.', 'context.groupSplitOnApply': 'Split by line breaks when applying back', 'context.groupApply': 'Apply to Selected', 'context.groupClear': 'Clear Selection', 'context.groupShort': 'Group',
-      'glossary.hitCount': '{count} glossary hits', 'glossary.untitledSource': 'Untitled source', 'glossary.untitledTarget': 'Untitled target', 'glossary.insertMode': 'Insert Mode', 'glossary.insertCursor': 'Insert at Cursor', 'glossary.insertReplace': 'Replace Selection', 'glossary.insertAppend': 'Append to End', 'glossary.insertAll': 'Insert All', 'glossary.insertAllDone': 'Inserted all glossary terms: {count}', 'glossary.insertOne': 'Insert: {source} → {target}', 'glossary.insertOneDone': 'Inserted glossary term into translation: {source}',
+      'glossary.hitCount': '{count} glossary hits', 'glossary.untitledSource': 'Untitled source', 'glossary.untitledTarget': 'Untitled target', 'glossary.insertMode': 'Insert Mode', 'glossary.insertCursor': 'Insert at Cursor', 'glossary.insertReplace': 'Replace Selection', 'glossary.insertAppend': 'Append to End', 'glossary.insertAll': 'Insert All', 'glossary.insertAllDone': 'Inserted all glossary terms: {count}', 'glossary.insertOne': 'Insert: {source} → {target}', 'glossary.insertOneDone': 'Inserted glossary term into translation: {source}', 'glossary.saving': 'Saving glossary…', 'glossary.creating': 'Creating glossary…', 'glossary.exporting': 'Exporting glossary…', 'glossary.importing': 'Importing glossary…', 'glossary.renaming': 'Renaming glossary: {from} → {to}', 'glossary.loadProjectFirst': 'Please open a project first', 'glossary.importApiMissing': 'Import API not registered', 'glossary.saveFailed': 'Failed to save glossary', 'glossary.exportFailed': 'Export failed', 'glossary.importFailed': 'Import failed', 'glossary.deleteFailed': 'Delete failed', 'glossary.categoryUpdateFailed': 'Failed to update category', 'glossary.updateCategoryApiMissing': 'Category update API is not registered',
       'entry.aiTranslate': 'AI Translate', 'entry.aiTranslateTitle': 'Translate this entry with the currently selected assist provider',
       'textClass.contextual': 'Contextual Text', 'textClass.atomic': 'Atomic Term', 'textClass.mixed': 'Mixed Text', 'textClass.unknown': 'Unknown Type',
       'textType.dialogue-line': 'Dialogue Line', 'textType.dialogue-block': 'Dialogue Group', 'textType.long-description': 'Long Text', 'textType.choice-option': 'Choice', 'textType.actor-name': 'Actor Name', 'textType.actor-description': 'Actor Description', 'textType.enemy-name': 'Enemy Name', 'textType.enemy-description': 'Enemy Description', 'textType.item-name': 'Item Name', 'textType.item-description': 'Item Description', 'textType.items-description': 'Item Description', 'textType.weapon-name': 'Weapon Name', 'textType.weapon-description': 'Weapon Description', 'textType.weapons-description': 'Weapon Description', 'textType.armor-name': 'Armor Name', 'textType.armor-description': 'Armor Description', 'textType.armors-description': 'Armor Description', 'textType.skill-name': 'Skill Name', 'textType.skill-description': 'Skill Description', 'textType.skills-description': 'Skill Description', 'textType.state-name': 'State Name', 'textType.state-description': 'State Description', 'textType.states-description': 'State Description', 'textType.class-name': 'Class Name', 'textType.class-description': 'Class Description', 'textType.classes-description': 'Class Description', 'textType.map-name': 'Map Name', 'textType.system-command': 'System Command', 'textType.system-message': 'System Message', 'textType.system-title': 'System Title', 'textType.currency-unit': 'Currency Unit', 'textType.event-message': 'Event Message', 'textType.speaker': 'Speaker', 'textType.plugin-text': 'Plugin Text', 'textType.generic-text': 'Generic Text',
@@ -197,13 +305,38 @@
     },
     ja: {
       'common.none': '項目なし', 'common.item': '件', 'common.edit': '編集', 'common.delete': '削除', 'common.confirm': '確認', 'common.cancel': 'キャンセル',
+      'common.processing': '処理中', 'common.unknownError': '不明なエラー', 'common.operationFailed': '操作に失敗しました',
+      'project.recognized': '認識済み', 'project.recognizedHint': 'プロジェクト構造を認識しました。インポートと翻訳を続行できます。', 'project.dataRootsFound': 'テキストディレクトリ {count} 個を検出', 'project.dataRootsEmpty': 'テキストディレクトリが見つかりません', 'project.statusLoaded': 'プロジェクトを読み込みました', 'project.statusDraft': '下書きを読み込みました', 'project.statusLoading': 'プロジェクトを読み込み中…', 'project.ready': 'プロジェクト準備完了：{path}',
+      'trace.projectStatus': 'プロジェクト状態トレース', 'trace.openProject': 'プロジェクトを開く', 'trace.loadDraftBtn': '下書き読み込みボタン', 'trace.prepareRead': '読み込み準備：{path}', 'trace.callSystemDirPicker': 'システムディレクトリ選択器を呼び出し中', 'trace.userCancel': 'ユーザーが選択をキャンセルしました', 'trace.pickResult': '選択結果 rootDir={rootDir}, engine={engine}', 'trace.mainProcessReturn': 'メインプロセスが返却 entries={entries}, warnings={warnings}', 'trace.startPickDraftFile': '下書きファイルの選択を開始', 'trace.draftOpened': '{path} を開きました',
+      'draft.loadFailed': '下書きの読み込みに失敗しました', 'draft.loaded': '下書きを読み込みました：{path}',
+      'trace.actionStart': 'アクション開始', 'trace.actionSuccess': 'アクション完了', 'trace.actionFailed': 'アクション失敗',
+      'action.openProjectFolder': 'プロジェクトフォルダを開く', 'action.loadProjectTexts': 'プロジェクトテキストを読み込む', 'action.saveTranslatorSettings': '翻訳設定を保存', 'action.testTranslatorSettings': '翻訳設定をテスト', 'action.aiTranslate': 'AI 翻訳', 'action.saveProjectLastPosition': '翻訳位置を保存', 'action.loadProjectProgressState': 'プロジェクト進捗を読み込む', 'action.getUiSettings': 'UI 設定を取得', 'action.saveUiSettings': 'UI 設定を保存',
+      'error.projectRequired': '{action}前にプロジェクトを開いて読み込んでください', 'error.saveDraftApiMissing': '下書きエクスポート API が未注入です', 'error.exportDraftFailed': '下書きエクスポートに失敗しました', 'error.exportPatchApiMissing': 'パッチエクスポート API が未注入です', 'error.exportPatchFailed': 'パッチエクスポートに失敗しました', 'error.writebackApiMissing': '書き戻し API が未注入です', 'error.writebackFailed': '書き戻しに失敗しました',
+      'action.exportDraft': '下書きをエクスポート', 'action.exportPatch': 'パッチをエクスポート', 'action.writebackJson': 'JSON を書き戻す',
+      'export.draftPending': '下書きをエクスポート中…', 'export.draftSuccess': '下書きエクスポート完了', 'export.draftError': '下書きエクスポートに失敗しました', 'export.patchPending': 'パッチをエクスポート中…', 'export.patchSuccess': 'パッチエクスポート完了', 'export.patchError': 'パッチエクスポートに失敗しました',
+      'trace.writebackClicked': 'ゲーム JSON 書き戻しをクリック', 'action.openPatchDir': 'パッチディレクトリを開く', 'error.noPatchDir': '開くパッチディレクトリがありません', 'error.openDirApiMissing': 'ディレクトリを開く API が未注入です', 'action.openingPatchDir': 'パッチディレクトリを開いています…', 'action.patchDirOpened': 'パッチディレクトリを開きました', 'action.openPatchDirFailed': 'パッチディレクトリを開けませんでした',
+      'writeback.summary': '{count} 個の JSON ファイルを書き戻しました（エラー {errors} 件）',
       'glossary.currentProject': '現在のプロジェクト', 'glossary.emptyHint': '現在の用語集は空です。用語を直接追加できます。', 'glossary.termCountHint': 'この用語集には {count} 件の用語があります。',
       'workspace.ai': 'AI 補助翻訳プラットフォーム', 'workspace.exportDraft': '下書きをエクスポート', 'workspace.exportDraftTitle': '現在の翻訳進捗を下書きファイルとしてエクスポート', 'workspace.draftLoad': '下書きを読み込み', 'workspace.draftLoadTitle': '保存済み JSON 下書きから翻訳内容を復元', 'workspace.settings': '設定', 'workspace.export': 'パッチをエクスポート', 'workspace.exportTitle': 'ゲームへ書き戻せるパッチフォルダをエクスポート', 'workspace.resetProject': 'リセット', 'workspace.resetProjectTitle': '現在のプロジェクトをクリアして未読み込み状態に戻す', 'workspace.clearTexts': '現在の JSON 翻訳をクリア', 'workspace.clearTextsTitle': '現在の JSON ファイル内のすべての翻訳行をクリア', 'workspace.clearConfirm': '現在の JSON ファイルのすべての翻訳を消去し、未翻訳に戻します。続行しますか？',
       'stats.groups': 'テキストグループ数', 'stats.progress': '総数 / 翻訳済み', 'stats.translated': '翻訳済み', 'stats.hits': '用語ヒット',
       'ai.providerBaidu': 'Baidu 翻訳', 'ai.providerGoogle': 'Google 翻訳', 'ai.providerDeepseek': 'DeepSeek', 'ai.providerKimi': 'Kimi（Moonshot AI）', 'ai.providerGemini': 'Gemini', 'ai.providerClaude': 'Claude / Anthropic', 'ai.providerCustom': 'OpenAI 互換のカスタム API',
-      'progress.global': 'プロジェクト進捗', 'progress.currentFile': '現在のファイル進捗', 'progress.file': 'ファイル進捗', 'progress.translated': '翻訳済み', 'progress.pending': '未翻訳', 'progress.reviewed': '校正済み', 'progress.warning': '警告', 'progress.lastPosition': '前回の翻訳位置', 'progress.continueLast': '前回の続きから翻訳', 'progress.gotoLast': '前回位置へ移動', 'progress.nextPending': '次の未翻訳', 'progress.previousPending': '前の未翻訳', 'progress.filterPending': '未翻訳のみ', 'progress.filterWarnings': '警告のみ', 'progress.filterContextual': '文脈テキストのみ', 'progress.filterAtomic': '独立語句のみ', 'progress.noLastPosition': '前回の翻訳位置はありません', 'progress.noPending': '未翻訳項目はありません', 'progress.summary': '{translated}/{total} · {percent}%', 'progress.toggleStatus': 'クリックして翻訳済み/未翻訳を切り替え',
+      'trace.providerSwitched': '{provider} に切り替えました',
+      'trace.uiSettings': 'UI 設定',
+      'trace.uiSettingsSaved': 'UI 設定を保存しました。',
+      'trace.backgroundImage': '背景画像',
+      'trace.selectFailed': '選択に失敗しました',
+      'trace.defaultThemeRestored': 'デフォルトの外観に戻しました',
+      'trace.waiting': '操作を待っています…',
+      'trace.initFailed': '初期化に失敗しました',
+      'trace.unknownError': '不明なエラー',
+      'trace.aiSettings': '大規模モデル翻訳設定',
+      'trace.aiTest': '大規模モデル翻訳テスト',
+      'trace.traditionalSettings': '従来型翻訳設定',
+      'trace.traditionalTest': '従来型翻訳テスト',
+      'app.copyright': '© 2026 RPG ローカライズ作業台。無断転載を禁じます。',
+      'progress.global': 'プロジェクト進捗', 'progress.currentFile': '現在のファイル進捗', 'progress.file': 'ファイル進捗', 'progress.translated': '翻訳済み', 'progress.pending': '未翻訳', 'progress.reviewed': '校正済み', 'progress.warning': '警告', 'progress.lastPosition': '前回の翻訳位置', 'progress.continueLast': '前回の続きから翻訳', 'progress.gotoLast': '前回位置へ移動', 'progress.nextPending': '次の未翻訳', 'progress.previousPending': '前の未翻訳', 'progress.filterPending': '未翻訳のみ', 'progress.filterWarnings': '警告のみ', 'progress.filterContextual': '文脈テキストのみ', 'progress.filterAtomic': '独立語句のみ', 'progress.noLastPosition': '前回の翻訳位置はありません', 'progress.noPending': '未翻訳項目はありません', 'progress.summary': '{translated}/{total} · {percent}%', 'progress.toggleStatus': 'クリックして翻訳済み/未翻訳を切り替え', 'project.scanningDataRoots': 'テキストディレクトリをスキャン中…', 'validation.tooManyLines': '{actual}/{max} 行', 'validation.lineTooLong': '第{line}行{actual}/{max}文字', 'validation.missingControlCodes': '制御コード不足 {codes}', 'ai.defaultSystemPrompt': 'あなたはプロのRPG Makerゲーム漢化アシスタントです。原文を自然かつ正確に簡体字中国語に翻訳してください。',
       'context.viewMode': '表示モード', 'context.singleMode': '単一項目モード', 'context.groupMode': '文脈グループモード', 'context.scrollSync': 'スクロール位置を同期', 'context.scrollSyncTitle': 'チェックすると単一項目モードと文脈グループモードのスクロール位置が同期されます。チェックした瞬間、非アクティブモードの位置は現在のモードの位置に合わせられます。', 'context.noGroups': '現在のファイルには文脈グループがありません', 'context.groupTargetPlaceholder': 'この文脈グループ全体の翻訳を入力', 'context.groupLineCount': '何行に分けるか', 'context.groupBoundaryTitle': '分割候補', 'context.groupSplitHint': '上の結合訳文内に ---SPLIT--- を入れて分割位置を指定します。適用時にマーカーまたは改行で選択項目へ戻します。', 'context.groupSplitOnApply': '適用時に改行で分割', 'context.groupApply': '選択項目に適用', 'context.groupClear': '選択をクリア', 'context.groupShort': '文脈グループ',
-      'glossary.hitCount': '用語ヒット {count} 件', 'glossary.untitledSource': '未命名の原文', 'glossary.untitledTarget': '未命名の訳文', 'glossary.insertMode': '挿入方法', 'glossary.insertCursor': 'カーソル位置に挿入', 'glossary.insertReplace': '選択範囲を置換', 'glossary.insertAppend': '末尾に追加', 'glossary.insertAll': 'すべて挿入', 'glossary.insertOne': '挿入：{source} → {target}',
+      'glossary.hitCount': '用語ヒット {count} 件', 'glossary.untitledSource': '未命名の原文', 'glossary.untitledTarget': '未命名の訳文', 'glossary.insertMode': '挿入方法', 'glossary.insertCursor': 'カーソル位置に挿入', 'glossary.insertReplace': '選択範囲を置換', 'glossary.insertAppend': '末尾に追加', 'glossary.insertAll': 'すべて挿入', 'glossary.insertOne': '挿入：{source} → {target}', 'glossary.saving': '用語集を保存中…', 'glossary.creating': '用語集を作成中…', 'glossary.exporting': '用語集をエクスポート中…', 'glossary.importing': '用語集をインポート中…', 'glossary.renaming': '用語集の名前を変更中：{from} → {to}', 'glossary.loadProjectFirst': 'プロジェクトを先に開いてください', 'glossary.importApiMissing': 'インポート API が未登録です', 'glossary.saveFailed': '用語集の保存に失敗しました', 'glossary.exportFailed': 'エクスポートに失敗しました', 'glossary.importFailed': 'インポートに失敗しました', 'glossary.deleteFailed': '削除に失敗しました', 'glossary.categoryUpdateFailed': 'カテゴリ更新に失敗しました', 'glossary.updateCategoryApiMissing': 'カテゴリ更新 API が未登録です',
       'textClass.contextual': '文脈テキスト', 'textClass.atomic': '独立語句', 'textClass.mixed': '混合テキスト', 'textClass.unknown': '不明な種類',
       'textType.dialogue-line': '会話行', 'textType.dialogue-block': '会話グループ', 'textType.long-description': '長文', 'textType.choice-option': '選択肢', 'textType.actor-name': 'キャラクター名', 'textType.actor-description': 'キャラクター説明', 'textType.enemy-name': '敵名', 'textType.enemy-description': '敵説明', 'textType.item-name': 'アイテム名', 'textType.item-description': 'アイテム説明', 'textType.items-description': 'アイテム説明', 'textType.weapon-name': '武器名', 'textType.weapon-description': '武器説明', 'textType.weapons-description': '武器説明', 'textType.armor-name': '防具名', 'textType.armor-description': '防具説明', 'textType.armors-description': '防具説明', 'textType.skill-name': 'スキル名', 'textType.skill-description': 'スキル説明', 'textType.skills-description': 'スキル説明', 'textType.state-name': 'ステート名', 'textType.state-description': 'ステート説明', 'textType.states-description': 'ステート説明', 'textType.class-name': '職業名', 'textType.class-description': '職業説明', 'textType.classes-description': '職業説明', 'textType.map-name': 'マップ名', 'textType.system-command': 'システムコマンド', 'textType.system-message': 'システムメッセージ', 'textType.system-title': 'システムタイトル', 'textType.currency-unit': '通貨単位', 'textType.event-message': 'イベントメッセージ', 'textType.speaker': '話者', 'textType.plugin-text': 'プラグインテキスト', 'textType.generic-text': '汎用テキスト',
       'build.testVersion': 'テスト版', 'build.stableVersion': '安定版'
@@ -212,8 +345,32 @@
 
   Object.assign(fallbackI18n['zh-CN'], {
     'ai.provider': '提供方', 'ai.providerMock': '本地示例', 'ai.apiKey': 'API Key', 'ai.baseUrl': '接口地址', 'ai.model': '模型', 'ai.save': '保存设置', 'ai.test': '测试 AI',
+    'ai.deepseekV4Flash': 'deepseek-v4-flash（官方推荐，非思考）', 'ai.deepseekV4Pro': 'deepseek-v4-pro（官方推荐，思考）', 'ai.deepseekChat': 'deepseek-chat（旧兼容名，将弃用）', 'ai.deepseekReasoner': 'deepseek-reasoner（旧兼容名，将弃用）',
+    'app.version': '· 1.2.0', 'language.zhCN': '简体中文', 'language.en': 'English', 'language.ja': '日本語', 'workspace.applyWritebackTitle': '把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）',
     'settings.traditionalProvider': '传统翻译子类型', 'settings.providerBaidu': '百度翻译', 'settings.providerGoogle': '谷歌翻译', 'settings.testTraditional': '测试传统翻译', 'settings.closeBehaviorGroup': '关闭行为', 'settings.closeBehavior': '关闭按钮行为', 'settings.closeBehaviorTray': '最小化到右下角托盘', 'settings.closeBehaviorExit': '直接退出程序', 'settings.closeBehaviorHint': '选择“最小化到托盘”后，点击右上角 X 不会真正退出，而是隐藏到系统托盘；再次打开托盘即可恢复窗口。选择“直接退出程序”则点击 X 会正常关闭应用。',
-    'glossary.countLabel': '术语数', 'glossary.search': '搜索术语库', 'glossary.searchPlaceholder': '输入名称筛选术语库', 'glossary.select': '术语库列表', 'glossary.new': '新建术语库', 'glossary.import': '导入术语库', 'glossary.export': '导出术语库', 'glossary.delete': '删除术语库', 'glossary.newName': '新术语库名称', 'glossary.newNamePlaceholder': '例如：怪物名词', 'glossary.termSelect': '查询术语', 'glossary.termSearchPlaceholder': '输入原名或译名', 'glossary.searchTerm': '搜索', 'glossary.add': '添加术语', 'glossary.editTitle': '术语编辑', 'glossary.source': '原名', 'glossary.sourcePlaceholder': '例如：Potion', 'glossary.target': '译名', 'glossary.targetPlaceholder': '例如：药水', 'glossary.note': '术语备注', 'glossary.notePlaceholder': '可选备注', 'glossary.fieldRequired': '原名和译名都不能为空，请补全后再保存。', 'glossary.fieldRequiredSource': '原名不能为空，请填写后再保存。', 'glossary.fieldRequiredTarget': '译名不能为空，请填写后再保存。'
+    'glossary.countLabel': '术语数', 'glossary.search': '搜索术语库', 'glossary.searchPlaceholder': '输入名称筛选术语库', 'glossary.select': '术语库列表', 'glossary.new': '新建术语库', 'glossary.import': '导入术语库', 'glossary.export': '导出术语库', 'glossary.delete': '删除术语库', 'glossary.newName': '新术语库名称', 'glossary.newNamePlaceholder': '例如：怪物名词', 'glossary.termSelect': '查询术语', 'glossary.termSearchPlaceholder': '输入原名或译名', 'glossary.searchTerm': '搜索', 'glossary.add': '添加术语', 'glossary.editTitle': '术语编辑', 'glossary.source': '原名', 'glossary.sourcePlaceholder': '例如：Potion', 'glossary.target': '译名', 'glossary.targetPlaceholder': '例如：药水', 'glossary.note': '术语备注', 'glossary.notePlaceholder': '可选备注', 'glossary.fieldRequired': '原名和译名都不能为空，请补全后再保存。', 'glossary.fieldRequiredSource': '原名不能为空，请填写后再保存。', 'glossary.fieldRequiredTarget': '译名不能为空，请填写后再保存。',
+    'findReplace.title': '查找 / 替换', 'findReplace.openBtn': '查找替换', 'findReplace.openTitle': '查找/替换与快速填充重复文本', 'findReplace.close': '关闭查找替换',
+    'findReplace.scope': '查找范围', 'findReplace.scopeCurrent': '当前 JSON', 'findReplace.scopeAll': '全部 JSON',
+    'findReplace.targetField': '目标字段', 'findReplace.targetSource': '原文', 'findReplace.targetTarget': '译文',
+    'findReplace.findLabel': '查找内容', 'findReplace.findPlaceholder': '输入要查找的文本或正则',
+    'findReplace.replaceLabel': '替换为', 'findReplace.replacePlaceholder': '输入替换后的文本',
+    'findReplace.caseSensitive': '区分大小写', 'findReplace.wholeWord': '全字匹配', 'findReplace.useRegex': '使用正则表达式',
+    'findReplace.findBtn': '查找', 'findReplace.prevBtn': '上一个', 'findReplace.nextBtn': '下一个', 'findReplace.replaceCurrentBtn': '替换当前', 'findReplace.replaceAllBtn': '全部替换',
+    'findReplace.noMatch': '未找到匹配', 'findReplace.matchInfo': '第 {current} / {total} 条匹配', 'findReplace.regexInvalid': '正则表达式无效',
+    'findReplace.repeatableTitle': '快速填充重复定式文本', 'findReplace.repeatableHint': '自动扫描范围内「原文相同、部分已译、部分未译」的条目，一键把已译内容填充到未译条目。',
+    'findReplace.refreshList': '刷新列表', 'findReplace.emptyRepeatable': '点击刷新列表查看可填充的重复文本', 'findReplace.noRepeatable': '当前范围内没有可快速填充的重复文本',
+    'findReplace.repeatableItem': '{source} （{translated} 条已译 / {pending} 条待填）', 'findReplace.fillBtn': '填充',
+    'findReplace.fillDone': '已将 "{source}" 的 {count} 条待填项填充为 "{value}"', 'findReplace.replaceAllDone': '全部替换完成：{count} 条',
+    'findReplace.traceTitle': '查找替换', 'findReplace.traceFillTitle': '快速填充',
+    'workspace.applyWriteback': '写回游戏 JSON',
+    'trace.title': '调用反馈', 'trace.operationStatus': '操作状态',
+    'ai.autoSplitGroup': '译文自动断行', 'ai.autoSplit': '对话框（code:401）译文超长时按引擎约束自动拆行', 'ai.autoSplitHint': '仅作用于对话框文本；按标点优先级切分，不破坏控制码。',
+    'ai.glossaryGroup': '术语库自动注入', 'ai.glossaryMode': '注入模式', 'ai.glossaryModeOff': '不使用（默认）', 'ai.glossaryModeReplace': '强制替换原文（送进 AI 前先替换）', 'ai.glossaryModePrompt': '注入 System Prompt（要求 AI 遵守对照表）',
+    'ai.glossaryHint': '命中术语会在每次 AI 调用前介入：替换模式直接改写原文；Prompt 模式把对照表加到系统提示后部。空术语库时所有模式均不生效。',
+    'glossary.untitledSource': '未命名原文', 'glossary.untitledTarget': '未命名译名',
+    'project.dataRootsLabel': '文本目录：', 'trace.stateRegression': '状态回退',
+    'common.actionPending': '{action}中…', 'common.actionSuccess': '{action}完成', 'common.actionError': '{action}失败',
+    'settings.previewClickToOpen': '点击查看原图'
   });
 
   Object.assign(fallbackI18n.en, {
@@ -224,7 +381,31 @@
     'settings.tabUI': 'UI Settings', 'settings.tabTraditional': 'Traditional Translation', 'settings.tabLLM': 'LLM Translation', 'settings.titleUI': 'UI Settings', 'settings.titleTraditional': 'Traditional Translation Settings', 'settings.titleLLM': 'LLM Translation Settings', 'settings.language': 'Interface Language', 'settings.themeMode': 'Color Mode', 'settings.themeSystem': 'Follow System', 'settings.themeDark': 'Dark', 'settings.themeLight': 'Light', 'settings.themePalette': 'Accent Color', 'settings.paletteViolet': 'Violet', 'settings.paletteBlue': 'Sky Blue', 'settings.paletteEmerald': 'Emerald', 'settings.paletteRose': 'Rose', 'settings.paletteAmber': 'Amber', 'settings.paletteSlate': 'Slate', 'settings.backgroundImage': 'Background Image', 'settings.backgroundImagePlaceholder': 'Enter an image path or URL; leave empty for solid background', 'settings.backgroundHint': 'Supports local image paths or web image URLs. Leave empty to use the theme background.', 'settings.pickBackground': 'Choose Background Image', 'settings.previewBackground': 'Preview Background', 'settings.applyBackground': 'Apply to Current UI', 'settings.clearBackground': 'Clear Background Image', 'settings.resetTheme': 'Reset Appearance', 'settings.previewTitle': 'Background Preview', 'settings.previewEmpty': 'No background image is set', 'settings.save': 'Save Settings', 'settings.close': 'Close Settings',
     'settings.traditionalProvider': 'Traditional Translation Subtype', 'settings.providerBaidu': 'Baidu Translate', 'settings.providerGoogle': 'Google Translate', 'settings.testTraditional': 'Test Traditional Translation', 'settings.baiduAppId': 'Baidu App ID', 'settings.baiduAppIdPlaceholder': 'Enter Baidu App ID', 'settings.baiduSecret': 'Baidu Secret Key', 'settings.baiduSecretPlaceholder': 'Enter Baidu secret key', 'settings.googleApiKey': 'Google API Key', 'settings.googleApiKeyPlaceholder': 'Enter Google API Key', 'settings.sourceLang': 'Source Language', 'settings.sourceLangPlaceholder': 'auto', 'settings.targetLang': 'Target Language', 'settings.targetLangPlaceholder': 'zh-CN', 'settings.traditionalHint': 'Choose a traditional translation service. Baidu requires App ID and secret; Google requires an API key.', 'settings.llmHint': 'Useful for long text translation, style consistency, and character voice.', 'settings.closeBehaviorGroup': 'Close Behavior', 'settings.closeBehavior': 'Close Button Behavior', 'settings.closeBehaviorTray': 'Minimize to system tray', 'settings.closeBehaviorExit': 'Exit immediately', 'settings.closeBehaviorHint': 'When minimized to tray, the X button hides the window instead of quitting. Exit immediately closes the app normally.',
     'ai.provider': 'Provider', 'ai.providerMock': 'Local Demo', 'ai.apiKey': 'API Key', 'ai.baseUrl': 'Endpoint URL', 'ai.model': 'Model', 'ai.prompt': 'System Prompt', 'ai.save': 'Save Settings', 'ai.test': 'Test AI', 'ai.status': 'Choose a translation mode to start.', 'ai.apiKeyPlaceholder': 'Your API Key', 'ai.baseUrlPlaceholder': 'Endpoint URL, e.g. https://api.deepseek.com', 'ai.modelPlaceholder': 'Enter custom model name', 'ai.modelCustom': 'Custom Model', 'ai.deepseekBaseUrlHint': 'DeepSeek official base_url is https://api.deepseek.com. The app calls /chat/completions automatically; do not enter /v1/chat/completions.',
-    'glossary.title': 'Glossary', 'glossary.panelHint': 'Open glossary management to create, import, export, edit, and search terms.', 'glossary.manage': 'Manage Glossary', 'glossary.countLabel': 'Terms', 'glossary.search': 'Search Glossaries', 'glossary.searchPlaceholder': 'Filter glossary names', 'glossary.select': 'Glossary List', 'glossary.new': 'New Glossary', 'glossary.rename': 'Rename Glossary', 'glossary.import': 'Import Glossary', 'glossary.export': 'Export Glossary', 'glossary.delete': 'Delete Glossary', 'glossary.newName': 'New Glossary Name', 'glossary.newNamePlaceholder': 'Example: Monster Names', 'glossary.renamePrompt': 'Enter a new glossary name', 'glossary.termSelect': 'Find Term', 'glossary.termSearchPlaceholder': 'Enter source or translation', 'glossary.searchTerm': 'Search', 'glossary.add': 'Add Term', 'glossary.editTitle': 'Term Editor', 'glossary.source': 'Source Name', 'glossary.sourcePlaceholder': 'Example: Potion', 'glossary.target': 'Translated Name', 'glossary.targetPlaceholder': 'Example: Potion', 'glossary.note': 'Term Note', 'glossary.notePlaceholder': 'Optional note', 'glossary.closeEditor': 'Close term editor', 'glossary.fieldRequired': 'Both source and translated names are required before saving.', 'glossary.fieldRequiredSource': 'Source name is required.', 'glossary.fieldRequiredTarget': 'Translated name is required.', 'glossary.category': 'Category', 'glossary.categoryPlaceholder': 'default', 'glossary.applyCategory': 'Apply Category', 'glossary.newCategory': 'Category (sub-glossaries with the same category aggregate for hit detection)', 'glossary.aggregationHint': 'Category "{category}" aggregates {count} sub-glossaries with {terms} terms participating in hit detection.', 'glossary.categoryUpdating': 'Updating category of {name} to {category}…', 'glossary.categoryUpdated': 'Moved glossary {name} into category {category}.', 'glossary.categoryUpdateFailed': 'Failed to update category', 'glossary.updateCategoryApiMissing': 'Category update API is not registered'
+    'ai.deepseekV4Flash': 'deepseek-v4-flash (official recommended, non-thinking)', 'ai.deepseekV4Pro': 'deepseek-v4-pro (official recommended, thinking)', 'ai.deepseekChat': 'deepseek-chat (legacy name, will be deprecated)', 'ai.deepseekReasoner': 'deepseek-reasoner (legacy name, will be deprecated)',
+    'app.version': '· 1.2.0', 'language.zhCN': '简体中文', 'language.en': 'English', 'language.ja': '日本語', 'workspace.applyWritebackTitle': 'Write current translations back to new JSON without overwriting original files (outputs to localization_patch/data/)',
+    'glossary.title': 'Glossary', 'glossary.panelHint': 'Open glossary management to create, import, export, edit, and search terms.', 'glossary.manage': 'Manage Glossary', 'glossary.countLabel': 'Terms', 'glossary.search': 'Search Glossaries', 'glossary.searchPlaceholder': 'Filter glossary names', 'glossary.select': 'Glossary List', 'glossary.new': 'New Glossary', 'glossary.rename': 'Rename Glossary', 'glossary.import': 'Import Glossary', 'glossary.export': 'Export Glossary', 'glossary.delete': 'Delete Glossary', 'glossary.newName': 'New Glossary Name', 'glossary.newNamePlaceholder': 'Example: Monster Names', 'glossary.renamePrompt': 'Enter a new glossary name', 'glossary.termSelect': 'Find Term', 'glossary.termSearchPlaceholder': 'Enter source or translation', 'glossary.searchTerm': 'Search', 'glossary.add': 'Add Term', 'glossary.editTitle': 'Term Editor', 'glossary.source': 'Source Name', 'glossary.sourcePlaceholder': 'Example: Potion', 'glossary.target': 'Translated Name', 'glossary.targetPlaceholder': 'Example: Potion', 'glossary.note': 'Term Note', 'glossary.notePlaceholder': 'Optional note', 'glossary.closeEditor': 'Close term editor', 'glossary.fieldRequired': 'Both source and translated names are required before saving.', 'glossary.fieldRequiredSource': 'Source name is required.', 'glossary.fieldRequiredTarget': 'Translated name is required.', 'glossary.category': 'Category', 'glossary.categoryPlaceholder': 'default', 'glossary.applyCategory': 'Apply Category', 'glossary.newCategory': 'Category (sub-glossaries with the same category aggregate for hit detection)', 'glossary.aggregationHint': 'Category "{category}" aggregates {count} sub-glossaries with {terms} terms participating in hit detection.', 'glossary.categoryUpdating': 'Updating category of {name} to {category}…', 'glossary.categoryUpdated': 'Moved glossary {name} into category {category}.', 'glossary.categoryUpdateFailed': 'Failed to update category', 'glossary.updateCategoryApiMissing': 'Category update API is not registered',
+    'findReplace.title': 'Find / Replace', 'findReplace.openBtn': 'Find / Replace', 'findReplace.openTitle': 'Find/replace and quickly fill repeated text', 'findReplace.close': 'Close find/replace',
+    'findReplace.scope': 'Scope', 'findReplace.scopeCurrent': 'Current JSON', 'findReplace.scopeAll': 'All JSON',
+    'findReplace.targetField': 'Target field', 'findReplace.targetSource': 'Source', 'findReplace.targetTarget': 'Translation',
+    'findReplace.findLabel': 'Find', 'findReplace.findPlaceholder': 'Enter text or regex',
+    'findReplace.replaceLabel': 'Replace with', 'findReplace.replacePlaceholder': 'Enter replacement text',
+    'findReplace.caseSensitive': 'Case sensitive', 'findReplace.wholeWord': 'Whole word', 'findReplace.useRegex': 'Use regular expression',
+    'findReplace.findBtn': 'Find', 'findReplace.prevBtn': 'Previous', 'findReplace.nextBtn': 'Next', 'findReplace.replaceCurrentBtn': 'Replace current', 'findReplace.replaceAllBtn': 'Replace all',
+    'findReplace.noMatch': 'No matches', 'findReplace.matchInfo': 'Match {current} / {total}', 'findReplace.regexInvalid': 'Invalid regular expression',
+    'findReplace.repeatableTitle': 'Quick-fill repeated text', 'findReplace.repeatableHint': 'Scan entries with identical source where some are translated and others are not, then fill the untranslated ones with an existing translation.',
+    'findReplace.refreshList': 'Refresh list', 'findReplace.emptyRepeatable': 'Click refresh to see fillable repeated text', 'findReplace.noRepeatable': 'No repeatable text to fill in the current scope',
+    'findReplace.repeatableItem': '{source} ({translated} translated / {pending} pending)', 'findReplace.fillBtn': 'Fill',
+    'findReplace.fillDone': 'Filled {count} pending entries of "{source}" with "{value}"', 'findReplace.replaceAllDone': 'Replace all completed: {count} entries',
+    'findReplace.traceTitle': 'Find / Replace', 'findReplace.traceFillTitle': 'Quick-fill repeated text',
+    'workspace.applyWriteback': 'Write back to game JSON',
+    'trace.title': 'Call Trace', 'trace.operationStatus': 'Operation Status',
+    'ai.autoSplitGroup': 'Auto line-break for translations', 'ai.autoSplit': 'Auto-split dialogue translations (code:401) when they exceed engine limits', 'ai.autoSplitHint': 'Only applies to dialogue text; splits by punctuation priority without breaking control codes.',
+    'ai.glossaryGroup': 'Glossary auto-injection', 'ai.glossaryMode': 'Injection mode', 'ai.glossaryModeOff': 'Off (default)', 'ai.glossaryModeReplace': 'Force-replace source before sending to AI', 'ai.glossaryModePrompt': 'Inject into system prompt',
+    'ai.glossaryHint': 'Matched glossary terms intervene before each AI call: replace mode rewrites the source; prompt mode appends the glossary to the system prompt. No effect when the glossary is empty.',
+    'glossary.renameApiMissing': 'Rename API is not registered', 'glossary.renameFailed': 'Rename failed',
+    'project.dataRootsLabel': 'Text dirs: ', 'trace.stateRegression': 'State regression',
+    'common.actionPending': '{action} in progress…', 'common.actionSuccess': '{action} completed', 'common.actionError': '{action} failed',
+    'settings.previewClickToOpen': 'Click to view original image'
   });
 
   Object.assign(fallbackI18n.ja, {
@@ -235,7 +416,41 @@
     'settings.tabUI': 'UI 設定', 'settings.tabTraditional': '従来翻訳', 'settings.tabLLM': '大規模モデル翻訳', 'settings.titleUI': 'UI 設定', 'settings.titleTraditional': '従来翻訳設定', 'settings.titleLLM': '大規模モデル翻訳設定', 'settings.language': '表示言語', 'settings.themeMode': '配色モード', 'settings.themeSystem': 'システムに従う', 'settings.themeDark': 'ダーク', 'settings.themeLight': 'ライト', 'settings.themePalette': 'アクセントカラー', 'settings.paletteViolet': 'バイオレット', 'settings.paletteBlue': 'スカイブルー', 'settings.paletteEmerald': 'エメラルド', 'settings.paletteRose': 'ローズ', 'settings.paletteAmber': 'アンバー', 'settings.paletteSlate': 'スレート', 'settings.backgroundImage': '背景画像', 'settings.backgroundImagePlaceholder': '画像パスまたは URL。空なら単色背景', 'settings.backgroundHint': 'ローカル画像パスまたは Web 画像 URL に対応。空の場合はテーマ背景を使用します。', 'settings.pickBackground': '背景画像を選択', 'settings.previewBackground': '背景をプレビュー', 'settings.applyBackground': '現在の UI に適用', 'settings.clearBackground': '背景画像をクリア', 'settings.resetTheme': '外観を初期化', 'settings.previewTitle': '背景プレビュー', 'settings.previewEmpty': '背景画像は未設定です', 'settings.save': '設定を保存', 'settings.close': '設定を閉じる',
     'settings.traditionalProvider': '従来翻訳の種類', 'settings.providerBaidu': 'Baidu 翻訳', 'settings.providerGoogle': 'Google 翻訳', 'settings.testTraditional': '従来翻訳をテスト', 'settings.baiduAppId': 'Baidu App ID', 'settings.baiduAppIdPlaceholder': 'Baidu App ID を入力', 'settings.baiduSecret': 'Baidu シークレットキー', 'settings.baiduSecretPlaceholder': 'Baidu シークレットキーを入力', 'settings.googleApiKey': 'Google API Key', 'settings.googleApiKeyPlaceholder': 'Google API Key を入力', 'settings.sourceLang': '元言語', 'settings.sourceLangPlaceholder': 'auto', 'settings.targetLang': '対象言語', 'settings.targetLangPlaceholder': 'zh-CN', 'settings.traditionalHint': '従来翻訳サービスを選択できます。Baidu は App ID とシークレット、Google は API Key が必要です。', 'settings.llmHint': '長文翻訳、文体統一、キャラクター口調に適しています。', 'settings.closeBehaviorGroup': '閉じる動作', 'settings.closeBehavior': '閉じるボタンの動作', 'settings.closeBehaviorTray': 'システムトレイに最小化', 'settings.closeBehaviorExit': 'すぐ終了', 'settings.closeBehaviorHint': 'トレイに最小化を選ぶと、X ボタンは終了せずウィンドウを隠します。すぐ終了を選ぶと通常終了します。',
     'ai.provider': '提供元', 'ai.providerMock': 'ローカルデモ', 'ai.apiKey': 'API Key', 'ai.baseUrl': 'エンドポイント URL', 'ai.model': 'モデル', 'ai.prompt': 'システムプロンプト', 'ai.save': '設定を保存', 'ai.test': 'AI をテスト', 'ai.status': '翻訳モードを選択してください。', 'ai.apiKeyPlaceholder': 'API Key', 'ai.baseUrlPlaceholder': '例：https://api.deepseek.com', 'ai.modelPlaceholder': 'カスタムモデル名を入力', 'ai.modelCustom': 'カスタムモデル', 'ai.deepseekBaseUrlHint': 'DeepSeek 公式 base_url は https://api.deepseek.com です。アプリが /chat/completions を自動で呼び出すため、/v1/chat/completions は入力しないでください。',
-    'glossary.title': '用語集', 'glossary.panelHint': '用語集管理を開き、新規作成、インポート、エクスポート、編集、検索ができます。', 'glossary.manage': '用語集を管理', 'glossary.countLabel': '用語数', 'glossary.search': '用語集を検索', 'glossary.searchPlaceholder': '用語集名で絞り込み', 'glossary.select': '用語集一覧', 'glossary.new': '新規用語集', 'glossary.rename': '用語集名を変更', 'glossary.import': '用語集をインポート', 'glossary.export': '用語集をエクスポート', 'glossary.delete': '用語集を削除', 'glossary.newName': '新しい用語集名', 'glossary.newNamePlaceholder': '例：モンスター名', 'glossary.renamePrompt': '新しい用語集名を入力', 'glossary.termSelect': '用語を検索', 'glossary.termSearchPlaceholder': '原文または訳語を入力', 'glossary.searchTerm': '検索', 'glossary.add': '用語を追加', 'glossary.editTitle': '用語編集', 'glossary.source': '原名', 'glossary.sourcePlaceholder': '例：Potion', 'glossary.target': '訳名', 'glossary.targetPlaceholder': '例：ポーション', 'glossary.note': '用語メモ', 'glossary.notePlaceholder': '任意メモ', 'glossary.closeEditor': '用語編集を閉じる', 'glossary.fieldRequired': '原名と訳名はどちらも必須です。入力してから保存してください。', 'glossary.fieldRequiredSource': '原名を入力してください。', 'glossary.fieldRequiredTarget': '訳名を入力してください。', 'glossary.category': 'カテゴリ', 'glossary.categoryPlaceholder': 'default', 'glossary.applyCategory': 'カテゴリを適用', 'glossary.newCategory': 'カテゴリ（同じカテゴリのサブ用語集はまとめてヒット検出に使われます）', 'glossary.aggregationHint': 'カテゴリ「{category}」は {count} 個のサブ用語集を統合し、合計 {terms} 件の用語がヒット検出に参加します。', 'glossary.categoryUpdating': '{name} のカテゴリを {category} に更新中…', 'glossary.categoryUpdated': '用語集 {name} をカテゴリ {category} に移しました。', 'glossary.categoryUpdateFailed': 'カテゴリ更新に失敗しました', 'glossary.updateCategoryApiMissing': 'カテゴリ更新 API が未登録です'
+    'ai.deepseekV4Flash': 'deepseek-v4-flash（公式推奨、非思考）', 'ai.deepseekV4Pro': 'deepseek-v4-pro（公式推奨、思考）', 'ai.deepseekChat': 'deepseek-chat（旧互換名、廃止予定）', 'ai.deepseekReasoner': 'deepseek-reasoner（旧互換名、廃止予定）',
+    'app.version': '· 1.2.0', 'language.zhCN': '简体中文', 'language.en': 'English', 'language.ja': '日本語', 'workspace.applyWritebackTitle': '現在の翻訳を新しい JSON に元の構造で書き戻す（元ファイルは上書きせず、localization_patch/data/ に出力）',
+    'glossary.title': '用語集', 'glossary.panelHint': '用語集管理を開き、新規作成、インポート、エクスポート、編集、検索ができます。', 'glossary.manage': '用語集を管理', 'glossary.countLabel': '用語数', 'glossary.search': '用語集を検索', 'glossary.searchPlaceholder': '用語集名で絞り込み', 'glossary.select': '用語集一覧', 'glossary.new': '新規用語集', 'glossary.rename': '用語集名を変更', 'glossary.import': '用語集をインポート', 'glossary.export': '用語集をエクスポート', 'glossary.delete': '用語集を削除', 'glossary.newName': '新しい用語集名', 'glossary.newNamePlaceholder': '例：モンスター名', 'glossary.renamePrompt': '新しい用語集名を入力', 'glossary.termSelect': '用語を検索', 'glossary.termSearchPlaceholder': '原文または訳語を入力', 'glossary.searchTerm': '検索', 'glossary.add': '用語を追加', 'glossary.editTitle': '用語編集', 'glossary.source': '原名', 'glossary.sourcePlaceholder': '例：Potion', 'glossary.target': '訳名', 'glossary.targetPlaceholder': '例：ポーション', 'glossary.note': '用語メモ', 'glossary.notePlaceholder': '任意メモ', 'glossary.closeEditor': '用語編集を閉じる', 'glossary.fieldRequired': '原名と訳名はどちらも必須です。入力してから保存してください。', 'glossary.fieldRequiredSource': '原名を入力してください。', 'glossary.fieldRequiredTarget': '訳名を入力してください。', 'glossary.category': 'カテゴリ', 'glossary.categoryPlaceholder': 'default', 'glossary.applyCategory': 'カテゴリを適用', 'glossary.newCategory': 'カテゴリ（同じカテゴリのサブ用語集はまとめてヒット検出に使われます）', 'glossary.aggregationHint': 'カテゴリ「{category}」は {count} 個のサブ用語集を統合し、合計 {terms} 件の用語がヒット検出に参加します。', 'glossary.categoryUpdating': '{name} のカテゴリを {category} に更新中…', 'glossary.categoryUpdated': '用語集 {name} をカテゴリ {category} に移しました。', 'glossary.categoryUpdateFailed': 'カテゴリ更新に失敗しました', 'glossary.updateCategoryApiMissing': 'カテゴリ更新 API が未登録です',
+    'findReplace.title': '検索 / 置換', 'findReplace.openBtn': '検索・置換', 'findReplace.openTitle': '検索・置換と定型文の一括入力', 'findReplace.close': '検索・置換を閉じる',
+    'findReplace.scope': '検索範囲', 'findReplace.scopeCurrent': '現在の JSON', 'findReplace.scopeAll': 'すべての JSON',
+    'findReplace.targetField': '対象フィールド', 'findReplace.targetSource': '原文', 'findReplace.targetTarget': '訳文',
+    'findReplace.findLabel': '検索文字列', 'findReplace.findPlaceholder': '検索する文字列または正規表現',
+    'findReplace.replaceLabel': '置換後', 'findReplace.replacePlaceholder': '置換後の文字列',
+    'findReplace.caseSensitive': '大文字/小文字を区別', 'findReplace.wholeWord': '単語単位', 'findReplace.useRegex': '正規表現を使用',
+    'findReplace.findBtn': '検索', 'findReplace.prevBtn': '前へ', 'findReplace.nextBtn': '次へ', 'findReplace.replaceCurrentBtn': '現在を置換', 'findReplace.replaceAllBtn': 'すべて置換',
+    'findReplace.noMatch': '一致なし', 'findReplace.matchInfo': '{current} / {total} 件目の一致', 'findReplace.regexInvalid': '正規表現が無効です',
+    'findReplace.repeatableTitle': '定型文の一括入力', 'findReplace.repeatableHint': '範囲内で「原文が同じで一部は翻訳済、一部は未翻訳」の項目を自動検出し、翻訳済みの内容を未翻訳項目に一括入力します。',
+    'findReplace.refreshList': 'リストを更新', 'findReplace.emptyRepeatable': '更新ボタンを押すと、入力可能な定型文が表示されます', 'findReplace.noRepeatable': '現在の範囲に入力可能な定型文はありません',
+    'findReplace.repeatableItem': '{source} （翻訳済 {translated} 件 / 未翻訳 {pending} 件）', 'findReplace.fillBtn': '入力',
+    'findReplace.fillDone': '「{source}」の未翻訳 {count} 件を「{value}」で入力しました', 'findReplace.replaceAllDone': 'すべて置換完了：{count} 件',
+    'findReplace.traceTitle': '検索・置換', 'findReplace.traceFillTitle': '定型文の一括入力',
+    'workspace.applyWriteback': 'ゲーム JSON に書き戻す',
+    'trace.title': '呼び出しフィードバック', 'trace.operationStatus': '操作状態',
+    'ai.autoSplitGroup': '翻訳文の自動改行', 'ai.autoSplit': 'ダイアログ（code:401）の翻訳が制限を超えたら自動改行', 'ai.autoSplitHint': 'ダイアログテキストのみ；制御コードを壊さず句読点優先で分割します。',
+    'ai.glossaryGroup': '用語集の自動注入', 'ai.glossaryMode': '注入モード', 'ai.glossaryModeOff': '使用しない（デフォルト）', 'ai.glossaryModeReplace': 'AI 送信前に原文を強制置換', 'ai.glossaryModePrompt': 'システムプロンプトに注入',
+    'ai.glossaryHint': 'ヒットした用語は AI 呼び出し前に介入：置換モードは原文を書き換え、プロンプトモードは対照表をシステムプロンプトに追加。用語集が空の場合は無効。',
+    'glossary.renameApiMissing': '名前変更 API が未登録です', 'glossary.renameFailed': '名前変更に失敗しました',
+    'project.dataRootsLabel': 'テキストディレクトリ：', 'trace.stateRegression': '状態回退',
+    'common.actionPending': '{action}中…', 'common.actionSuccess': '{action}完了', 'common.actionError': '{action}失敗',
+    'settings.previewClickToOpen': '元画像を表示'
+  });
+
+  Object.assign(fallbackI18n['zh-CN'], {
+    'progress.fileProgressTitle': '当前 JSON 文件的翻译百分比'
+  });
+  Object.assign(fallbackI18n.en, {
+    'progress.fileProgressTitle': 'Translation percentage of the current JSON file'
+  });
+  Object.assign(fallbackI18n.ja, {
+    'progress.fileProgressTitle': '現在の JSON ファイルの翻訳率'
   });
 
   function mergeI18nFallbacks() {
@@ -245,13 +460,16 @@
     });
   }
 
-  function translate(key) {
+  function translate(key, vars = {}) {
     const lang = localStorage.getItem('rpg-workbench-language') || 'zh-CN';
     const current = window.RpgI18n?.[lang] || {};
     const zh = window.RpgI18n?.['zh-CN'] || {};
     const fallback = fallbackI18n[lang] || fallbackI18n['zh-CN'];
-    return current[key] || fallback[key] || zh[key] || fallbackI18n['zh-CN'][key] || key;
+    let text = current[key] || fallback[key] || zh[key] || fallbackI18n['zh-CN'][key] || key;
+    Object.entries(vars).forEach(([k, v]) => { text = text.replaceAll(`{${k}}`, String(v)); });
+    return text;
   }
+  const t = translate;
 
   function applyRuntimeI18n() {
     mergeI18nFallbacks();
@@ -330,11 +548,12 @@
   window.showTraditionalStatus = (msg, kind = 'normal') => setStatusBox('traditionalStatus', msg, kind, translate('trace.traditionalTranslate'));
   window.showToast = (msg, kind = 'normal') => setStatusBox('projectStatus', msg, kind, translate('trace.notice'));
   window.traceCall = (title, detail = '', kind = 'normal') => appendTrace(title, detail, kind);
-  window.setCallTraceStatus = (msg, kind = 'normal') => setStatusBox('callTraceStatus', msg, kind, translate('trace.status'));
+  window.setCallTraceStatus = (msg, kind = 'normal') => setStatusBox('callTraceStatus', msg, kind, t('trace.status'));
   window.runUiAction = runUiAction;
   window.setVersionLabel = () => {
+    const t = translate;
     const badge = $('appVersionBadge'); if (badge) badge.textContent = '· 1.2.0';
-    const copyright = $('appCopyright'); if (copyright) copyright.textContent = '© 2026 RPG 汉化工作台，保留所有权利。';
+    const copyright = $('appCopyright'); if (copyright) copyright.textContent = t('app.copyright');
   };
 
   function syncGlobalAiModeSelect() {
@@ -357,7 +576,9 @@
         const next = { ...(current.aiSettings || {}), provider, lastEntryAiMode: provider };
         if (provider === 'baidu' || provider === 'google') next.traditional = { ...(current.aiSettings?.traditional || {}), provider };
         window.RpgAppStore?.setState?.({ ...current, aiSettings: next });
-        setStatusBox('aiStatus', `已切换至 ${provider}`, 'success', '辅助翻译平台');
+        const t = translate;
+        setStatusBox('aiStatus', t('trace.providerSwitched', { provider }), 'success', t('trace.assistPlatform'));
+        appendTrace(t('trace.assistPlatform'), t('trace.providerSwitched', { provider }));
       });
       select.dataset.bound = '1';
     }
@@ -595,29 +816,29 @@
   }
 
   async function saveTraditionalSettings() {
-    return window.runUiAction?.('保存传统翻译设置', async () => {
+    return window.runUiAction?.(t('trace.traditionalSettings'), async () => {
       const settings = collectTraditionalSettings(); const current = getState();
       window.RpgAppStore?.setState?.({ aiSettings: { ...(current.aiSettings || {}), traditional: settings } });
       const result = await window.rpgWorkbench?.saveTranslatorSettings?.({ type: 'traditional', settings });
-      if (!result?.ok) throw new Error(result?.message || '传统翻译设置保存失败');
+      if (!result?.ok) throw new Error(result?.message || t('common.aiSaveFailed'));
       return result;
-    }, { pending: '正在保存传统翻译设置…', success: '传统翻译设置已保存。', error: '传统翻译设置保存失败', statusId: 'traditionalStatus', traceTitle: '传统翻译设置' });
+    }, { pending: t('common.aiPending'), success: t('common.aiSaved'), error: t('common.aiSaveFailed'), statusId: 'traditionalStatus', traceTitle: t('trace.traditionalSettings') });
   }
   async function testTraditionalSettings() {
-    return window.runUiAction?.('测试传统翻译', async () => {
+    return window.runUiAction?.(t('trace.traditionalTest'), async () => {
       const settings = collectTraditionalSettings();
       const result = await window.rpgWorkbench?.testTranslatorSettings?.({ type: 'traditional', settings, sampleText: 'こんにちは、世界。' });
-      if (!result?.ok) throw new Error(result?.message || '传统翻译测试失败');
+      if (!result?.ok) throw new Error(result?.message || t('common.aiTestFail'));
       return result;
-    }, { pending: '正在测试传统翻译…', success: '传统翻译测试成功。', error: '传统翻译测试失败', statusId: 'traditionalStatus', traceTitle: '传统翻译测试' });
+    }, { pending: t('common.aiPending'), success: t('common.aiTestSuccess'), error: t('common.aiTestFail'), statusId: 'traditionalStatus', traceTitle: t('trace.traditionalTest') });
   }
   async function saveAiSettings() {
-    return window.runUiAction?.('保存大模型翻译设置', async () => {
+    return window.runUiAction?.(t('trace.aiSettings'), async () => {
       const settings = collectAiSettings(); const current = getState();
       window.RpgAppStore?.setState?.({ aiSettings: settings });
       // 送到主进程时做一次 flatten：既写入完整的 providers 分桶，也把当前桶字段平铺到顶层供旧路径读
       const result = await window.rpgWorkbench?.saveAiSettings?.(flattenAiSettingsForBackend(settings));
-      if (!result?.ok) throw new Error(result?.message || '大模型翻译设置保存失败');
+      if (!result?.ok) throw new Error(result?.message || t('common.aiSaveFailed'));
       // 主进程 saveAiSettings 会返回 normalized 后的 settings —— 用它覆盖 store，保持前后端形状一致
       if (result?.settings) {
         window.RpgAppStore?.setState?.({ aiSettings: migrateAiSettingsShape(result.settings) });
@@ -625,15 +846,15 @@
       syncGlobalAiModeSelect();
       syncAiSettingsFields(getState().aiSettings || settings);
       return result;
-    }, { pending: '正在保存大模型翻译设置…', success: '大模型翻译设置已保存。', error: '大模型翻译设置保存失败', statusId: 'aiStatus', traceTitle: '大模型翻译设置' });
+    }, { pending: t('common.aiPending'), success: t('common.aiSaved'), error: t('common.aiSaveFailed'), statusId: 'aiStatus', traceTitle: t('trace.aiSettings') });
   }
   async function testAiSettings() {
-    return window.runUiAction?.('测试大模型翻译', async () => {
+    return window.runUiAction?.(t('trace.aiTest'), async () => {
       const settings = collectAiSettings();
       const result = await window.rpgWorkbench?.aiTranslate?.({ sourceText: 'こんにちは、世界。', settings: flattenAiSettingsForBackend(settings) });
-      if (!result?.ok) throw new Error(result?.message || '大模型翻译测试失败');
+      if (!result?.ok) throw new Error(result?.message || t('common.aiTestFail'));
       return result;
-    }, { pending: '正在测试大模型翻译…', success: '大模型翻译测试成功。', error: '大模型翻译测试失败', statusId: 'aiStatus', traceTitle: '大模型翻译测试' });
+    }, { pending: t('common.aiPending'), success: t('common.aiTestSuccess'), error: t('common.aiTestFail'), statusId: 'aiStatus', traceTitle: t('trace.aiTest') });
   }
 
   async function loadAndApplyAiSettings() {
@@ -659,6 +880,7 @@
   }
 
   function bindShellActions() {
+    const t = translate;
     // 密钥输入框的"眼睛"切换按钮：点击时把对应 input 的 type 在 password / text 之间翻转。
     // 用事件委托挂到 document，避免设置面板重新构建时监听器丢失。
     if (!document.body.dataset.secretToggleBound) {
@@ -674,9 +896,9 @@
         btn.classList.toggle('revealed', willReveal);
         btn.setAttribute('aria-pressed', willReveal ? 'true' : 'false');
         const t = window.RpgView?.t;
-        const nextTitle = willReveal
-          ? (t?.('ai.toggleKeyHide') || '隐藏密钥')
-          : (t?.('ai.toggleKeyShow') || '显示密钥');
+    const nextTitle = willReveal
+          ? (t('ai.toggleKeyHide') || '隐藏密钥')
+          : (t('ai.toggleKeyShow') || '显示密钥');
         btn.setAttribute('title', nextTitle);
         btn.setAttribute('aria-label', nextTitle);
       });
@@ -722,15 +944,15 @@
       updateAiProviderDefaults({ preserveUserInput: false });
     });
     $('aiModelSelect')?.addEventListener('change', () => syncAiModelSelector(getSelectedAiModel()));
-    $('saveTraditionalSettingsBtn')?.addEventListener('click', () => saveTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || '保存失败', 'error')));
-    $('testTraditionalBtn')?.addEventListener('click', () => testTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || '测试失败', 'error')));
-    $('saveAiSettingsBtn')?.addEventListener('click', () => saveAiSettings().catch((e) => setStatus('aiStatus', e.message || '保存失败', 'error')));
-    $('testAiBtn')?.addEventListener('click', () => testAiSettings().catch((e) => setStatus('aiStatus', e.message || '测试失败', 'error')));
+    $('saveTraditionalSettingsBtn')?.addEventListener('click', () => saveTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || t('common.operationFailed'), 'error')));
+    $('testTraditionalBtn')?.addEventListener('click', () => testTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || t('common.operationFailed'), 'error')));
+    $('saveAiSettingsBtn')?.addEventListener('click', () => saveAiSettings().catch((e) => setStatus('aiStatus', e.message || t('common.operationFailed'), 'error')));
+    $('testAiBtn')?.addEventListener('click', () => testAiSettings().catch((e) => setStatus('aiStatus', e.message || t('common.operationFailed'), 'error')));
     $('globalAiModeSelect')?.addEventListener('change', () => {
       const provider = $('globalAiModeSelect')?.value || 'baidu';
       const current = getState(); const next = { ...(current.aiSettings || {}), provider, lastEntryAiMode: provider };
       if (provider === 'baidu' || provider === 'google') next.traditional = { ...(current.aiSettings?.traditional || {}), provider };
-      window.RpgAppStore?.setState?.({ aiSettings: next }); appendTrace('辅助翻译平台', `已切换至 ${provider}`);
+      window.RpgAppStore?.setState?.({ aiSettings: next }); appendTrace(t('trace.assistPlatform'), t('trace.providerSwitched', { provider }));
     });
     $('languageSelect')?.addEventListener('change', () => {
       window.RpgView?.persistUiSettings?.({ persist: true });
@@ -741,12 +963,12 @@
     $('themeBackgroundInput')?.addEventListener('input', () => window.RpgView?.updateThemePreview?.());
     $('applyThemeBackgroundBtn')?.addEventListener('click', () => window.RpgView?.persistUiSettings?.({ persist: false }));
     $('clearThemeBackgroundBtn')?.addEventListener('click', () => { if ($('themeBackgroundInput')) $('themeBackgroundInput').value = ''; window.RpgView?.persistUiSettings?.({ persist: false }); });
-    $('saveUiSettingsBtn')?.addEventListener('click', () => { window.RpgView?.persistUiSettings?.({ persist: true }); setStatusBox('projectStatus', '界面设置已保存。', 'success', '界面设置'); });
+    $('saveUiSettingsBtn')?.addEventListener('click', () => { window.RpgView?.persistUiSettings?.({ persist: true }); setStatusBox('projectStatus', t('trace.uiSettingsSaved'), 'success', t('trace.uiSettings')); });
     $('pickThemeBackgroundBtn')?.addEventListener('click', async () => {
-      try { const result = await window.rpgWorkbench?.pickThemeImageFile?.(); if (result?.filePath && $('themeBackgroundInput')) { $('themeBackgroundInput').value = result.filePath; window.RpgView?.persistUiSettings?.({ persist: false }); } } catch (e) { appendTrace('背景图片', e.message || '选择失败', 'error'); }
+      try { const result = await window.rpgWorkbench?.pickThemeImageFile?.(); if (result?.filePath && $('themeBackgroundInput')) { $('themeBackgroundInput').value = result.filePath; window.RpgView?.persistUiSettings?.({ persist: false }); } } catch (e) { appendTrace(t('trace.backgroundImage'), e.message || t('trace.selectFailed'), 'error'); }
     });
     $('previewThemeBackgroundBtn')?.addEventListener('click', () => window.RpgView?.updateThemePreview?.());
-    $('resetUiThemeBtn')?.addEventListener('click', () => { window.RpgView?.resetUiSettings?.(); applyRuntimeI18n(); syncGlobalAiModeSelect(); render(); setStatusBox('projectStatus', '已恢复默认外观', 'success', '界面设置'); });
+    $('resetUiThemeBtn')?.addEventListener('click', () => { window.RpgView?.resetUiSettings?.(); applyRuntimeI18n(); syncGlobalAiModeSelect(); render(); setStatusBox('projectStatus', t('trace.defaultThemeRestored'), 'success', t('trace.uiSettings')); });
   }
 
   window.RpgApp = {
@@ -768,10 +990,10 @@
     mergeI18nFallbacks(); window.RpgView = window.RpgView || {}; window.RpgView.t = translate;
     window.RpgView?.syncUiSettingsFields?.(); applyRuntimeI18n(); switchSettingsTab('ui'); closeSettings();
     await loadAndApplyAiSettings(); syncGlobalAiModeSelect(); bindShellActions();
-    window.RpgGlossaryModule?.bindGlossaryActions?.(); window.RpgEntries?.bindEntryActions?.(); window.RpgProject?.bindProjectActions?.();
+    window.RpgGlossaryModule?.bindGlossaryActions?.(); window.RpgEntries?.bindEntryActions?.(); window.RpgProject?.bindProjectActions?.(); window.RpgFindReplace?.bindActions?.();
     if (window.RpgExportModule?.init) window.RpgExportModule.init(() => { const s = getState(); return { project: s.project, glossary: s.glossary, aiSettings: s.aiSettings, progressState: s.progressState, groups: s.contextGroups || [], entries: window.RpgEntries?.getExportEntries?.() || s.entries || [], draftPath: s.draftPath || '', lastPatchDir: s.lastPatchDir || '' }; });
-    window.setVersionLabel?.(); window.setCallTraceStatus?.('等待操作…', 'normal'); render(); window.RpgAppStore?.subscribe?.(() => { window.RpgProject?.syncProjectStatusFromState?.(); render(); });
+    window.setVersionLabel?.(); window.setCallTraceStatus?.(t('trace.waiting'), 'normal'); render(); window.RpgAppStore?.subscribe?.(() => { window.RpgProject?.syncProjectStatusFromState?.(); render(); });
   };
 
-  init().catch((e) => appendTrace('初始化失败', e.message || '未知错误', 'error'));
+  init().catch((e) => appendTrace(t('trace.initFailed'), e.message || t('trace.unknownError'), 'error'));
 })();

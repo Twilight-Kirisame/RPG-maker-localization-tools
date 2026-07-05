@@ -4,7 +4,7 @@
   const t = (key) => window.RpgView?.t?.(key) || key;
   const format = (key, params = {}) => Object.entries(params).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), t(key));
   const trace = (message, kind = 'normal') => {
-    if (window.traceCall) window.traceCall('术语库', message, kind);
+    if (window.traceCall) window.traceCall(t('glossary.title'), message, kind);
     else if (window.showToast) window.showToast(message, kind);
   };
 
@@ -113,7 +113,7 @@
 
   async function persistGlossary(message) {
     const current = state();
-    trace('正在保存术语库…', 'normal');
+    trace(t('glossary.saving'), 'normal');
     const result = await window.rpgWorkbench.saveGlossary({ project: current.project, glossary: current.glossary, glossaryName: current.glossary?.glossaryName || 'default' });
     if (!result?.ok) throw new Error(result?.message || t('glossary.saveFailed'));
     if (message) trace(message, 'success');
@@ -296,7 +296,7 @@
     if (!current.project?.rootDir) throw new Error(t('glossary.loadProjectFirst'));
     if (!window.rpgWorkbench?.saveGlossaryAs) throw new Error(t('glossary.saveAsApiMissing'));
     const nextGlossary = { projectName: current.glossary?.projectName || current.project?.name || '', glossaryName: name, category, terms: [] };
-    trace('正在新建术语库…', 'normal');
+    trace(t('glossary.creating'), 'normal');
     const result = await window.rpgWorkbench.saveGlossaryAs({ project: current.project, glossary: nextGlossary, defaultName: name });
     if (!result?.ok) {
       if (!result?.canceled) throw new Error(result?.message || t('glossary.createFailed'));
@@ -319,7 +319,7 @@
     if (!current.project?.rootDir) throw new Error(t('glossary.loadProjectFirst'));
     if (!window.rpgWorkbench?.exportGlossaryAs) throw new Error(t('glossary.exportApiMissing'));
     await saveGlossary();
-    trace('正在导出术语库…', 'normal');
+    trace(t('glossary.exporting'), 'normal');
     const result = await window.rpgWorkbench.exportGlossaryAs({ project: current.project, glossary: current.glossary, defaultName: current.glossary?.glossaryName || 'glossary' });
     if (!result?.ok) {
       if (!result?.canceled) throw new Error(result?.message || t('glossary.exportFailed'));
@@ -336,7 +336,7 @@
     if (!window.rpgWorkbench?.pickGlossaryFile) throw new Error(t('glossary.importApiMissing'));
     const file = await window.rpgWorkbench.pickGlossaryFile();
     if (!file?.filePath) return;
-    trace('正在导入术语库…', 'normal');
+    trace(t('glossary.importing'), 'normal');
     const result = await window.rpgWorkbench.importGlossary({ project: current.project, filePath: file.filePath });
     if (!result?.ok) throw new Error(result?.message || t('glossary.importFailed'));
     await refreshList();
@@ -367,7 +367,7 @@
     const nextName = String(nextNameFromInput || get('renameGlossaryName')?.value || '').trim();
     if (!nextName || nextName === oldName) { hideRenameGlossaryPanel(); return; }
     if (!window.rpgWorkbench?.renameGlossary) throw new Error(t('glossary.renameApiMissing'));
-    trace(`正在重命名术语库：${oldName} → ${nextName}`, 'normal');
+    trace(format('glossary.renaming', { from: oldName, to: nextName }), 'normal');
     const result = await window.rpgWorkbench.renameGlossary({ project: current.project, oldName, newName: nextName, overwrite: false });
     if (!result?.ok) throw new Error(result?.message || t('glossary.renameFailed'));
     hideRenameGlossaryPanel();
@@ -419,7 +419,7 @@
     get('scanDataRootsBtn')?.addEventListener('click', async () => {
       const current = state();
       if (!current.project?.rootDir) { trace(t('project.scanDataRootsMissing'), 'error'); return; }
-      trace('正在扫描文本目录…', 'normal');
+      trace(t('project.scanningDataRoots'), 'normal');
       const result = await window.rpgWorkbench?.scanProjectDataRoots?.(current.project.rootDir);
       if (!result?.ok) { trace(format('project.scanDataRootsFailed', { message: result?.message || 'unknown' }), 'error'); return; }
       const roots = Array.isArray(result.dataRoots) ? result.dataRoots : [];

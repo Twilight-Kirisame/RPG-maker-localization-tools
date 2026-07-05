@@ -83,7 +83,7 @@
       window.__RpgStateRegressionLog = window.__RpgStateRegressionLog || [];
       window.__RpgStateRegressionLog.push({ time: new Date().toISOString(), before, after, patchKeys: Object.keys(patch || {}), patch: { ...patch }, stack });
       if (window.traceCall) {
-        const title = '状态回退';
+        const title = window.RpgView?.t?.('trace.stateRegression') || '状态回退';
         const detail = `${before.projectRoot || '∅'} / ${before.status || '∅'} -> ${after.projectRoot || '∅'} / ${after.status || '∅'}`;
         window.traceCall(title, `${detail} | ${stack.split('\n')[2] || stack.split('\n')[1] || 'unknown'}`, 'error');
       }

@@ -26,9 +26,9 @@
           <div class="brand-copy">
             <div class="brand-title-row">
               <h1 data-i18n="app.title">RPG 汉化工作台</h1>
-              <span id="appVersionBadge" class="version-badge">β 1.0.0</span>
+              <span id="appVersionBadge" class="version-badge" data-i18n="app.version">· 1.2.0</span>
             </div>
-            <p id="appCopyright" class="brand-copy-text">© 2026 RPG 汉化工作台，保留所有权利。</p>
+            <p id="appCopyright" class="brand-copy-text" data-i18n="app.copyright">© 2026 RPG 汉化工作台，保留所有权利。</p>
           </div>
         </div>
 
@@ -69,8 +69,8 @@
             <button id="loadProjectBtn" class="secondary-btn" data-i18n="workspace.exportDraft" data-i18n-title="workspace.exportDraftTitle" title="Export draft">导出草稿</button>
             <button id="saveDraftBtn" class="secondary-btn" data-i18n="workspace.draftLoad" data-i18n-title="workspace.draftLoadTitle" title="Load draft">载入草稿</button>
             <button id="settingsBtn" class="secondary-btn settings-launch" data-i18n="workspace.settings">设置</button>
-            <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" title="导出可回写的补丁目录">导出补丁</button>
-            <button id="applyWritebackBtn" class="primary-btn" data-i18n="workspace.applyWriteback" title="把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）">写回游戏 JSON</button>
+            <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" data-i18n-title="workspace.exportTitle" title="导出可回写的补丁目录">导出补丁</button>
+            <button id="applyWritebackBtn" class="primary-btn" data-i18n="workspace.applyWriteback" data-i18n-title="workspace.applyWritebackTitle" title="把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）">写回游戏 JSON</button>
           </div>
         </section>
 
@@ -121,7 +121,7 @@
                 <span data-i18n="selector.file">JSON 文件</span>
                 <span class="file-select-row">
                   <select id="fileSelect"></select>
-                  <span id="currentFileProgressBadge" class="file-progress-badge" title="当前 JSON 文件的翻译百分比"></span>
+                  <span id="currentFileProgressBadge" class="file-progress-badge" data-i18n-title="progress.fileProgressTitle" title="当前 JSON 文件的翻译百分比"></span>
                 </span>
               </label>
               <label>
@@ -136,9 +136,10 @@
                 </select>
               </label>
               <label class="ai-mode-global">
-                <span id="globalAiModeLabel">辅助翻译平台</span>
+                <span id="globalAiModeLabel" data-i18n="workspace.ai">辅助翻译平台</span>
                 <select id="globalAiModeSelect"></select>
               </label>
+              <button id="openFindReplaceBtn" class="secondary-btn" type="button" data-i18n="findReplace.openBtn" data-i18n-title="findReplace.openTitle" title="查找/替换与快速填充重复文本">查找替换</button>
             </div>
             <div class="entry-view-mode">
               <span data-i18n="context.viewMode">显示模式</span>
@@ -183,9 +184,9 @@
                 <label>
                   <span data-i18n="settings.language">界面语言</span>
                   <select id="languageSelect">
-                    <option value="zh-CN">简体中文</option>
-                    <option value="en">English</option>
-                    <option value="ja">日本語</option>
+                    <option value="zh-CN" data-i18n="language.zhCN">简体中文</option>
+                    <option value="en" data-i18n="language.en">English</option>
+                    <option value="ja" data-i18n="language.ja">日本語</option>
                   </select>
                 </label>
                 <label>
@@ -260,7 +261,7 @@
                     <span data-i18n="settings.baiduSecret">百度翻译开放平台密钥</span>
                     <span class="secret-input">
                       <input id="baiduSecretKey" type="password" data-i18n-placeholder="settings.baiduSecretPlaceholder" placeholder="请输入密钥" autocomplete="off" />
-                      <button type="button" class="secret-toggle" data-secret-toggle="baiduSecretKey" data-i18n-title="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
+                      <button type="button" class="secret-toggle" data-secret-toggle="baiduSecretKey" data-i18n-title="ai.toggleKeyShow" data-i18n-aria-label="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
                         <span class="secret-eye" aria-hidden="true"></span>
                       </button>
                     </span>
@@ -271,7 +272,7 @@
                     <span data-i18n="settings.googleApiKey">Google API Key</span>
                     <span class="secret-input">
                       <input id="googleApiKey" type="password" data-i18n-placeholder="settings.googleApiKeyPlaceholder" placeholder="请输入 API Key" autocomplete="off" />
-                      <button type="button" class="secret-toggle" data-secret-toggle="googleApiKey" data-i18n-title="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
+                      <button type="button" class="secret-toggle" data-secret-toggle="googleApiKey" data-i18n-title="ai.toggleKeyShow" data-i18n-aria-label="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
                         <span class="secret-eye" aria-hidden="true"></span>
                       </button>
                     </span>
@@ -308,7 +309,7 @@
                   <span data-i18n="ai.apiKey">API Key</span>
                   <span class="secret-input">
                     <input id="aiApiKey" type="password" data-i18n-placeholder="ai.apiKeyPlaceholder" placeholder="你的 API Key" autocomplete="off" />
-                    <button type="button" class="secret-toggle" data-secret-toggle="aiApiKey" data-i18n-title="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
+                    <button type="button" class="secret-toggle" data-secret-toggle="aiApiKey" data-i18n-title="ai.toggleKeyShow" data-i18n-aria-label="ai.toggleKeyShow" title="显示密钥" aria-pressed="false" aria-label="Toggle key visibility">
                       <span class="secret-eye" aria-hidden="true"></span>
                     </button>
                   </span>
@@ -333,10 +334,10 @@
                 <label>
                   <span data-i18n="ai.model">模型</span>
                   <select id="aiModelSelect">
-                    <option value="deepseek-v4-flash">deepseek-v4-flash（官方推荐，非思考）</option>
-                    <option value="deepseek-v4-pro">deepseek-v4-pro（官方推荐，思考）</option>
-                    <option value="deepseek-chat">deepseek-chat（旧兼容名，将弃用）</option>
-                    <option value="deepseek-reasoner">deepseek-reasoner（旧兼容名，将弃用）</option>
+                    <option value="deepseek-v4-flash" data-i18n="ai.deepseekV4Flash">deepseek-v4-flash（官方推荐，非思考）</option>
+                    <option value="deepseek-v4-pro" data-i18n="ai.deepseekV4Pro">deepseek-v4-pro（官方推荐，思考）</option>
+                    <option value="deepseek-chat" data-i18n="ai.deepseekChat">deepseek-chat（旧兼容名，将弃用）</option>
+                    <option value="deepseek-reasoner" data-i18n="ai.deepseekReasoner">deepseek-reasoner（旧兼容名，将弃用）</option>
                     <option value="custom" data-i18n="ai.modelCustom">自定义模型</option>
                   </select>
                   <input id="aiModel" class="ai-model-custom hidden" type="text" data-i18n-placeholder="ai.modelPlaceholder" placeholder="输入自定义模型名" />
@@ -375,9 +376,9 @@
               <div class="settings-pane hidden" data-pane="glossary">
                 <h3 data-i18n="glossary.manage">术语库管理</h3>
                 <div class="glossary-summary card-mini">
-                  <div id="glossaryStatus" class="glossary-status">当前项目 / default</div>
+                  <div id="glossaryStatus" class="glossary-status" data-i18n="glossary.currentProject">当前项目 / default</div>
                   <div class="glossary-stats"><span data-i18n="glossary.countLabel">术语数</span><strong id="glossaryCount">0</strong></div>
-                  <div id="glossaryHint" class="glossary-hint">当前术语库为空，可直接新增或导入。</div>
+                  <div id="glossaryHint" class="glossary-hint" data-i18n="glossary.emptyHint">当前术语库为空，可直接新增或导入。</div>
                 </div>
                 <label>
                   <span data-i18n="glossary.search">搜索术语库</span>
@@ -466,11 +467,85 @@
       </main>
     </div>
 
+    <div id="findReplaceModal" class="settings-modal hidden" aria-hidden="true">
+      <div class="settings-backdrop" id="findReplaceBackdrop"></div>
+      <div class="settings-dialog find-replace-dialog" role="dialog" aria-modal="true" aria-labelledby="findReplaceTitle">
+        <button id="findReplaceCloseBtn" class="settings-close" data-i18n-aria-label="findReplace.close" aria-label="关闭查找替换">×</button>
+        <h3 id="findReplaceTitle" data-i18n="findReplace.title">查找 / 替换</h3>
+
+        <div class="find-replace-section">
+          <div class="find-replace-row">
+            <label class="find-replace-label">
+              <span data-i18n="findReplace.scope">查找范围</span>
+              <select id="findReplaceScope">
+                <option value="current" data-i18n="findReplace.scopeCurrent">当前 JSON</option>
+                <option value="all" data-i18n="findReplace.scopeAll">全部 JSON</option>
+              </select>
+            </label>
+            <label class="find-replace-label">
+              <span data-i18n="findReplace.targetField">目标字段</span>
+              <select id="findReplaceTarget">
+                <option value="source" data-i18n="findReplace.targetSource">原文</option>
+                <option value="target" data-i18n="findReplace.targetTarget">译文</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="find-replace-block">
+            <span data-i18n="findReplace.findLabel">查找内容</span>
+            <input id="findReplaceInput" type="text" data-i18n-placeholder="findReplace.findPlaceholder" placeholder="输入要查找的文本或正则" />
+          </label>
+          <label class="find-replace-block">
+            <span data-i18n="findReplace.replaceLabel">替换为</span>
+            <input id="replaceWithInput" type="text" data-i18n-placeholder="findReplace.replacePlaceholder" placeholder="输入替换后的文本" />
+          </label>
+
+          <div class="find-replace-options">
+            <label class="checkbox-label">
+              <input id="findReplaceCaseSensitive" type="checkbox" />
+              <span data-i18n="findReplace.caseSensitive">区分大小写</span>
+            </label>
+            <label class="checkbox-label">
+              <input id="findReplaceWholeWord" type="checkbox" />
+              <span data-i18n="findReplace.wholeWord">全字匹配</span>
+            </label>
+            <label class="checkbox-label">
+              <input id="findReplaceUseRegex" type="checkbox" />
+              <span data-i18n="findReplace.useRegex">使用正则表达式</span>
+            </label>
+          </div>
+
+          <div class="find-replace-actions">
+            <button id="findReplaceBtn" class="secondary-btn" type="button" data-i18n="findReplace.findBtn">查找</button>
+            <button id="findReplacePrevBtn" class="secondary-btn" type="button" data-i18n="findReplace.prevBtn">上一个</button>
+            <button id="findReplaceNextBtn" class="secondary-btn" type="button" data-i18n="findReplace.nextBtn">下一个</button>
+            <button id="replaceCurrentBtn" class="secondary-btn" type="button" data-i18n="findReplace.replaceCurrentBtn">替换当前</button>
+            <button id="replaceAllBtn" class="primary-btn" type="button" data-i18n="findReplace.replaceAllBtn">全部替换</button>
+          </div>
+          <div id="findReplaceMatchInfo" class="find-replace-info" data-i18n="findReplace.noMatch">未找到匹配</div>
+        </div>
+
+        <div class="find-replace-divider"></div>
+
+        <div class="find-replace-section">
+          <h4 data-i18n="findReplace.repeatableTitle">快速填充重复定式文本</h4>
+          <p class="settings-hint" data-i18n="findReplace.repeatableHint">自动扫描范围内「原文相同、部分已译、部分未译」的条目，一键把已译内容填充到未译条目。</p>
+          <div class="inline-actions">
+            <button id="refreshRepeatableBtn" class="secondary-btn" type="button" data-i18n="findReplace.refreshList">刷新列表</button>
+          </div>
+          <div id="repeatableList" class="repeatable-list">
+            <div class="status-box" data-i18n="findReplace.emptyRepeatable">点击刷新列表查看可填充的重复文本</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="app/bootstrap.js"></script>
     <script src="app/store.js"></script>
     <script src="app/view.js"></script>
     <script src="app/controller.js"></script>
     <script src="app/entries.js"></script>
+    <script src="app/find-replace.js"></script>
     <script src="app/project.js"></script>
     <script src="app/glossary.js"></script>
     <script src="export-module.js"></script>

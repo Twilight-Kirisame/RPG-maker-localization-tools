@@ -2,6 +2,13 @@
   const get = (id) => document.getElementById(id);
   const state = () => window.RpgAppStore?.getState?.() || {};
   const t = (key) => window.RpgView?.t?.(key) || key;
+  const tf = (key, params = {}) => {
+    let text = t(key);
+    Object.keys(params || {}).forEach((k) => {
+      text = text.split(`{${k}}`).join(String(params[k] ?? ''));
+    });
+    return text;
+  };
 
   /**
    * 渲染项目状态 UI（projectPath + engineBadge + engineHint）。
@@ -13,7 +20,7 @@
     const engineHint = get('engineHint');
     if (projectPath) projectPath.textContent = project.rootDir || t('workspace.noProject');
     if (engineBadge) {
-      engineBadge.textContent = recognized ? (displayName === 'unknown' ? '已识别' : displayName) : t('project.unrecognized');
+      engineBadge.textContent = recognized ? (displayName === 'unknown' ? t('project.recognized') : displayName) : t('project.unrecognized');
       engineBadge.className = `badge ${recognized ? 'success' : 'warn'}`;
       engineBadge.dataset.projectSignature = project.rootDir
         ? [project.rootDir || '', project.engine || '', displayName || '', (project.dataRoots || []).join('|')].join('::')
@@ -21,12 +28,12 @@
     }
     if (engineHint) {
       const dataRootText = hasDataRoots
-        ? `文本目录：${(project.dataRoots || []).map((dir) => String(dir).replace(project.rootDir || '', '').replace(/^[/\\]/, '') || '.').join('；')}`
+        ? `${t('project.dataRootsLabel')}${(project.dataRoots || []).map((dir) => String(dir).replace(project.rootDir || '', '').replace(/^[/\\]/, '') || '.').join('；')}`
         : '';
-      const scanStatus = hasDataRoots ? `已扫描到 ${(project.dataRoots || []).length} 个文本目录` : '未扫描到文本目录';
-      const stateText = status === 'project-loaded' ? '项目已加载' : status === 'draft-loaded' ? '草稿已加载' : status === 'loading-project' ? '正在加载项目…' : '';
+      const scanStatus = hasDataRoots ? tf('project.dataRootsFound', { count: (project.dataRoots || []).length }) : t('project.dataRootsEmpty');
+      const stateText = status === 'project-loaded' ? t('project.statusLoaded') : status === 'draft-loaded' ? t('project.statusDraft') : status === 'loading-project' ? t('project.statusLoading') : '';
       engineHint.textContent = dataRootText
-        || `${stateText ? `${stateText}；` : ''}${scanStatus}；${warnings.length ? warnings.join('；') : (recognized ? '已识别到项目结构，可继续导入与翻译。' : t('project.hint'))}`;
+        || `${stateText ? `${stateText}；` : ''}${scanStatus}；${warnings.length ? warnings.join('；') : (recognized ? t('project.recognizedHint') : t('project.hint'))}`;
       engineHint.dataset.projectSignature = engineBadge?.dataset.projectSignature || '';
     }
   }
@@ -40,10 +47,12 @@
     const project = current.project || {};
     const hasDataRoots = Array.isArray(project.dataRoots) && project.dataRoots.length > 0;
     const hasEntries = (current.entries || []).length > 0;
-    const recognized = Boolean(project.rootDir) && (hasDataRoots || hasEntries || (project.engine && project.engine !== 'unknown') || (project.displayName && project.displayName !== 'unknown') || current.status === 'project-loaded' || current.status === 'draft-loaded');
-    const displayName = project.displayName || project.engine || (recognized ? '已识别' : 'unknown');
+    const hasGroupedFiles = (current.groupedFiles || []).length > 0;
+    const hasFileList = (current.fileList || []).length > 0;
+    const recognized = Boolean(project.rootDir) && (hasDataRoots || hasEntries || hasGroupedFiles || hasFileList || (project.engine && project.engine !== 'unknown') || (project.displayName && project.displayName !== 'unknown') || current.status === 'project-loaded' || current.status === 'draft-loaded');
+    const displayName = project.displayName || project.engine || (recognized ? t('project.recognized') : 'unknown');
     const status = current.loading ? 'loading-project' : (current.status || (recognized ? 'project-loaded' : 'project-empty'));
-    refreshProjectStatusUi({ project, recognized, displayName, hasDataRoots, warnings: current.loading ? ['正在加载项目…'] : [], status });
+    refreshProjectStatusUi({ project, recognized, displayName, hasDataRoots, warnings: current.loading ? [t('project.statusLoading')] : [], status });
   }
 
   /**
@@ -73,9 +82,11 @@
     const hasProjectRoot = Boolean(project.rootDir);
     const hasDataRoots = Array.isArray(project.dataRoots) && project.dataRoots.length > 0;
     const hasLoadedEntries = Array.isArray(info?.entries) ? info.entries.length > 0 : Array.isArray(current.entries) && current.entries.length > 0;
+    const hasGroupedFiles = (current.groupedFiles || []).length > 0 || (info?.groupedFiles || []).length > 0;
+    const hasFileList = Array.isArray(info?.files) ? info.files.length > 0 : Array.isArray(current.fileList) && current.fileList.length > 0;
     const engine = project.engine || (hasDataRoots ? 'RPG Maker MV/MZ' : 'unknown');
     const displayName = project.displayName || engine;
-    const recognized = hasProjectRoot && (hasDataRoots || hasLoadedEntries || engine !== 'unknown' || displayName !== 'unknown');
+    const recognized = hasProjectRoot && (hasDataRoots || hasLoadedEntries || hasGroupedFiles || hasFileList || engine !== 'unknown' || displayName !== 'unknown');
     const projectSignature = [project.rootDir || '', project.engine || '', project.displayName || '', (project.dataRoots || []).join('|')].join('::');
     const prevSignature = current.activeProjectSignature || '';
     const switchedProject = recognized && prevSignature && prevSignature !== projectSignature;
@@ -86,7 +97,7 @@
       glossary,
       aggregatedGlossary,
       aiSettings,
-      entries: Array.isArray(info?.entries) ? info.entries : current.entries || [],
+      entries: Array.isArray(info?.entries) ? info.entries : (Array.isArray(info?.project?.entries) ? info.project.entries : current.entries || []),
       status: recognized ? (info?.draft ? 'draft-loaded' : 'project-loaded') : 'project-empty',
       activeProjectSignature: recognized ? projectSignature : prevSignature,
       // 切换到不同项目时清空与上一个项目绑定的工作区状态
@@ -97,38 +108,118 @@
     window.RpgView?.syncUiSettingsFields?.({ preserveBackground: true });
     window.RpgApp?.syncGlobalAiModeSelect?.();
     window.RpgGlossaryModule?.updateContext?.(project, glossary);
-    if (window.setCallTraceStatus) window.setCallTraceStatus(project.rootDir ? `项目已就绪：${project.rootDir}` : '未加载项目', recognized ? 'success' : 'warning');
+    if (window.setCallTraceStatus) window.setCallTraceStatus(project.rootDir ? tf('project.ready', { path: project.rootDir }) : t('workspace.noProject'), recognized ? 'success' : 'warning');
     window.renderTraditionalStatus?.();
     window.setVersionLabel?.();
-    window.traceCall?.('项目状态打点', `rootDir=${project.rootDir || ''} | engine=${engine} | displayName=${displayName} | dataRoots=${project.dataRoots?.length || 0} | recognized=${recognized}`, recognized ? 'success' : 'warning');
+    window.traceCall?.(t('trace.projectStatus'), `rootDir=${project.rootDir || ''} | engine=${engine} | displayName=${displayName} | dataRoots=${project.dataRoots?.length || 0} | recognized=${recognized}`, recognized ? 'success' : 'warning');
     return { recognized, project, glossary, aiSettings, projectSignature };
   }
 
-  async function loadProject(rootDir) {
-    window.traceCall?.('打开项目', `准备读取：${rootDir}`, 'pending');
-    window.showProjectStatus?.(window.RpgView?.t?.('common.aiPending') || '正在处理', 'pending');
-    window.RpgAppStore?.setState?.({ loading: true, status: 'loading-project' });
-    syncProjectStatusFromState();
-    const result = window.RpgAppController?.loadProjectTexts ? await window.RpgAppController.loadProjectTexts(rootDir) : await window.rpgWorkbench.loadProjectTexts(rootDir);
-    window.traceCall?.('打开项目', `主进程返回 entries=${result?.entries?.length || 0}, warnings=${result?.warnings?.length || 0}`, result?.entries?.length ? 'success' : 'error');
-    const synced = syncStatusFromProject(result);
-    const entries = result.entries || [];
-    window.RpgApp?.buildGroupedFiles?.(entries);
-    const groupedFiles = window.RpgAppStore?.getState?.().groupedFiles || [];
+  async function loadFile(file) {
+    const current = window.RpgAppStore?.getState?.() || {};
+    const rootDir = current.project?.rootDir;
+    if (!rootDir || !file) return;
+    const fileInfo = (current.fileList || []).find((f) => f.file === file);
+    const isLoaded = fileInfo?.loaded;
+    const alreadyInGroup = (current.groupedFiles || []).some((g) => g.file === file);
+    // 已加载过的文件直接切换，不再请求主进程
+    if (isLoaded && alreadyInGroup) {
+      window.RpgAppStore?.setState?.({ currentFile: file, currentEntryIndex: 0 });
+      window.RpgApp?.renderFileSelect?.();
+      window.RpgApp?.renderEntryList?.();
+      window.RpgApp?.renderCurrentEntry?.();
+      return;
+    }
+    window.traceCall?.(t('trace.openProject'), tf('trace.prepareRead', { path: `${rootDir} > ${file}` }), 'pending');
+    const result = window.RpgAppController?.loadFileEntries
+      ? await window.RpgAppController.loadFileEntries(rootDir, file)
+      : await window.rpgWorkbench.loadFileEntries(rootDir, file);
+    const entries = result?.entries || [];
+    window.traceCall?.(t('trace.openProject'), tf('trace.mainProcessReturn', { entries: entries.length, warnings: result?.warnings?.length || 0 }), entries.length ? 'success' : 'warning');
+    // 只替换当前文件的 entries，保留其他已加载文件
+    const nextGroupedFiles = (current.groupedFiles || []).map((group) => {
+      if (group.file !== file) return group;
+      return window.RpgEntries?.buildGroupedFilesForFile?.(file, entries) || { file, items: entries.map((item, index) => ({ ...item, localIndex: index, sourceDraft: '', targetDraft: String(item.targetDraft ?? item.target ?? ''), translationStatus: item.translationStatus || item.draftStatus || (String(item.target || '').trim() ? 'translated' : 'pending'), draftStatus: item.draftStatus || item.translationStatus || (String(item.target || '').trim() ? 'translated' : 'pending') })) };
+    });
+    // 若当前文件还没在 groupedFiles 中，追加
+    const hasFile = nextGroupedFiles.some((g) => g.file === file);
+    if (!hasFile) {
+      const built = window.RpgEntries?.buildGroupedFilesForFile?.(file, entries);
+      if (built) nextGroupedFiles.push(built);
+    }
+    // 标记文件已加载
+    const nextFileList = (current.fileList || []).map((f) => (f.file === file ? { ...f, loaded: true } : f));
+    window.RpgAppStore?.setState?.({ groupedFiles: nextGroupedFiles, fileList: nextFileList, currentFile: file, currentEntryIndex: 0 });
+    window.RpgApp?.renderFileSelect?.();
+    window.RpgApp?.renderEntryList?.();
+    window.RpgApp?.renderCurrentEntry?.();
+  }
+
+  async function applyProjectResult(result, { isDraft = false, draftPath = '' } = {}) {
+    const useLazyLoad = Boolean(result?.useLazyLoad || result?.project?.useLazyLoad);
+    if (useLazyLoad) {
+      const fileList = Array.isArray(result?.files) ? result.files : (Array.isArray(result?.project?.files) ? result.project.files : []);
+      const firstFile = fileList[0]?.file || '';
+      window.RpgAppStore?.setState?.({
+        entries: [],
+        groupedFiles: [],
+        fileList,
+        currentFile: '',
+        currentEntryIndex: 0,
+      });
+      const synced = syncStatusFromProject(result);
+      window.RpgAppStore?.setState?.({
+        loading: false,
+        status: synced.recognized ? (isDraft ? 'draft-loaded' : 'project-loaded') : 'project-empty',
+        ...(draftPath ? { draftPath } : {}),
+      });
+      syncProjectStatusFromState();
+      window.RpgApp?.renderFileSelect?.();
+      window.RpgApp?.renderEntryList?.();
+      window.RpgApp?.renderCurrentEntry?.();
+      window.showProjectStatus?.(`${t('workspace.load')}：${fileList.length} ${t('stats.files')}`, synced.recognized ? 'success' : 'warning');
+      if (firstFile) {
+        await loadFile(firstFile);
+      }
+      return;
+    }
+
+    const entries = result?.entries || result?.project?.entries || [];
+    const groupedFiles = window.RpgEntries?.buildGroupedFiles?.(entries) || [];
     const currentFile = groupedFiles[0]?.file || '';
+    window.traceCall?.(t('trace.openProject'), `groupedFiles=${groupedFiles.length}, currentFile=${currentFile}`, groupedFiles.length ? 'success' : 'warning');
+    window.RpgAppStore?.setState?.({ entries, groupedFiles, currentFile, currentEntryIndex: 0, fileList: [] });
+    const synced = syncStatusFromProject(result);
+    const finalCurrentFile = (window.RpgAppStore?.getState?.().groupedFiles || [])[0]?.file || currentFile || '';
     window.RpgAppStore?.setState?.({
-      entries,
-      groupedFiles,
-      currentFile,
-      currentEntryIndex: 0,
+      currentFile: finalCurrentFile,
       loading: false,
-      status: synced.recognized ? 'project-loaded' : 'project-empty',
+      status: synced.recognized ? (isDraft ? 'draft-loaded' : 'project-loaded') : 'project-empty',
+      ...(draftPath ? { draftPath } : {}),
     });
     syncProjectStatusFromState();
     window.RpgApp?.renderFileSelect?.();
     window.RpgApp?.renderEntryList?.();
     window.RpgApp?.renderCurrentEntry?.();
+    requestAnimationFrame(() => {
+      const current = window.RpgAppStore?.getState?.() || {};
+      if ((current.groupedFiles || []).length) {
+        window.RpgApp?.renderFileSelect?.();
+        window.RpgApp?.renderEntryList?.();
+        window.RpgApp?.renderCurrentEntry?.();
+      }
+    });
     window.showProjectStatus?.(`${t('workspace.load')}：${entries.length} ${t('stats.groups')}`, synced.recognized ? 'success' : 'warning');
+  }
+
+  async function loadProject(rootDir) {
+    window.traceCall?.(t('trace.openProject'), tf('trace.prepareRead', { path: rootDir }), 'pending');
+    window.showProjectStatus?.(window.RpgView?.t?.('common.aiPending') || t('common.processing'), 'pending');
+    window.RpgAppStore?.setState?.({ loading: true, status: 'loading-project' });
+    syncProjectStatusFromState();
+    const result = window.RpgAppController?.loadProjectTexts ? await window.RpgAppController.loadProjectTexts(rootDir) : await window.rpgWorkbench.loadProjectTexts(rootDir);
+    window.traceCall?.(t('trace.openProject'), tf('trace.mainProcessReturn', { entries: result?.entries?.length || 0, warnings: result?.warnings?.length || 0 }), result?.entries?.length ? 'success' : (result?.useLazyLoad ? 'success' : 'error'));
+    await applyProjectResult(result);
     return result;
   }
 
@@ -140,63 +231,46 @@
     pickFolderBtn?.addEventListener('click', async () => {
       try {
         const prev = window.RpgAppStore?.getState?.() || {};
-        window.traceCall?.('打开项目', '开始调用系统目录选择器', 'pending');
-        window.showProjectStatus?.(window.RpgView?.t?.('common.aiPending') || '正在处理', 'pending');
+        window.traceCall?.(t('trace.openProject'), t('trace.callSystemDirPicker'), 'pending');
+        window.showProjectStatus?.(window.RpgView?.t?.('common.aiPending') || t('common.processing'), 'pending');
         const info = window.RpgAppController?.pickProjectFolder ? await window.RpgAppController.pickProjectFolder() : await window.rpgWorkbench.pickProjectFolder();
         if (!info) {
-          window.traceCall?.('打开项目', '用户取消选择', 'warning');
+          window.traceCall?.(t('trace.openProject'), t('trace.userCancel'), 'warning');
           syncProjectStatusFromState();
           return;
         }
-        window.traceCall?.('打开项目', `选择结果 rootDir=${info.rootDir || 'N/A'}, engine=${info.engine || 'unknown'}`, 'success');
+        window.traceCall?.(t('trace.openProject'), tf('trace.pickResult', { rootDir: info.rootDir || 'N/A', engine: info.engine || 'unknown' }), 'success');
         if (info.rootDir) await loadProject(info.rootDir);
       } catch (error) {
-        window.traceCall?.('打开项目', error.message || '未知错误', 'error');
-        window.showProjectStatus?.(error.message || (window.RpgView?.t?.('common.aiTestFail') || '操作失败'), 'error');
+        window.traceCall?.(t('trace.openProject'), error.message || t('common.unknownError'), 'error');
+        window.showProjectStatus?.(error.message || (window.RpgView?.t?.('common.aiTestFail') || t('common.operationFailed')), 'error');
       }
     });
 
     saveDraftBtn?.addEventListener('click', async () => {
       try {
-        window.traceCall?.('载入草稿按钮', '开始选择草稿文件', 'pending');
+        window.traceCall?.(t('trace.loadDraftBtn'), t('trace.startPickDraftFile'), 'pending');
         const file = window.RpgAppController?.pickDraftFile ? await window.RpgAppController.pickDraftFile() : await window.rpgWorkbench.pickDraftFile();
         if (!file?.filePath) {
-          window.traceCall?.('载入草稿按钮', '用户取消选择', 'error');
+          window.traceCall?.(t('trace.loadDraftBtn'), t('trace.userCancel'), 'error');
           return;
         }
         const result = window.RpgAppController?.loadDraftFile ? await window.RpgAppController.loadDraftFile(file.filePath) : await window.rpgWorkbench.loadDraftFile(file.filePath);
         if (!result?.ok) {
-          const message = result?.message || '草稿加载失败';
-          window.traceCall?.('载入草稿按钮', message, 'error');
+          const message = result?.message || t('draft.loadFailed');
+          window.traceCall?.(t('trace.loadDraftBtn'), message, 'error');
           window.showProjectStatus?.(message, 'error');
           return;
         }
-        const synced = syncStatusFromProject(result);
-        const entries = result.entries || [];
-        window.RpgApp?.buildGroupedFiles?.(entries);
-        const groupedFiles = window.RpgAppStore?.getState?.().groupedFiles || [];
-        const currentFile = groupedFiles[0]?.file || '';
-        window.RpgAppStore?.setState?.({
-          entries,
-          groupedFiles,
-          currentFile,
-          currentEntryIndex: 0,
-          loading: false,
-          status: synced.recognized ? 'draft-loaded' : 'project-empty',
-          draftPath: result.draftPath || file.filePath,
-        });
-        syncProjectStatusFromState();
-        window.RpgApp?.renderFileSelect?.();
-        window.RpgApp?.renderEntryList?.();
-        window.RpgApp?.renderCurrentEntry?.();
-        window.showProjectStatus?.(`已载入草稿：${file.filePath}`, synced.recognized ? 'success' : 'warning');
-        window.traceCall?.('载入草稿按钮', `已打开 ${file.filePath}`, 'success');
+        await applyProjectResult(result, { isDraft: true, draftPath: result.draftPath || file.filePath });
+        window.showProjectStatus?.(tf('draft.loaded', { path: file.filePath }), 'success');
+        window.traceCall?.(t('trace.loadDraftBtn'), tf('trace.draftOpened', { path: file.filePath }), 'success');
       } catch (error) {
-        window.traceCall?.('载入草稿按钮', error.message || '未知错误', 'error');
-        window.showProjectStatus?.(error.message || (window.RpgView?.t?.('common.aiTestFail') || '操作失败'), 'error');
+        window.traceCall?.(t('trace.loadDraftBtn'), error.message || t('common.unknownError'), 'error');
+        window.showProjectStatus?.(error.message || (window.RpgView?.t?.('common.aiTestFail') || t('common.operationFailed')), 'error');
       }
     });
   }
 
-  window.RpgProject = { syncStatusFromProject, syncProjectStatusFromState, refreshProjectStatusUi, loadProject, bindProjectActions };
+  window.RpgProject = { syncStatusFromProject, syncProjectStatusFromState, refreshProjectStatusUi, loadProject, loadFile, bindProjectActions };
 })();

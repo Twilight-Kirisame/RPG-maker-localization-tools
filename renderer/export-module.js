@@ -1,36 +1,53 @@
 (() => {
   const el = (id) => document.getElementById(id);
+  const t = (key) => window.RpgView?.t?.(key) || key;
+  const tf = (key, params = {}) => {
+    let text = t(key);
+    Object.keys(params || {}).forEach((k) => {
+      text = text.split(`{${k}}`).join(String(params[k] ?? ''));
+    });
+    return text;
+  };
 
   function assertProject(payload, action) {
-    if (!payload?.project?.rootDir) throw new Error(`${action}前请先打开并载入项目`);
+    if (!payload?.project?.rootDir) throw new Error(tf('error.projectRequired', { action }));
+  }
+
+  function assertNotLazyLoad(payload, action) {
+    if (payload?.project?.useLazyLoad) {
+      throw new Error(`[懒加载模式] ${action} 需要完整项目数据。请先加载所有文件，或等待后续支持流式导出。`);
+    }
   }
 
   async function exportDraft(payload) {
-    assertProject(payload, '导出草稿');
-    if (!window.rpgWorkbench?.saveDraft) throw new Error('草稿导出接口未注入');
+    assertProject(payload, t('action.exportDraft'));
+    assertNotLazyLoad(payload, t('action.exportDraft'));
+    if (!window.rpgWorkbench?.saveDraft) throw new Error(t('error.saveDraftApiMissing'));
     const result = await window.rpgWorkbench.saveDraft(payload);
-    if (!result?.ok) throw new Error(result?.message || '导出草稿失败');
+    if (!result?.ok) throw new Error(result?.message || t('error.exportDraftFailed'));
     if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
     return result;
   }
 
   async function exportPatch(payload) {
-    assertProject(payload, '导出补丁');
-    if (!window.rpgWorkbench?.exportPatch) throw new Error('补丁导出接口未注入');
+    assertProject(payload, t('action.exportPatch'));
+    assertNotLazyLoad(payload, t('action.exportPatch'));
+    if (!window.rpgWorkbench?.exportPatch) throw new Error(t('error.exportPatchApiMissing'));
     const result = await window.rpgWorkbench.exportPatch(payload);
-    if (!result?.ok) throw new Error(result?.message || '导出补丁失败');
+    if (!result?.ok) throw new Error(result?.message || t('error.exportPatchFailed'));
     if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
     return result;
   }
 
   async function applyWriteback(payload) {
-    assertProject(payload, '写回 JSON');
-    if (!window.rpgWorkbench?.applyWriteback) throw new Error('写回接口未注入');
+    assertProject(payload, t('action.writebackJson'));
+    assertNotLazyLoad(payload, t('action.writebackJson'));
+    if (!window.rpgWorkbench?.applyWriteback) throw new Error(t('error.writebackApiMissing'));
     const result = await window.rpgWorkbench.applyWriteback({ project: payload.project, entries: payload.entries });
-    if (!result?.ok) throw new Error(result?.message || '写回失败');
+    if (!result?.ok) throw new Error(result?.message || t('error.writebackFailed'));
     const errCount = Array.isArray(result.errors) ? result.errors.length : 0;
     const fileCount = Array.isArray(result.files) ? result.files.length : 0;
-    const summary = `已写回 ${fileCount} 个 JSON 文件${errCount ? `（含 ${errCount} 条错误）` : ''}`;
+    const summary = tf('writeback.summary', { count: fileCount, errors: errCount });
     if (errCount) log(`${summary}：${result.errors.slice(0, 3).map((e) => `${e.file || ''}/${e.key || ''}：${e.reason}`).join('；')}`, errCount > 0 ? 'pending' : 'success');
     log(summary, errCount ? 'pending' : 'success');
     if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
@@ -43,22 +60,22 @@
     const writebackBtn = el('applyWritebackBtn');
     const openPatchBtn = el('openPatchFolderBtn');
     if (draftBtn) draftBtn.addEventListener('click', async () => {
-      return window.runUiAction?.('导出草稿', async () => exportDraft(window.__rpgExportContext()), { pending: '正在导出草稿…', success: '草稿导出完成', error: '草稿导出失败', statusId: 'projectStatus', traceTitle: '导出草稿' });
+      return window.runUiAction?.(t('action.exportDraft'), async () => exportDraft(window.__rpgExportContext()), { pending: t('export.draftPending'), success: t('export.draftSuccess'), error: t('export.draftError'), statusId: 'projectStatus', traceTitle: t('action.exportDraft') });
     });
     if (patchBtn) patchBtn.addEventListener('click', async () => {
-      return window.runUiAction?.('导出补丁', async () => exportPatch(window.__rpgExportContext()), { pending: '正在导出补丁…', success: '补丁导出完成', error: '补丁导出失败', statusId: 'projectStatus', traceTitle: '导出补丁' });
+      return window.runUiAction?.(t('action.exportPatch'), async () => exportPatch(window.__rpgExportContext()), { pending: t('export.patchPending'), success: t('export.patchSuccess'), error: t('export.patchError'), statusId: 'projectStatus', traceTitle: t('action.exportPatch') });
     });
     if (writebackBtn) writebackBtn.addEventListener('click', async () => {
-      try { log('点击写回游戏 JSON', 'pending'); await applyWriteback(window.__rpgExportContext()); }
+      try { log(t('trace.writebackClicked'), 'pending'); await applyWriteback(window.__rpgExportContext()); }
       catch (error) { log(error.message, 'error'); }
     });
     if (openPatchBtn) openPatchBtn.addEventListener('click', async () => {
-      return window.runUiAction?.('打开补丁目录', async () => {
+      return window.runUiAction?.(t('action.openPatchDir'), async () => {
         const ctx = window.__rpgExportContext();
-        if (!ctx?.lastPatchDir) throw new Error('没有可打开的补丁目录');
-        if (!window.rpgWorkbench?.openFolder) throw new Error('打开目录接口未注入');
+        if (!ctx?.lastPatchDir) throw new Error(t('error.noPatchDir'));
+        if (!window.rpgWorkbench?.openFolder) throw new Error(t('error.openDirApiMissing'));
         return window.rpgWorkbench.openFolder(ctx.lastPatchDir);
-      }, { pending: '正在打开补丁目录…', success: '补丁目录已打开', error: '打开补丁目录失败', statusId: 'projectStatus', traceTitle: '打开补丁目录' });
+      }, { pending: t('action.openingPatchDir'), success: t('action.patchDirOpened'), error: t('action.openPatchDirFailed'), statusId: 'projectStatus', traceTitle: t('action.openPatchDir') });
     });
   }
 

@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { detectEngine, collectProjectTexts } = require('../project/ProjectTextService');
+const { detectEngine, collectProjectTexts, collectProjectFiles, collectFileTexts } = require('../project/ProjectTextService');
 const { applyToFiles } = require('../export/RpgMakerWriteback');
 const { getConstraints } = require('../validation/EngineConstraints');
 
@@ -30,6 +30,14 @@ function extract(rootDir) {
   return collectProjectTexts(rootDir);
 }
 
+function listFiles(rootDir) {
+  return collectProjectFiles(rootDir);
+}
+
+function extractFile(rootDir, filePath) {
+  return collectFileTexts(rootDir, filePath);
+}
+
 function apply(payload) {
   return applyToFiles(payload);
 }
@@ -39,6 +47,8 @@ module.exports = {
   displayName: 'RPG Maker MV/MZ',
   detect,
   extract,
+  listFiles,
+  extractFile,
   apply,
   getConstraints: (kind) => getConstraints('RPG Maker MV/MZ', kind),
 };

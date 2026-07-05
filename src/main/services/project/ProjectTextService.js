@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { detectEngine: detectByRegistry, extractProjectTexts } = require('../engines/EngineRegistry');
+const { detectEngine: detectByRegistry, extractProjectTexts, listProjectFiles, extractProjectFile, shouldUseLazyLoad } = require('../engines/EngineRegistry');
 const { calculateGlobalProgress, calculateFileProgress, calculateCurrentFileProgress } = require('../localization/ProgressService');
 
 /**
@@ -19,6 +19,11 @@ function detectEngine(rootDir) {
   return detected?.ok ? detected : { rootDir, engine: 'unknown', displayName: 'unknown', files: [], features: {}, dataRoots: [], warnings: detected?.warnings || [] };
 }
 
+function discoverDataRoots(rootDir) {
+  const detected = detectByRegistry(rootDir);
+  return Array.isArray(detected?.dataRoots) ? detected.dataRoots : [];
+}
+
 /**
  * 将 RPG Maker 指令文本转为字符串。
  * @param {any} value
@@ -27,11 +32,6 @@ function detectEngine(rootDir) {
 function buildDialogueText(value) {
   if (Array.isArray(value)) return value.map((v) => String(v ?? '')).join('\n').trim();
   return String(value ?? '').trim();
-}
-
-function discoverDataRoots(rootDir) {
-  const detected = detectByRegistry(rootDir);
-  return Array.isArray(detected?.dataRoots) ? detected.dataRoots : [];
 }
 
 /**
@@ -226,4 +226,53 @@ function collectProjectTexts(rootDir) {
   };
 }
 
-module.exports = { detectEngine, collectProjectTexts, discoverDataRoots };
+/**
+ * 扫描项目文件索引，用于懒加载。
+ * @param {string} rootDir
+ * @returns {Object}
+ */
+function collectProjectFiles(rootDir) {
+  const result = listProjectFiles(rootDir);
+  const files = Array.isArray(result.files) ? result.files : [];
+  const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+  const useLazyLoad = shouldUseLazyLoad(files);
+  return {
+    ...result,
+    engine: result.adapterEngine === 'rpg-maker' || result.engine === 'rpg-maker' ? 'RPG Maker MV/MZ' : (result.displayName || result.engine || 'unknown'),
+    files,
+    totalSize,
+    useLazyLoad,
+    entries: [],
+    groups: [],
+    fileProgress: [],
+    globalProgress: null,
+    currentFileProgress: null,
+  };
+}
+
+/**
+ * 提取单个文件的文本。
+ * @param {string} rootDir
+ * @param {string} filePath
+ * @returns {Object}
+ */
+function collectFileTexts(rootDir, filePath) {
+  const result = extractProjectFile(rootDir, filePath);
+  const entries = Array.isArray(result.entries) ? result.entries : [];
+  const fileProgress = calculateFileProgress(entries);
+  return {
+    ...result,
+    entries,
+    groups: Array.isArray(result.groups)
+      ? result.groups.map((group) => ({
+        ...group,
+        sourceJoined: group.sourceJoined || '',
+        targetJoined: group.targetJoined || '',
+        entries: Array.isArray(group.entries) ? group.entries : [],
+      }))
+      : [],
+    fileProgress,
+  };
+}
+
+module.exports = { detectEngine, collectProjectTexts, collectProjectFiles, collectFileTexts, discoverDataRoots };

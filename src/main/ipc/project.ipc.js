@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { dialog, ipcMain, shell } = require('electron');
-const { detectEngine, collectProjectTexts } = require('../services/project/ProjectTextService');
+const { detectEngine, collectProjectTexts, collectProjectFiles, collectFileTexts } = require('../services/project/ProjectTextService');
 const { pickAdapter } = require('../services/engine/registry');
 const { detectGlossaryHits, ensureProjectGlossary, loadAggregatedGlossary } = require('../services/glossary/GlossaryService');
 const { loadAiSettings } = require('../services/translation/TranslationService');
@@ -22,6 +22,8 @@ function normalizeProjectPayload(project = {}, extra = {}) {
   const displayName = project.displayName || extra.project?.displayName || extra.displayName || (project.engine && project.engine !== 'unknown' ? project.engine : 'unknown');
   const engine = project.engine || extra.project?.engine || extra.engine || (project.dataRoots?.length ? 'RPG Maker MV/MZ' : 'unknown');
   const dataRoots = Array.isArray(project.dataRoots) && project.dataRoots.length ? project.dataRoots : (Array.isArray(extra.project?.dataRoots) ? extra.project.dataRoots : (Array.isArray(extra.dataRoots) ? extra.dataRoots : []));
+  const files = Array.isArray(project.files) ? project.files : (Array.isArray(extra.project?.files) ? extra.project.files : (Array.isArray(extra.files) ? extra.files : []));
+  const useLazyLoad = Boolean(project.useLazyLoad || extra.project?.useLazyLoad || extra.useLazyLoad);
   return {
     ok: true,
     ...extra,
@@ -29,6 +31,8 @@ function normalizeProjectPayload(project = {}, extra = {}) {
     engine,
     displayName,
     dataRoots,
+    files,
+    useLazyLoad,
     project: {
       ...extra.project,
       ...project,
@@ -36,6 +40,8 @@ function normalizeProjectPayload(project = {}, extra = {}) {
       engine,
       displayName,
       dataRoots,
+      files,
+      useLazyLoad,
     },
   };
 }
@@ -81,17 +87,40 @@ function registerProjectIpc() {
     try {
       const draft = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       const rootDir = draft?.project?.rootDir || path.dirname(path.dirname(filePath));
-      const project = rootDir && fs.existsSync(rootDir) ? collectProjectTexts(rootDir) : { rootDir: rootDir || '', engine: 'unknown', entries: [] };
+      let project;
+      let useLazyLoad = false;
+      if (rootDir && fs.existsSync(rootDir)) {
+        const { adapter } = pickAdapter(rootDir);
+        if (typeof adapter.listFiles === 'function') {
+          const fileListResult = adapter.listFiles(rootDir);
+          useLazyLoad = Boolean(fileListResult.useLazyLoad);
+          if (useLazyLoad) {
+            project = { ...fileListResult, engine: fileListResult.engine || adapter.displayName, adapterId: adapter.id, useLazyLoad: true };
+          }
+        }
+        if (!useLazyLoad) {
+          project = collectProjectTexts(rootDir);
+        }
+      } else {
+        project = { rootDir: rootDir || '', engine: 'unknown', entries: [] };
+      }
       const glossary = draft?.glossary || (rootDir ? await ensureProjectGlossary(project) : { projectName: '', glossaryName: 'default', category: 'default', terms: [] });
       // 草稿加载也要把同分类的聚合术语集一并算好，后续命中检测与 AI 注入才能命中所有子库
       const aggregatedGlossary = rootDir ? await loadAggregatedGlossary(project, glossary?.category, glossary) : { category: 'default', terms: [], contributingGlossaries: [] };
       const aiSettings = draft?.aiSettings || (rootDir ? await loadAiSettings() : { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' });
+      const warnings = ['已从草稿文件恢复翻译内容。'];
+
+      if (useLazyLoad) {
+        const previousProgressState = await loadProjectProgressState(project);
+        const progressState = await rebuildProjectProgressState(project, [], previousProgressState);
+        return { ok: true, draft, project, glossary, aggregatedGlossary, aiSettings, entries: [], warnings, draftPath: filePath, progressState, fileProgress: [], globalProgress: null, currentFileProgress: null, groups: [], useLazyLoad: true };
+      }
+
       const entries = Array.isArray(draft?.entries) ? applyDraftToEntries(project.entries || [], draft.entries) : (project.entries || []);
       const progressState = await rebuildProjectProgressState(project, entries, draft?.progressState || draft?.projectProgressState || null);
       const fileProgress = calculateFileProgress(entries);
       const globalProgress = calculateGlobalProgress(entries);
       const currentFileProgress = calculateCurrentFileProgress(entries, entries[0]?.file || '');
-      const warnings = ['已从草稿文件恢复翻译内容。'];
       return { ok: true, draft, project, glossary, aggregatedGlossary, aiSettings, entries, warnings, draftPath: filePath, progressState, fileProgress, globalProgress, currentFileProgress, groups: project.groups || [] };
     } catch (error) {
       return { ok: false, message: error.message || '草稿文件读取失败' };
@@ -104,14 +133,39 @@ function registerProjectIpc() {
       return { project, glossary: { projectName: '', terms: [], glossaryName: 'default' }, aiSettings: { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' }, entries: [], warnings: ['项目目录不存在或无法访问'] };
     }
     const { adapter, probe, fallback } = pickAdapter(rootDir);
-    const project = adapter.extract(rootDir);
+    let project;
+    let useLazyLoad = false;
+    let lazyFiles = [];
+    // 若适配器支持文件级扫描，先评估是否启用懒加载
+    if (typeof adapter.listFiles === 'function') {
+      const fileListResult = adapter.listFiles(rootDir);
+      lazyFiles = Array.isArray(fileListResult.files) ? fileListResult.files : [];
+      useLazyLoad = Boolean(fileListResult.useLazyLoad);
+      if (useLazyLoad) {
+        project = { ...fileListResult, engine: fileListResult.engine || adapter.displayName, adapterId: adapter.id, useLazyLoad: true };
+      }
+    }
+    if (!useLazyLoad) {
+      project = adapter.extract(rootDir);
+    }
     project.engine = project.engine || adapter.displayName;
     project.adapterId = adapter.id;
     const glossary = await ensureProjectGlossary(project);
-    // 同时聚合项目下同分类的所有子库，命中检测应跨子库求并集，
-    // 让用户把术语按用途拆成多个子库后依然能完整命中。
     const aggregated = await loadAggregatedGlossary(project, glossary?.category, glossary);
     const aiSettings = await loadAiSettings(project);
+    const warnings = [];
+    if (fallback) warnings.push('未识别引擎类型，已回退到 RPG Maker 适配器');
+    else warnings.push(`已识别引擎：${adapter.displayName}（置信度 ${(probe.confidence * 100).toFixed(0)}%）`);
+    if (Array.isArray(project.warnings) && project.warnings.length) warnings.push(...project.warnings);
+    if (!project.dataRoots?.length && adapter.id === 'rpgmaker-mvmz') warnings.push('未自动发现可扫描的数据目录');
+
+    if (useLazyLoad) {
+      const previousProgressState = await loadProjectProgressState(project);
+      const progressState = await rebuildProjectProgressState(project, [], previousProgressState);
+      if (!lazyFiles.length) warnings.push('未扫描到可提取的文本文件');
+      return normalizeProjectPayload(project, { project, glossary, aggregatedGlossary: aggregated, aiSettings, entries: [], warnings, progressState, fileProgress: [], globalProgress: null, currentFileProgress: null, groups: [], rootDir });
+    }
+
     let entries = detectGlossaryHits(project.entries || [], aggregated);
     const draft = await loadDraft(rootDir);
     if (draft?.entries?.length) entries = applyDraftToEntries(entries, draft.entries);
@@ -120,13 +174,39 @@ function registerProjectIpc() {
     const fileProgress = calculateFileProgress(entries);
     const globalProgress = calculateGlobalProgress(entries);
     const currentFileProgress = calculateCurrentFileProgress(entries, entries[0]?.file || '');
-    const warnings = [];
-    if (fallback) warnings.push('未识别引擎类型，已回退到 RPG Maker 适配器');
-    else warnings.push(`已识别引擎：${adapter.displayName}（置信度 ${(probe.confidence * 100).toFixed(0)}%）`);
-    if (Array.isArray(project.warnings) && project.warnings.length) warnings.push(...project.warnings);
-    if (!project.dataRoots?.length && adapter.id === 'rpgmaker-mvmz') warnings.push('未自动发现可扫描的数据目录');
     if (!entries.length) warnings.push('未扫描到可提取的文本条目');
     return normalizeProjectPayload(project, { project, glossary, aggregatedGlossary: aggregated, aiSettings, entries, warnings, progressState, fileProgress, globalProgress, currentFileProgress, groups: project.groups || [], rootDir });
+  });
+
+  ipcMain.handle('load-project-file-list', async (_event, rootDir) => {
+    if (!rootDir || !fs.existsSync(rootDir)) {
+      return { ok: false, files: [], warnings: ['项目目录不存在或无法访问'] };
+    }
+    const { adapter } = pickAdapter(rootDir);
+    if (typeof adapter.listFiles !== 'function') {
+      return { ok: false, files: [], warnings: ['当前引擎不支持文件级懒加载'] };
+    }
+    const result = adapter.listFiles(rootDir);
+    return { ok: true, files: result.files || [], useLazyLoad: Boolean(result.useLazyLoad), warnings: result.warnings || [] };
+  });
+
+  ipcMain.handle('load-file-entries', async (_event, rootDir, filePath) => {
+    if (!rootDir || !fs.existsSync(rootDir) || !filePath) {
+      return { ok: false, file: filePath || '', entries: [], groups: [], warnings: ['参数错误'] };
+    }
+    const { adapter } = pickAdapter(rootDir);
+    if (typeof adapter.extractFile !== 'function') {
+      return { ok: false, file: filePath, entries: [], groups: [], warnings: ['当前引擎不支持按文件提取'] };
+    }
+    const fileResult = adapter.extractFile(rootDir, filePath);
+    if (!fileResult.ok) return fileResult;
+    const glossary = await ensureProjectGlossary({ rootDir });
+    const aggregated = await loadAggregatedGlossary({ rootDir }, glossary?.category, glossary);
+    let entries = detectGlossaryHits(fileResult.entries || [], aggregated);
+    const draft = await loadDraft(rootDir);
+    if (draft?.entries?.length) entries = applyDraftToEntries(entries, draft.entries);
+    const fileProgress = calculateFileProgress(entries);
+    return { ok: true, file: filePath, entries, groups: fileResult.groups || [], warnings: fileResult.warnings || [], fileProgress };
   });
 
   ipcMain.handle('save-project-last-position', async (_event, payload = {}) => {

@@ -12,6 +12,21 @@
 
 ## 更新日志
 
+### v1.2.0 — 上下文组重构、AI 对齐引擎与大型项目懒加载
+
+> 完整变更与已知问题见 [CHANGELOG.md](./CHANGELOG.md)。
+
+- **AI 编组翻译 · 双协议自适应对齐引擎**：大模型端（OpenAI / DeepSeek / Claude / Gemini / custom）使用 JSON 结构化对齐，按 `"1".."N"` 键值对传输并强制 `response_format: json_object`；百度 / 谷歌等传统翻译 API 改为按 `\N` 拆段后逐条并发翻译再装回，彻底解决 "段数不符" 与 `\n` 被当普通字符翻译的问题。
+- **控制码占位符保护**：发送前将 `\N[1]`、`\V[3]`、`\C[10]` 等 RPG Maker 控制码替换为 `{{RPG_CODE_n}}`，收回后逐段还原；bare `\N` 与 `\N[1]` 通过 `(?!\[)` 负向预查精确区分。
+- **诊断式重试**：段数不匹配时最多重试 2 次，重试 prompt 携带上次实际返回段数与错误输出片段；用尽重试后仅展示尽力结果，不污染条目数据。
+- **上下文组 UI 重构**：原文框改为可编辑 `<textarea>`，支持手动拆合分句；AI 翻译成功后自动按对齐 segments 回填各条 `target / targetDraft`；备选列表新增局部搜索、修复勾选弹回顶部 bug、新增独立"回到顶部"按钮。
+- **跳转按钮 handler 补绑**：为 "转到上次翻译位置"/"下一个未翻译" 补绑点击事件，支持跨文件回环查找与平滑滚动定位。
+- **进度面板网格布局**：`.progress-dashboard` 改为响应式网格，宽屏 4 列单行、窄屏 2×2 自动降级，解决左侧臃肿右侧空白问题。
+- **UI 紧凑化**：Sidebar、编辑器底部、上下文组面板、预览条等尺寸与间距全面收紧，提升信息密度。
+- **i18n 补全**：新增约 40 个 key 到 zh-CN / en / ja 三语词典，新增 `tf(key, params)` 插值助手。
+- **大型项目懒加载**：针对 500+ Map、10 万+ entry 的超大型 MV/MZ 工程，新增按文件懒加载：首次只返回文件索引与进度，切换文件时按需拉取； thresholds：`LAZY_LOAD_FILE_SIZE_BYTES=512KB`、`LAZY_LOAD_TOTAL_SIZE_BYTES=50MB`、`LAZY_LOAD_TOTAL_ENTRIES=50000`；新增 `load-project-file-list`、`load-file-entries` IPC 与回归脚本 `scripts/test-lazy-load.js`。
+- **主进程最小侵入**：OpenAI 兼容路径透传 `response_format`（仅当渲染端传入时启用），完全向后兼容。
+
 ### v1.1.1 — 合并修复与回归保护
 
 - 修复 git 合并后 8 个文件残留的 conflict markers（`<<<<<<<` / `=======` / `>>>>>>>`）导致 `.bat` 闪退、Electron 主进程因 `appStoragePath is not defined` 抛出 ReferenceError、`project.js` 因括号失配 `node --check` 失败等问题。
@@ -470,6 +485,7 @@ Thumbs.db
 | `node scripts/smoke-writeback.js` | 端到端冒烟：提取 → 术语注入 → 自动断行 → 写回 fixture → 12 项断言；不依赖 Electron 运行时，可入 CI |
 | `node scripts/smoke-mainproc-require.js` | stub Electron 后 require 全部主进程模块，确保启动期没有缺失 import / 循环依赖 |
 | `node scripts/smoke-load-project.js` | 直接模拟 `load-project-texts` IPC 完整流程（含适配器派发 / 术语库 / AI 设置 / 进度统计） |
+| `node scripts/test-lazy-load.js "/path/to/large-project"` | 大型项目懒加载回归：验证文件索引、按需拉取、阈值触发分支 |
 
 ---
 
@@ -478,7 +494,7 @@ Thumbs.db
 - 当前主要面向 Windows 桌面环境。
 - 当前打包目标为 Windows portable exe。
 - **引擎支持**：当前仅 RPG Maker MV / MZ 适配器是完整可用的。Unity 适配器是占位（仅识别、不提取）。**RPG Maker XP / VX Ace（`.rgss2a` / `.rgss3a` 封包）、Wolf RPG Editor、Vahren / ヴァーレントゥーガ、KiriKiri、自制引擎**等暂未支持，打开后会显示「未识别」或回退到 RPG Maker 适配器后扫不到 `data/*.json`。
-- **大型 MV/MZ 项目可能造成主进程堆内存峰值过高**：例如 500+ Map JSON、文本提取超过 ~10 万条条目时，IPC 返回 payload 可能 200MB+，在 Electron BrowserWindow 默认 V8 堆下偶发崩溃。后续会引入分页 / 流式 / 索引化加载缓解。
+- **大型 MV/MZ 项目已支持按文件懒加载**：满足 `单文件 ≥512KB` / `项目总大小 ≥50MB` / `总条目 ≥5 万` 中任一阈值时，首次只加载文件索引，切换文件时按需拉取，显著降低主进程与渲染端内存峰值。懒加载模式下跨全部文件搜索、完整导出/写回尚未完全开放，会给出明确提示。
 - 文本提取规则仍以 RPG Maker MV / MZ 常见 JSON 结构为主。
 - 插件自定义数据、复杂脚本内字符串、特殊加密/封包项目暂未完整覆盖。
 - 当前界面使用原生 JavaScript，随着功能增长，后续可能需要更系统的模块化或框架化重构。

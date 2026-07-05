@@ -18,6 +18,24 @@ win:
   signAndEditExecutable: false
   target:
     - portable
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  identity: null
+  artifactName: ${productName}-${version}-${arch}.${ext}
+dmg:
+  writeUpdateInfo: false
+  sign: false
 extraMetadata:
   name: rpg-localization-workbench-test
 electronVersion: 42.3.3

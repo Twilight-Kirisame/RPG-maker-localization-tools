@@ -45,6 +45,15 @@ function listJsonFilesRecursively(rootDir, maxDepth = 3) {
   return files;
 }
 
+function getFileCategory(fileName) {
+  const lower = fileName.toLowerCase();
+  if (/^Map\d+\.json$/i.test(fileName)) return 'map';
+  if (lower === 'system.json') return 'system';
+  if (lower === 'commonevents.json') return 'commonEvents';
+  if (['items', 'weapons', 'armors', 'skills', 'actors', 'classes', 'states', 'enemies'].includes(path.basename(fileName, '.json').toLowerCase())) return 'database';
+  return 'generic';
+}
+
 class RpgMakerAdapter extends EngineAdapter {
   constructor() {
     super('rpg-maker');
@@ -275,6 +284,68 @@ class RpgMakerAdapter extends EngineAdapter {
     return groups;
   }
 
+  listFiles(rootDir, options = {}) {
+    const info = this.detect(rootDir);
+    const dataRoots = info.dataRoots && info.dataRoots.length ? info.dataRoots : [];
+    const warnings = [...(info.warnings || [])];
+    const files = [];
+    if (!dataRoots.length) warnings.push('未自动发现可扫描的数据目录');
+    dataRoots.forEach((dataRoot) => {
+      const filePaths = listJsonFilesRecursively(dataRoot, options.maxJsonDepth || 3);
+      filePaths.forEach((filePath) => {
+        try {
+          const stats = fs.statSync(filePath);
+          const relFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
+          const fileName = path.basename(filePath);
+          files.push({
+            file: relFile,
+            fileName,
+            category: getFileCategory(fileName),
+            size: stats.size,
+            loaded: false,
+          });
+        } catch (error) {
+          warnings.push(`忽略无法访问的 JSON：${path.relative(rootDir, filePath).replace(/\\/g, '/')} (${error.message})`);
+        }
+      });
+    });
+    return { ok: true, ...info, engine: 'RPG Maker MV/MZ', adapterEngine: this.engineName, files, warnings };
+  }
+
+  extractFile(rootDir, relFile, options = {}) {
+    const info = this.detect(rootDir);
+    const dataRoots = info.dataRoots && info.dataRoots.length ? info.dataRoots : [];
+    const warnings = [];
+    let entries = [];
+    let resolvedPath = null;
+    for (const dataRoot of dataRoots) {
+      const candidate = path.join(rootDir, relFile);
+      if (fs.existsSync(candidate)) { resolvedPath = candidate; break; }
+      const candidate2 = path.join(dataRoot, relFile);
+      if (fs.existsSync(candidate2)) { resolvedPath = candidate2; break; }
+      const candidate3 = path.join(dataRoot, path.basename(relFile));
+      if (fs.existsSync(candidate3)) { resolvedPath = candidate3; break; }
+    }
+    if (!resolvedPath) {
+      return { ok: false, file: relFile, entries: [], groups: [], warnings: [`找不到文件：${relFile}`] };
+    }
+    try {
+      const json = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+      const file = path.basename(resolvedPath);
+      const fileRel = path.relative(rootDir, resolvedPath).replace(/\\/g, '/');
+      const category = getFileCategory(file);
+      if (category === 'map') entries = this.extractMapText(rootDir, json, fileRel);
+      else if (category === 'system') entries = this.extractSystemText(rootDir, json, fileRel);
+      else if (category === 'commonEvents' && Array.isArray(json)) json.forEach((event, index) => { entries.push(...this.extractEventCommandTexts(rootDir, event?.list || [], fileRel, `commonEvents[${index}]`, { eventName: event?.name || '' })); });
+      else if (category === 'database') entries = this.extractDatabaseText(rootDir, json, fileRel);
+      else entries = this.extractGenericJsonText(rootDir, json, fileRel);
+    } catch (error) {
+      warnings.push(`JSON 解析失败：${relFile} (${error.message})`);
+    }
+    const groups = this.buildContextGroups(entries);
+    return { ok: true, file: relFile, entries, groups, warnings };
+  }
+
   extract(rootDir, options = {}) {
     const info = this.detect(rootDir);
     const dataRoots = info.dataRoots && info.dataRoots.length ? info.dataRoots : [];
@@ -307,4 +378,4 @@ class RpgMakerAdapter extends EngineAdapter {
   }
 }
 
-module.exports = { RpgMakerAdapter, isSafeRpgText, buildDialogueText };
+module.exports = { RpgMakerAdapter, isSafeRpgText, buildDialogueText, getFileCategory };
