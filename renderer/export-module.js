@@ -13,15 +13,8 @@
     if (!payload?.project?.rootDir) throw new Error(tf('error.projectRequired', { action }));
   }
 
-  function assertNotLazyLoad(payload, action) {
-    if (payload?.project?.useLazyLoad) {
-      throw new Error(`[懒加载模式] ${action} 需要完整项目数据。请先加载所有文件，或等待后续支持流式导出。`);
-    }
-  }
-
   async function exportDraft(payload) {
     assertProject(payload, t('action.exportDraft'));
-    assertNotLazyLoad(payload, t('action.exportDraft'));
     if (!window.rpgWorkbench?.saveDraft) throw new Error(t('error.saveDraftApiMissing'));
     const result = await window.rpgWorkbench.saveDraft(payload);
     if (!result?.ok) throw new Error(result?.message || t('error.exportDraftFailed'));
@@ -31,7 +24,6 @@
 
   async function exportPatch(payload) {
     assertProject(payload, t('action.exportPatch'));
-    assertNotLazyLoad(payload, t('action.exportPatch'));
     if (!window.rpgWorkbench?.exportPatch) throw new Error(t('error.exportPatchApiMissing'));
     const result = await window.rpgWorkbench.exportPatch(payload);
     if (!result?.ok) throw new Error(result?.message || t('error.exportPatchFailed'));
@@ -41,7 +33,6 @@
 
   async function applyWriteback(payload) {
     assertProject(payload, t('action.writebackJson'));
-    assertNotLazyLoad(payload, t('action.writebackJson'));
     if (!window.rpgWorkbench?.applyWriteback) throw new Error(t('error.writebackApiMissing'));
     const result = await window.rpgWorkbench.applyWriteback({ project: payload.project, entries: payload.entries });
     if (!result?.ok) throw new Error(result?.message || t('error.writebackFailed'));

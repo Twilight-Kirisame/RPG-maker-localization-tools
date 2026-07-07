@@ -149,7 +149,7 @@
     }
     // 标记文件已加载
     const nextFileList = (current.fileList || []).map((f) => (f.file === file ? { ...f, loaded: true } : f));
-    window.RpgAppStore?.setState?.({ groupedFiles: nextGroupedFiles, fileList: nextFileList, currentFile: file, currentEntryIndex: 0 });
+    window.RpgAppStore?.setState?.({ groupedFiles: nextGroupedFiles, fileList: nextFileList, currentFile: file, currentEntryIndex: 0, entryRenderLimit: 100 });
     window.RpgApp?.renderFileSelect?.();
     window.RpgApp?.renderEntryList?.();
     window.RpgApp?.renderCurrentEntry?.();
@@ -166,6 +166,7 @@
         fileList,
         currentFile: '',
         currentEntryIndex: 0,
+        entryRenderLimit: 100,
       });
       const synced = syncStatusFromProject(result);
       window.RpgAppStore?.setState?.({
@@ -188,7 +189,7 @@
     const groupedFiles = window.RpgEntries?.buildGroupedFiles?.(entries) || [];
     const currentFile = groupedFiles[0]?.file || '';
     window.traceCall?.(t('trace.openProject'), `groupedFiles=${groupedFiles.length}, currentFile=${currentFile}`, groupedFiles.length ? 'success' : 'warning');
-    window.RpgAppStore?.setState?.({ entries, groupedFiles, currentFile, currentEntryIndex: 0, fileList: [] });
+    window.RpgAppStore?.setState?.({ entries, groupedFiles, currentFile, currentEntryIndex: 0, fileList: [], entryRenderLimit: 100 });
     const synced = syncStatusFromProject(result);
     const finalCurrentFile = (window.RpgAppStore?.getState?.().groupedFiles || [])[0]?.file || currentFile || '';
     window.RpgAppStore?.setState?.({
@@ -220,6 +221,18 @@
     const result = window.RpgAppController?.loadProjectTexts ? await window.RpgAppController.loadProjectTexts(rootDir) : await window.rpgWorkbench.loadProjectTexts(rootDir);
     window.traceCall?.(t('trace.openProject'), tf('trace.mainProcessReturn', { entries: result?.entries?.length || 0, warnings: result?.warnings?.length || 0 }), result?.entries?.length ? 'success' : (result?.useLazyLoad ? 'success' : 'error'));
     await applyProjectResult(result);
+    // 项目加载完成后，尝试清理上次崩溃可能遗留的预览备份
+    try {
+      const cleanup = window.RpgAppController?.stopPreview || window.rpgWorkbench?.stopPreview || window.rpgWorkbench?.restorePreviewBackups;
+      if (cleanup) {
+        const cleanupResult = await cleanup(rootDir);
+        if (cleanupResult?.restored) {
+          window.traceCall?.(t('trace.projectStatus'), tf('project.previewBackupsRestored', { files: cleanupResult.files.length }), 'notice');
+        }
+      }
+    } catch {
+      // 清理失败不影响主流程
+    }
     return result;
   }
 
@@ -227,6 +240,47 @@
     const pickFolderBtn = get('pickFolderBtn');
     const saveDraftBtn = get('saveDraftBtn');
     const resetProjectBtn = get('resetProjectBtn');
+    const stopPreviewBtn = get('stopPreviewBtn');
+
+    stopPreviewBtn?.addEventListener('click', async () => {
+      const rootDir = state().project?.rootDir;
+      if (!rootDir) return;
+      window.showAiStatus?.(t('workspace.stoppingPreview') || '正在停止游戏预览并恢复备份…', 'pending');
+      try {
+        const api = window.RpgAppController?.stopPreview || window.rpgWorkbench?.stopPreview;
+        const result = api ? await api(rootDir) : null;
+        stopPreviewBtn?.classList.add('hidden');
+        document.getElementById('gamePreviewContainer')?.classList.add('hidden');
+        if (result?.restored) {
+          window.showAiStatus?.(tf('workspace.previewStoppedRestored', { files: result.files.length }), 'success');
+          window.traceCall?.(t('trace.projectStatus'), tf('workspace.previewStoppedRestored', { files: result.files.length }), 'success');
+        } else {
+          window.showAiStatus?.(t('workspace.previewStopped') || '已停止游戏预览', 'success');
+        }
+      } catch (error) {
+        window.showAiStatus?.(error.message || t('workspace.previewStopFailed') || '停止预览失败', 'error');
+      }
+    });
+
+    const closeGamePreviewBtn = get('closeGamePreviewBtn');
+    closeGamePreviewBtn?.addEventListener('click', async () => {
+      const rootDir = state().project?.rootDir;
+      if (!rootDir) return;
+      window.showAiStatus?.(t('workspace.stoppingPreview') || '正在停止游戏预览并恢复备份…', 'pending');
+      try {
+        const api = window.RpgAppController?.stopPreview || window.rpgWorkbench?.stopPreview;
+        const result = api ? await api(rootDir) : null;
+        stopPreviewBtn?.classList.add('hidden');
+        document.getElementById('gamePreviewContainer')?.classList.add('hidden');
+        if (result?.restored) {
+          window.showAiStatus?.(tf('workspace.previewStoppedRestored', { files: result.files.length }), 'success');
+        } else {
+          window.showAiStatus?.(t('workspace.previewStopped') || '已停止游戏预览', 'success');
+        }
+      } catch (error) {
+        window.showAiStatus?.(error.message || t('workspace.previewStopFailed') || '停止预览失败', 'error');
+      }
+    });
 
     pickFolderBtn?.addEventListener('click', async () => {
       try {

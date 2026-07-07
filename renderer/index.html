@@ -71,6 +71,7 @@
             <button id="settingsBtn" class="secondary-btn settings-launch" data-i18n="workspace.settings">设置</button>
             <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" data-i18n-title="workspace.exportTitle" title="导出可回写的补丁目录">导出补丁</button>
             <button id="applyWritebackBtn" class="primary-btn" data-i18n="workspace.applyWriteback" data-i18n-title="workspace.applyWritebackTitle" title="把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）">写回游戏 JSON</button>
+            <button id="stopPreviewBtn" class="secondary-btn danger-btn hidden" data-i18n="workspace.stopPreview" data-i18n-title="workspace.stopPreviewTitle" title="强制停止游戏预览并恢复被修改的原始 JSON 备份">停止游戏预览</button>
           </div>
         </section>
 
@@ -168,6 +169,17 @@
           </section>
         </div>
 
+        <div id="gamePreviewContainer" class="game-preview-container hidden">
+          <div class="game-preview-header">
+            <div class="game-preview-title">
+              <strong data-i18n="preview.embeddedTitle">游戏预览</strong>
+              <span class="game-preview-hint" data-i18n="preview.embeddedHint">游戏窗口将嵌入下方区域，关闭游戏或点击右侧按钮即可恢复备份</span>
+            </div>
+            <button id="closeGamePreviewBtn" type="button" class="secondary-btn" data-i18n="preview.close">关闭预览</button>
+          </div>
+          <div id="gamePreviewHost" class="game-preview-host"></div>
+        </div>
+
         <div id="settingsModal" class="settings-modal hidden" aria-hidden="true">
           <div class="settings-backdrop" id="settingsBackdrop"></div>
           <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -226,6 +238,21 @@
                   </div>
                 </div>
                 <div class="settings-hint" data-i18n="settings.backgroundHint">支持本地图片路径或网络图片 URL；留空时仅保留纯色背景。可将图片文件拖拽到输入框自动填入路径。</div>
+                <div class="settings-group settings-preview-group">
+                  <h4 data-i18n="settings.previewGroupTitle">游戏内预览</h4>
+                  <label class="settings-checkbox-label">
+                    <input id="enableGamePreviewCheck" type="checkbox" checked />
+                    <span data-i18n="settings.enableGamePreview">启用游戏内快速预览（仅在 RPG Maker MV/MZ 项目中显示）</span>
+                  </label>
+                  <label>
+                    <span data-i18n="settings.previewWindowMode">预览窗口模式</span>
+                    <select id="previewWindowModeSelect">
+                      <option value="popup" data-i18n="settings.previewWindowModePopup">弹出式独立窗口（Game.exe）</option>
+                      <option value="embedded" data-i18n="settings.previewWindowModeEmbedded">嵌入主窗口底部</option>
+                    </select>
+                  </label>
+                  <small class="settings-hint" data-i18n="settings.enableGamePreviewHint">关闭后，单条模式与上下文组模式中的「预览」按钮将不再显示。</small>
+                </div>
                 <div class="settings-group settings-close-group">
                   <h4 data-i18n="settings.closeBehaviorGroup">关闭行为</h4>
                   <label>

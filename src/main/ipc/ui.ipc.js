@@ -12,16 +12,23 @@ const UI_SETTINGS_FILE = appStoragePath('ui-settings.json');
 
 function readUiSettings() {
   try {
-    if (!fs.existsSync(UI_SETTINGS_FILE)) return { closeBehavior: 'minimize-to-tray' };
-    return JSON.parse(fs.readFileSync(UI_SETTINGS_FILE, 'utf8'));
+    if (!fs.existsSync(UI_SETTINGS_FILE)) return { closeBehavior: 'minimize-to-tray', enableGamePreview: true, previewWindowMode: 'popup' };
+    const parsed = JSON.parse(fs.readFileSync(UI_SETTINGS_FILE, 'utf8'));
+    return {
+      closeBehavior: parsed.closeBehavior || 'minimize-to-tray',
+      enableGamePreview: parsed.enableGamePreview !== false,
+      previewWindowMode: ['popup', 'embedded'].includes(parsed.previewWindowMode) ? parsed.previewWindowMode : 'popup',
+    };
   } catch {
-    return { closeBehavior: 'minimize-to-tray' };
+    return { closeBehavior: 'minimize-to-tray', enableGamePreview: true, previewWindowMode: 'popup' };
   }
 }
 
 function writeUiSettings(settings) {
   const payload = {
     closeBehavior: ['minimize-to-tray', 'exit-immediately'].includes(settings?.closeBehavior) ? settings.closeBehavior : 'minimize-to-tray',
+    enableGamePreview: settings?.enableGamePreview !== false,
+    previewWindowMode: ['popup', 'embedded'].includes(settings?.previewWindowMode) ? settings.previewWindowMode : 'popup',
     updatedAt: new Date().toISOString(),
   };
   fs.mkdirSync(path.dirname(UI_SETTINGS_FILE), { recursive: true });

@@ -368,6 +368,105 @@
     return bar;
   }
 
+  /**
+   * 判断当前项目与文件是否支持游戏内快速预览。
+   */
+  function isPreviewSupported(entry) {
+    const current = state();
+    const project = current.project || {};
+    const displayName = project.displayName || '';
+    const engine = project.engine || '';
+    const adapterId = project.adapterId || '';
+    const isRpgMaker = displayName.includes('RPG Maker')
+      || engine.includes('RPG Maker')
+      || engine.includes('rpg-maker')
+      || engine.includes('rpgmaker')
+      || adapterId.startsWith('rpgmaker')
+      || adapterId.startsWith('rpg-maker');
+    const isMapFile = /(^|\/)data\/Map\d+\.json$/i.test(entry?.file);
+    const isCommonEvent = /(^|\/)data\/CommonEvents\.json$/i.test(entry?.file);
+    const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
+    const previewEnabled = uiSettings.enableGamePreview !== false;
+    return Boolean(previewEnabled && isRpgMaker && (isMapFile || isCommonEvent) && project.rootDir);
+  }
+
+  /**
+   * 构造并返回游戏内预览按钮。点击时会把当前文件所有已翻译条目作为依赖上下文一起写回游戏。
+   * @param {Object} entry 入口条目
+   * @param {string|function} targetTextOrFn 当前译文或获取译文的函数
+   * @param {Object[]} [extraEntries] 额外传入主进程的依赖条目（如上下文组选中条目）
+   */
+  function renderPreviewAction(entry, targetTextOrFn, extraEntries) {
+    const previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.className = 'tag preview-tag';
+    previewBtn.textContent = t('entry.preview');
+    previewBtn.title = t('entry.previewTitle');
+    previewBtn.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const rootDir = state().project?.rootDir;
+      if (!rootDir) return;
+      const targetText = typeof targetTextOrFn === 'function' ? targetTextOrFn() : targetTextOrFn;
+      if (!String(targetText || '').trim()) {
+        window.showAiStatus?.(t('entry.previewEmpty') || '译文为空，无法预览', 'warning');
+        return;
+      }
+      window.showAiStatus?.(t('entry.previewPending') || '正在启动游戏预览…', 'pending');
+      const api = window.RpgAppController?.previewInGame || window.rpgWorkbench?.previewInGame;
+      if (!api) {
+        window.showAiStatus?.(t('entry.previewApiMissing') || '预览接口不可用', 'error');
+        return;
+      }
+      // 把当前文件所有条目传给主进程做依赖分析；同事件/上下文组内已翻译文本会一并带入游戏
+      const currentFileGroup = (state().groupedFiles || []).find((g) => g.file === entry.file);
+      const fileEntries = currentFileGroup?.items || [];
+      const entries = extraEntries?.length > 0 ? [...new Set([...fileEntries, ...extraEntries])] : fileEntries;
+
+      const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
+      const previewWindowMode = uiSettings.previewWindowMode || 'popup';
+      const options = { jumpToStart: true, entries, previewWindowMode, dataRoots: state().project?.dataRoots };
+
+      // 嵌入模式：显示容器并测量安放位置
+      if (previewWindowMode === 'embedded') {
+        const container = document.getElementById('gamePreviewContainer');
+        const host = document.getElementById('gamePreviewHost');
+        if (container && host) {
+          container.classList.remove('hidden');
+          host.textContent = '';
+          host.removeAttribute('data-placeholder');
+          const rect = host.getBoundingClientRect();
+          const scaleFactor = window.devicePixelRatio || 1;
+          options.embedRect = {
+            x: Math.round(rect.x * scaleFactor),
+            y: Math.round(rect.y * scaleFactor),
+            width: Math.round(rect.width * scaleFactor),
+            height: Math.round(rect.height * scaleFactor),
+          };
+          // 滚动到预览区域
+          container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      const result = await api({
+        rootDir,
+        entry: { file: entry.file, path: entry.path, key: entry.key, kind: entry.kind },
+        targetText,
+        options,
+      });
+      if (result?.ok) {
+        const extras = result.patchCount > 1 ? `（连带 ${result.patchCount - 1} 处依赖文本）` : '';
+        window.showAiStatus?.((tf('entry.previewStarted', { pid: result.pid }) || `预览已启动 (PID: ${result.pid})`) + extras, 'success');
+        document.getElementById('stopPreviewBtn')?.classList.remove('hidden');
+      } else {
+        window.showAiStatus?.(result?.message || t('entry.previewFailed') || '预览启动失败', 'error');
+        if (previewWindowMode === 'embedded') {
+          document.getElementById('gamePreviewContainer')?.classList.add('hidden');
+        }
+      }
+    });
+    return previewBtn;
+  }
+
   function renderGlossaryInline(row, entry, targetCell) {
     const hits = Array.isArray(entry.glossaryHits) ? entry.glossaryHits.filter((term) => term?.target) : [];
     let container = row.querySelector('.glossary-inline');
@@ -1186,6 +1285,15 @@
       applyBtn.textContent = t('context.applyToSelected');
       applyBtn.addEventListener('click', () => applyContextGroupTranslation(selectedEntries, targetCell.value, { splitLines: true }));
 
+      const previewBtn = isPreviewSupported(selectedEntries[0])
+        ? renderPreviewAction(
+            selectedEntries[0],
+            () => (targetCell.value || '').split(SPLIT_RE)[0]?.trim() || '',
+            selectedEntries
+          )
+        : null;
+      if (previewBtn) previewBtn.classList.add('context-group-preview-btn');
+
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
       clearBtn.className = 'secondary-btn';
@@ -1194,6 +1302,7 @@
 
       actions.appendChild(aiBtn);
       actions.appendChild(applyBtn);
+      if (previewBtn) actions.appendChild(previewBtn);
       actions.appendChild(clearBtn);
       const editorRow = document.createElement('div');
       editorRow.className = 'context-group-editor';
@@ -1302,6 +1411,35 @@
     });
   }
 
+  // 自动加载更多条目的 IntersectionObserver，用于大文件虚拟化
+  let _loadMoreObserver = null;
+  let _isLoadingMore = false;
+  const LOAD_MORE_BATCH = 100;
+  const LOAD_MORE_INITIAL = 100;
+
+  function resetEntryRenderLimit() {
+    window.RpgAppStore?.setState?.({ entryRenderLimit: LOAD_MORE_INITIAL });
+  }
+
+  function ensureLoadMoreObserver(sentinel) {
+    if (_loadMoreObserver) _loadMoreObserver.disconnect();
+    _loadMoreObserver = new IntersectionObserver((entries) => {
+      entries.forEach((observed) => {
+        if (observed.isIntersecting && !_isLoadingMore) {
+          _isLoadingMore = true;
+          const current = state();
+          const nextLimit = (current.entryRenderLimit || LOAD_MORE_INITIAL) + LOAD_MORE_BATCH;
+          window.RpgAppStore?.setState?.({ entryRenderLimit: nextLimit });
+          // 注意：setState 后不会自动重绘条目列表，需要手动触发
+          renderEntryList();
+          renderCurrentEntry();
+          requestAnimationFrame(() => { _isLoadingMore = false; });
+        }
+      });
+    }, { root: sentinel.parentElement, rootMargin: '200px' });
+    _loadMoreObserver.observe(sentinel);
+  }
+
   function renderEntryList() {
     const entryList = get('entryList');
     if (!entryList) return;
@@ -1319,7 +1457,11 @@
       wireEntryScrollTracking();
       return;
     }
-    items.forEach((entry) => {
+    const current = state();
+    const limit = current.entryRenderLimit || LOAD_MORE_INITIAL;
+    const visibleItems = items.length <= limit ? items : items.slice(0, limit);
+    const hasMore = visibleItems.length < items.length;
+    visibleItems.forEach((entry) => {
       const current = state();
       const sourceEntry = entry._searchScope === 'all' ? (current.groupedFiles || []).flatMap((group) => group.items || []).find((item) => item.id === entry.id) || entry : entry;
       // 命中检测优先用"同分类聚合"的术语合集；缺失时回退到当前活动子库的术语，保持向后兼容。
@@ -1443,6 +1585,11 @@
         controlTag.textContent = 'CTRL';
         tags.appendChild(controlTag);
       }
+      // 游戏内快速预览按钮（仅 RPG Maker MV/MZ 的 Map / CommonEvents 文件）
+      if (isPreviewSupported(sourceEntry)) {
+        const previewBtn = renderPreviewAction(sourceEntry, () => targetCell.value);
+        tags.appendChild(previewBtn);
+      }
       entry.warnings = validateLocal(entry, getProjectEngine());
       if ((entry.warnings || []).length) row.classList.add('has-warnings');
       renderWarningTags(tags, entry.warnings || []);
@@ -1456,6 +1603,13 @@
       entryList.appendChild(row);
       renderGlossaryInline(row, entry, targetCell);
     });
+    if (hasMore) {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'load-more-sentinel';
+      sentinel.textContent = `${t('common.processing')} (${visibleItems.length}/${items.length})`;
+      entryList.appendChild(sentinel);
+      ensureLoadMoreObserver(sentinel);
+    }
     // 单条模式渲染完成后回填 / 挂载滚动监听（组模式的分支已在上面自行调用过）
     wireEntryScrollTracking();
   }
@@ -1568,6 +1722,7 @@
         ...current,
         currentFile: selectedFile,
         currentEntryIndex: 0,
+        entryRenderLimit: LOAD_MORE_INITIAL,
         project: current.project || null,
         status: current.status || 'project-loaded',
       });
@@ -1578,7 +1733,7 @@
         renderCurrentEntry();
       }
     });
-    entrySearch?.addEventListener('input', () => { window.RpgAppStore?.setState?.({ searchText: entrySearch.value }); renderEntryList(); });
+    entrySearch?.addEventListener('input', () => { window.RpgAppStore?.setState?.({ searchText: entrySearch.value, entryRenderLimit: LOAD_MORE_INITIAL }); renderEntryList(); });
     // "搜索范围"下拉此前只有 DOM 值，没有 change 监听 → 切换后 renderEntryList 不会被触发，
     // 底部条目列表停留在旧的作用域。这里把最新 scope 写入 state 并强制重渲染条目列表和当前条目，
     // 保证 getFilteredItems（读取 getSearchScope()）看到最新值。
@@ -1643,11 +1798,14 @@
         window.showAiStatus?.(t('progress.jumpFail') || t('progress.noLastPosition'), 'warning');
         return false;
       }
+      const requiredLimit = targetIndex + LOAD_MORE_INITIAL;
+      const nextLimit = Math.max(cur.entryRenderLimit || LOAD_MORE_INITIAL, requiredLimit);
       window.RpgAppStore?.setState?.({
         ...cur,
         entryViewMode: 'single',
         currentFile: targetFile,
         currentEntryIndex: targetIndex,
+        entryRenderLimit: nextLimit,
         project: cur.project || null,
         status: cur.status || 'project-loaded',
       });

@@ -99,5 +99,13 @@
     return runAction(t('action.saveUiSettings'), async () => window.rpgWorkbench.saveUiSettings(payload));
   }
 
-  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, loadFileEntries, saveTranslatorSettings, testTranslatorSettings, aiTranslate, saveProjectLastPosition, loadProjectProgressState, getUiSettings, saveUiSettings };
+  async function previewInGame(payload) {
+    return runAction(t('action.previewInGame'), async () => window.rpgWorkbench.previewInGame(payload));
+  }
+
+  async function stopPreview(rootDir) {
+    return runAction(t('action.stopPreview'), async () => window.rpgWorkbench.stopPreview(rootDir));
+  }
+
+  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, loadFileEntries, previewInGame, stopPreview, saveTranslatorSettings, testTranslatorSettings, aiTranslate, saveProjectLastPosition, loadProjectProgressState, getUiSettings, saveUiSettings };
 })();

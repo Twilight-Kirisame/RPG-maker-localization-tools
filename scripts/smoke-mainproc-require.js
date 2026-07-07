@@ -48,7 +48,9 @@ const modules = [
   'src/main/ipc/glossary.ipc',
   'src/main/ipc/export.ipc',
   'src/main/ipc/ui.ipc',
+  'src/main/ipc/preview.ipc',
   'src/main/ipc/index',
+  'src/main/services/preview/GamePreviewService',
 ];
 
 let failed = 0;

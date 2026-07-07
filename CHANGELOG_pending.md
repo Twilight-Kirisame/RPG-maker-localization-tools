@@ -129,17 +129,20 @@
 ## 完整变更文件清单
 
 ```
-modified:   renderer/app/entries.js          (核心：~600 行新增/重写；懒加载支持)
+modified:   renderer/app/entries.js          (核心：~600 行新增/重写；懒加载支持 + 条目列表增量加载)
 modified:   renderer/app/bootstrap.js        (i18n 三语词典补全 ~40 key + stats.files)
 modified:   renderer/app/controller.js       (新增 loadFileEntries)
 modified:   renderer/app/project.js          (懒加载项目加载/文件切换)
-modified:   renderer/export-module.js        (懒加载模式下导出/写回保护)
-modified:   renderer/styles.css              (UI 紧凑化 + 进度网格新增 ~80 行)
+modified:   renderer/app/store.js            (entryRenderLimit)
+modified:   renderer/export-module.js        (移除懒加载导出禁用)
+modified:   renderer/styles.css              (UI 紧凑化 + 进度网格 + load-more-sentinel)
 modified:   src/main/services/engine/RpgMakerAdapter.js           (listFiles/extractFile 接口)
 modified:   src/main/services/engines/adapters/RpgMakerAdapter.js (listFiles/extractFile 实现)
 modified:   src/main/services/engines/EngineRegistry.js           (懒加载阈值与路由)
 modified:   src/main/services/project/ProjectTextService.js       (collectProjectFiles/collectFileTexts)
+modified:   src/main/services/export/ExportService.js             (collectFullEntries 流式合并)
 modified:   src/main/ipc/project.ipc.js      (load-project-texts 懒加载分支 + 新 IPC)
+modified:   src/main/ipc/export.ipc.js      (懒加载模式下 save/export/writeback 合并)
 modified:   src/preload/preload.js           (暴露新 IPC)
 new file:   CHANGELOG_pending.md             (本文档)
 new file:   scripts/test-lazy-load.js        (懒加载回归脚本)
@@ -220,13 +223,68 @@ unchanged:  README.md                        (与远端 v1.1.1 完全一致)
 - 当项目满足任一阈值时，`load-project-texts` 改为返回 `useLazyLoad=true` + `files[]`（文件索引），不返回全部 entries
 - 新增 IPC：`load-project-file-list`、`load-file-entries(rootDir, filePath)`
 - 渲染端首次只加载文件列表，默认加载第一个文件；用户切换文件时按需拉取；已加载文件做缓存
-- 懒加载模式下禁用跨全部文件搜索（只能搜索当前文件），导出/写回给出明确提示
+- 懒加载模式下禁用跨全部文件搜索（只能搜索当前文件）
 - 新增回归脚本：`scripts/test-lazy-load.js`
 - SHNwin 实测：`listFiles` 20–70ms，单文件提取 15–220ms，首次内存占用从 129k 条条目降至单个文件最多约 2k 条
 
+### 8. 懒加载模式下的完整导出/写回（v1.3 扩展）
+
+**问题根源**
+- 懒加载后前端只保留已加载文件的 entries，直接导出会导致未加载文件数据丢失。
+
+**实现**
+- 新增 `ExportService.collectFullEntries(rootDir, modifiedEntries)`：主进程一次性重新提取全部 entries，再用前端修改覆盖对应条目
+- `save-draft` / `export-patch` / `apply-writeback` 三个 IPC 在 `project.useLazyLoad` 时自动走合并流程
+- 前端 `export-module.js` 移除懒加载禁用提示
+- SHNwin 实测：导出补丁 1.7s（仅 changed entries），保存草稿/写回 4–5s（完整 129k 条）
+
+### 9. 条目列表虚拟化（v1.3 扩展）
+
+**问题根源**
+- 单文件条目过多（如 CommonEvents.json 1,877 条）时，一次性创建所有 row DOM 仍会卡顿。
+
+**实现**
+- 引入 `entryRenderLimit`，初始渲染 100 条
+- 底部 sentinel + `IntersectionObserver`，滚动接近底部时自动增量加载 100 条
+- 切换文件、搜索、跳转时重置 limit；`jumpTo` 目标索引超出当前 limit 时自动扩容
+
 **尚存限制**
-- 导出草稿/补丁/写回 JSON 在懒加载模式下目前会提示"请先加载全部文件"；完整流式导出需要后续迭代
-- 单文件条目过多（如 CommonEvents.json 1,877 条）时渲染仍可能轻微卡顿，但不再导致整体闪退
+- 导出草稿/补丁/写回在懒加载模式下仍会一次性把所有 entries 读入主进程内存（约 240MB），对极大规模项目可考虑后续改为逐文件流式写入。
+
+### 10. 游戏内快速预览（Game Preview Injector）
+
+**业务目标**
+- 在双语编辑器中选中某行译文后，一键启动游戏并直接跳到该地图/事件附近，实时查看字体、换行、排版效果，无需手动跑图。
+
+**实现**
+- 新增主进程服务 `src/main/services/preview/GamePreviewService.js`：
+  - 备份 `System.json` 与被修改的 `Map*.json`（或 `CommonEvents.json`）
+  - **基于文本依赖项分析**：预览当前条目时，自动把同一事件（event）内已翻译的对话、说话者、选项、分支、长文本一并写回游戏 JSON，避免只改一句而上下文仍是原文
+  - 魔改 `System.json` 的 `startMapId / startX / startY`，把玩家出生点放到目标事件旁边（优先右侧一格，避免与事件重叠）
+  - 通过 `child_process.spawn` 启动 `Game.exe --test` 测试模式（自带穿墙/快进）
+  - 游戏退出或启动失败后自动恢复备份；支持 5 分钟过期的锁文件，防止崩溃残留导致死锁
+  - 支持任意层级的 `data/` 数据目录（如 `Game/data/System.json`），优先根据 `entry.file` 与 `project.dataRoots` 推导 `System.json` 位置，而不是只认 `data/` 或 `www/data/`
+- 新增 IPC：`preview-in-game`、`stop-preview`、`restore-preview-backups`、`cleanup-preview-on-startup`
+- 渲染端：
+  - 单条模式列表行内显示「预览」按钮（Map / CommonEvents 文件，兼容任意层级的 `data/` 目录结构，如 `Game/data/Map*.json`）
+  - 上下文组模式在操作栏增加「预览」按钮，以首句为入口带动整组依赖
+  - 工作区右上角增加「停止游戏预览」按钮，可强制恢复备份
+  - 项目加载时自动调用 `stop-preview` 清理上次崩溃可能残留的备份
+  - 界面设置 → UI 标签页新增「启用游戏内快速预览」开关，默认开启；关闭后隐藏所有预览入口
+- 新增约 13 个 i18n key 到 `bootstrap.js` 三语词典
+
+**涉及文件**
+- `src/main/services/preview/GamePreviewService.js`
+- `src/main/ipc/preview.ipc.js`
+- `src/preload/preload.js`
+- `renderer/app/controller.js`
+- `renderer/app/entries.js`
+- `renderer/app/project.js`
+- `renderer/app/view.js`
+- `renderer/app/bootstrap.js`
+- `renderer/index.html`
+- `renderer/styles.css`
+- `src/main/ipc/ui.ipc.js`
 
 ### C. 已知次要遗留
 

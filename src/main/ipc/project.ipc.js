@@ -13,6 +13,7 @@ const { loadAiSettings } = require('../services/translation/TranslationService')
 const { loadDraft, applyDraftToEntries } = require('../services/export/ExportService');
 const { calculateGlobalProgress, calculateFileProgress, calculateCurrentFileProgress } = require('../services/localization/ProgressService');
 const { loadProjectProgressState, updateLastTranslatedPosition, rebuildProjectProgressState } = require('../services/localization/ProjectProgressStateService');
+const { cleanupOnStartup } = require('../services/preview/GamePreviewService');
 
 /**
  * 注册项目相关 IPC。
@@ -87,6 +88,8 @@ function registerProjectIpc() {
     try {
       const draft = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       const rootDir = draft?.project?.rootDir || path.dirname(path.dirname(filePath));
+      // 打开项目前先恢复任何残留的预览备份
+      if (rootDir && fs.existsSync(rootDir)) await cleanupOnStartup(rootDir);
       let project;
       let useLazyLoad = false;
       if (rootDir && fs.existsSync(rootDir)) {
@@ -132,6 +135,8 @@ function registerProjectIpc() {
       const project = { rootDir: rootDir || '', engine: 'unknown', displayName: 'unknown', entries: [], dataRoots: [] };
       return { project, glossary: { projectName: '', terms: [], glossaryName: 'default' }, aiSettings: { provider: 'deepseek', apiKey: '', baseUrl: '', model: '', prompt: '' }, entries: [], warnings: ['项目目录不存在或无法访问'] };
     }
+    // 打开项目前先恢复任何残留的预览备份
+    await cleanupOnStartup(rootDir);
     const { adapter, probe, fallback } = pickAdapter(rootDir);
     let project;
     let useLazyLoad = false;

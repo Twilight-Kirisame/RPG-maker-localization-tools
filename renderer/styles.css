@@ -238,6 +238,24 @@ button, textarea, input, select { font: inherit; }
   min-width: 0;
   box-sizing: border-box;
 }
+
+.tag.preview-tag {
+  background: rgba(124, 140, 255, 0.18);
+  border-color: rgba(124, 140, 255, 0.45);
+  color: #c8d0ff;
+  cursor: pointer;
+}
+.tag.preview-tag:hover {
+  background: rgba(124, 140, 255, 0.32);
+}
+
+.load-more-sentinel {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-muted, #8a94a6);
+  font-size: 12px;
+  opacity: 0.8;
+}
 .paired-row {
   padding: 8px;
   border-radius: 14px;
@@ -494,6 +512,21 @@ ul { padding-left: 18px; color: #cdd5ea; }
 .settings-close-group {
   margin-top: 4px;
 }
+.settings-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+.settings-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-a);
+  cursor: pointer;
+}
+
 .settings-tabs { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
 .settings-tab {
   border: 0; padding: 10px 16px; border-radius: 999px; background: rgba(255,255,255,0.08); color: #eef2ff; cursor: pointer;
@@ -849,6 +882,70 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
 .context-group-preview-lines { padding: 4px 0; }
 .context-group-split-hint { padding: 0 4px; font-size: 11px; line-height: 1.4; margin: 0; }
 .context-group-actions { gap: 8px; margin-top: 2px; }
+.context-group-actions .tag.preview-tag.context-group-preview-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* 工作区停止游戏预览按钮 */
+#stopPreviewBtn {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#stopPreviewBtn:not(.hidden) {
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 游戏内预览嵌入容器 */
+.game-preview-container {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.game-preview-container.hidden { display: none; }
+.game-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.game-preview-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.game-preview-title strong {
+  font-size: 14px;
+  color: var(--text);
+}
+.game-preview-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.game-preview-host {
+  min-height: 420px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px dashed rgba(124, 140, 255, 0.35);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  position: relative;
+  overflow: hidden;
+}
+.game-preview-host::before {
+  content: attr(data-placeholder);
+}
 
 /* 勾选条目列表 —— 独立成纯 flex，绝不复用 paired-row 的三列网格 */
 .context-group-entry-list { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; max-height: 420px; overflow: auto; padding-right: 4px; }

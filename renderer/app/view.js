@@ -5,6 +5,8 @@
     palette: 'rpg-workbench-theme-palette',
     backgroundImage: 'rpg-workbench-background-image',
     closeBehavior: 'rpg-workbench-close-behavior',
+    enableGamePreview: 'rpg-workbench-enable-game-preview',
+    previewWindowMode: 'rpg-workbench-preview-window-mode',
   };
 
   const defaults = {
@@ -13,15 +15,21 @@
     palette: 'violet',
     backgroundImage: '',
     closeBehavior: 'minimize-to-tray',
+    enableGamePreview: true,
+    previewWindowMode: 'popup',
   };
 
   function getStoredUiSettings() {
+    const rawEnable = localStorage.getItem(storageKeys.enableGamePreview);
+    const rawMode = localStorage.getItem(storageKeys.previewWindowMode);
     return {
       language: localStorage.getItem(storageKeys.language) || defaults.language,
       themeMode: localStorage.getItem(storageKeys.themeMode) || defaults.themeMode,
       palette: localStorage.getItem(storageKeys.palette) || defaults.palette,
       backgroundImage: localStorage.getItem(storageKeys.backgroundImage) || defaults.backgroundImage,
       closeBehavior: localStorage.getItem(storageKeys.closeBehavior) || defaults.closeBehavior,
+      enableGamePreview: rawEnable === null ? defaults.enableGamePreview : rawEnable === 'true',
+      previewWindowMode: ['popup', 'embedded'].includes(rawMode) ? rawMode : defaults.previewWindowMode,
     };
   }
 
@@ -94,11 +102,15 @@
     const themePaletteSelect = document.getElementById('themePaletteSelect');
     const themeBackgroundInput = document.getElementById('themeBackgroundInput');
     const closeBehaviorSelect = document.getElementById('closeBehaviorSelect');
+    const enableGamePreviewCheck = document.getElementById('enableGamePreviewCheck');
+    const previewWindowModeSelect = document.getElementById('previewWindowModeSelect');
     if (languageSelect) languageSelect.value = ['zh-CN', 'en', 'ja'].includes(settings.language) ? settings.language : defaults.language;
     if (themeModeSelect) themeModeSelect.value = ['system', 'dark', 'light'].includes(settings.themeMode) ? settings.themeMode : defaults.themeMode;
     if (themePaletteSelect) themePaletteSelect.value = ['violet', 'blue', 'emerald', 'rose', 'amber', 'slate'].includes(settings.palette) ? settings.palette : defaults.palette;
     if (themeBackgroundInput && !preserveBackground) themeBackgroundInput.value = settings.backgroundImage || '';
     if (closeBehaviorSelect) closeBehaviorSelect.value = ['minimize-to-tray', 'exit-immediately'].includes(settings.closeBehavior) ? settings.closeBehavior : defaults.closeBehavior;
+    if (enableGamePreviewCheck) enableGamePreviewCheck.checked = Boolean(settings.enableGamePreview);
+    if (previewWindowModeSelect) previewWindowModeSelect.value = ['popup', 'embedded'].includes(settings.previewWindowMode) ? settings.previewWindowMode : defaults.previewWindowMode;
     applyThemeSettings({ ...settings, backgroundImage: preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage });
     updateThemePreview(preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage);
   }
@@ -109,12 +121,16 @@
     const themePaletteSelect = document.getElementById('themePaletteSelect');
     const themeBackgroundInput = document.getElementById('themeBackgroundInput');
     const closeBehaviorSelect = document.getElementById('closeBehaviorSelect');
+    const enableGamePreviewCheck = document.getElementById('enableGamePreviewCheck');
+    const previewWindowModeSelect = document.getElementById('previewWindowModeSelect');
     const settings = {
       language: languageSelect?.value || defaults.language,
       themeMode: themeModeSelect?.value || defaults.themeMode,
       palette: themePaletteSelect?.value || defaults.palette,
       backgroundImage: themeBackgroundInput?.value?.trim() || '',
       closeBehavior: closeBehaviorSelect?.value || defaults.closeBehavior,
+      enableGamePreview: enableGamePreviewCheck ? enableGamePreviewCheck.checked : defaults.enableGamePreview,
+      previewWindowMode: ['popup', 'embedded'].includes(previewWindowModeSelect?.value) ? previewWindowModeSelect.value : defaults.previewWindowMode,
     };
     if (persist) {
       localStorage.setItem(storageKeys.language, settings.language);
@@ -122,6 +138,8 @@
       localStorage.setItem(storageKeys.palette, settings.palette);
       localStorage.setItem(storageKeys.backgroundImage, settings.backgroundImage);
       localStorage.setItem(storageKeys.closeBehavior, settings.closeBehavior);
+      localStorage.setItem(storageKeys.enableGamePreview, String(settings.enableGamePreview));
+      localStorage.setItem(storageKeys.previewWindowMode, settings.previewWindowMode);
       window.rpgWorkbench?.saveUiSettings?.(settings).catch?.(() => {});
     }
     applyThemeSettings(settings);
@@ -150,6 +168,8 @@
     localStorage.setItem(storageKeys.palette, defaults.palette);
     localStorage.setItem(storageKeys.backgroundImage, defaults.backgroundImage);
     localStorage.setItem(storageKeys.closeBehavior, defaults.closeBehavior);
+    localStorage.setItem(storageKeys.enableGamePreview, String(defaults.enableGamePreview));
+    localStorage.setItem(storageKeys.previewWindowMode, defaults.previewWindowMode);
     syncUiSettingsFields();
     return getStoredUiSettings();
   }

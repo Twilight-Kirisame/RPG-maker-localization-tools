@@ -33,6 +33,7 @@
     loading: false,
     status: 'idle',
     draftPath: '',
+    entryRenderLimit: 100,
   };
 
   const listeners = new Set();

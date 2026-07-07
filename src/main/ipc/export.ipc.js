@@ -4,16 +4,30 @@
  */
 
 const { ipcMain } = require('electron');
-const { exportPatchFiles, saveDraft, loadDraft } = require('../services/export/ExportService');
+const { exportPatchFiles, saveDraft, loadDraft, collectFullEntries } = require('../services/export/ExportService');
 const { pickAdapter, getAdapterById } = require('../services/engine/registry');
 
 /**
  * 注册导出 IPC。
  */
 function registerExportIpc() {
-  ipcMain.handle('export-patch', async (_event, payload) => exportPatchFiles(payload));
+  ipcMain.handle('export-patch', async (_event, payload) => {
+    const { project, entries } = payload || {};
+    if (project?.useLazyLoad && Array.isArray(entries)) {
+      const collected = await collectFullEntries(project.rootDir, entries);
+      return exportPatchFiles({ ...payload, entries: collected.entries });
+    }
+    return exportPatchFiles(payload);
+  });
 
-  ipcMain.handle('save-draft', async (_event, payload) => saveDraft(payload));
+  ipcMain.handle('save-draft', async (_event, payload) => {
+    const { project, entries } = payload || {};
+    if (project?.useLazyLoad && Array.isArray(entries)) {
+      const collected = await collectFullEntries(project.rootDir, entries);
+      return saveDraft({ ...payload, entries: collected.entries });
+    }
+    return saveDraft(payload);
+  });
 
   ipcMain.handle('load-draft', async (_event, payload) => {
     const { rootDir } = payload || {};
@@ -27,7 +41,12 @@ function registerExportIpc() {
         ? getAdapterById(payload.project.adapterId)
         : pickAdapter(payload?.project?.rootDir || '').adapter;
       if (!adapter || typeof adapter.apply !== 'function') return { ok: false, message: '未匹配到可写回的引擎适配器', files: [], errors: [{ reason: 'no adapter' }] };
-      return await adapter.apply(payload);
+      let finalEntries = payload?.entries;
+      if (payload?.project?.useLazyLoad && Array.isArray(finalEntries)) {
+        const collected = await collectFullEntries(payload.project.rootDir, finalEntries);
+        finalEntries = collected.entries;
+      }
+      return await adapter.apply({ ...payload, entries: finalEntries });
     } catch (error) {
       return { ok: false, message: error.message, files: [], errors: [{ reason: error.message }] };
     }

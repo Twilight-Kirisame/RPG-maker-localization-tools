@@ -8,6 +8,7 @@ const fsp = fs.promises;
 const path = require('path');
 const { ensureDir } = require('../../utils/fsUtils');
 const { projectStoragePath, draftDirFor, draftPathFor } = require('../storage/StorageService');
+const { pickAdapter } = require('../engine/registry');
 
 /**
  * 构建补丁 manifest。
@@ -29,6 +30,80 @@ function buildPatchManifest(project, entries, glossary) {
 }
 
 /**
+ * 在懒加载模式下，基于源文件重新提取全部 entries，并用前端传入的修改覆盖对应条目。
+ * 返回完整 entries 数组，供导出/写回使用。
+ * @param {string} rootDir
+ * @param {Object[]} modifiedEntries
+ * @returns {Promise<{entries: Object[], warnings: string[]}>}
+ */
+async function collectFullEntries(rootDir, modifiedEntries = []) {
+  if (!rootDir || !fs.existsSync(rootDir)) return { entries: modifiedEntries, warnings: [] };
+  const { adapter } = pickAdapter(rootDir);
+  if (!adapter) return { entries: modifiedEntries, warnings: [] };
+  const modifiedIndex = new Map((modifiedEntries || []).map((entry) => [`${entry.file}::${entry.key}`, entry]));
+
+  // 优先一次性提取全部 entries（比逐文件快很多），再应用修改覆盖
+  if (typeof adapter.extract === 'function') {
+    try {
+      const extracted = await Promise.resolve(adapter.extract(rootDir));
+      const entries = (extracted?.entries || []).map((entry) => {
+        const key = `${entry.file}::${entry.key}`;
+        if (modifiedIndex.has(key)) {
+          const modified = modifiedIndex.get(key);
+          return {
+            ...entry,
+            target: modified.target,
+            targetDraft: modified.targetDraft,
+            translationStatus: modified.translationStatus,
+            draftStatus: modified.draftStatus,
+            warnings: modified.warnings,
+            glossaryHits: modified.glossaryHits,
+          };
+        }
+        return entry;
+      });
+      return { entries, warnings: extracted?.warnings || [] };
+    } catch (error) {
+      // 一次性提取失败时回退到逐文件
+    }
+  }
+
+  if (typeof adapter.listFiles !== 'function' || typeof adapter.extractFile !== 'function') {
+    return { entries: modifiedEntries, warnings: [] };
+  }
+  const fileListResult = adapter.listFiles(rootDir);
+  const files = Array.isArray(fileListResult.files) ? fileListResult.files : [];
+  const fullEntries = [];
+  const warnings = [];
+  for (const fileInfo of files) {
+    try {
+      const fileResult = adapter.extractFile(rootDir, fileInfo.file);
+      if (Array.isArray(fileResult.warnings) && fileResult.warnings.length) warnings.push(...fileResult.warnings);
+      const entries = (fileResult.entries || []).map((entry) => {
+        const key = `${entry.file}::${entry.key}`;
+        if (modifiedIndex.has(key)) {
+          const modified = modifiedIndex.get(key);
+          return {
+            ...entry,
+            target: modified.target,
+            targetDraft: modified.targetDraft,
+            translationStatus: modified.translationStatus,
+            draftStatus: modified.draftStatus,
+            warnings: modified.warnings,
+            glossaryHits: modified.glossaryHits,
+          };
+        }
+        return entry;
+      });
+      fullEntries.push(...entries);
+    } catch (error) {
+      warnings.push(`合并文件失败：${fileInfo.file} (${error.message})`);
+    }
+  }
+  return { entries: fullEntries, warnings };
+}
+
+/**
  * 导出补丁文件。
  * @param {Object} payload
  * @returns {Promise<Object>}
@@ -36,10 +111,17 @@ function buildPatchManifest(project, entries, glossary) {
 async function exportPatchFiles(payload) {
   const { project, entries, glossary } = payload || {};
   if (!project?.rootDir) throw new Error('缺少项目根目录');
+  let finalEntries = entries || [];
+  let collectWarnings = [];
+  if (project.useLazyLoad && Array.isArray(entries)) {
+    const collected = await collectFullEntries(project.rootDir, entries);
+    finalEntries = collected.entries;
+    collectWarnings = collected.warnings || [];
+  }
   const outDir = path.join(project.rootDir, 'localization_patch');
   ensureDir(outDir);
   ensureDir(path.join(outDir, 'translations'));
-  const manifest = buildPatchManifest(project, entries || [], glossary || { terms: [] });
+  const manifest = buildPatchManifest(project, finalEntries, glossary || { terms: [] });
   await fsp.writeFile(path.join(outDir, 'patch-manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
   const grouped = new Map();
   manifest.entries.forEach((entry) => {
@@ -50,7 +132,7 @@ async function exportPatchFiles(payload) {
     const safeFile = file.replace(/[\\/:*?"<>|]/g, '_');
     await fsp.writeFile(path.join(outDir, 'translations', `${safeFile}.json`), JSON.stringify(items, null, 2), 'utf8');
   }
-  return { ok: true, outputDir: outDir, entryCount: manifest.entries.length };
+  return { ok: true, outputDir: outDir, entryCount: manifest.entries.length, warnings: collectWarnings };
 }
 
 /**
@@ -103,11 +185,18 @@ function buildDraft(project, entries, glossary, aiSettings, progressState = null
 async function saveDraft(payload) {
   const { project, entries, glossary, aiSettings, progressState, groups } = payload || {};
   if (!project?.rootDir) throw new Error('缺少项目根目录');
+  let finalEntries = entries || [];
+  let collectWarnings = [];
+  if (project.useLazyLoad && Array.isArray(entries)) {
+    const collected = await collectFullEntries(project.rootDir, entries);
+    finalEntries = collected.entries;
+    collectWarnings = collected.warnings || [];
+  }
   const outDir = draftDirFor(project);
   ensureDir(outDir);
   const filePath = draftPathFor(project, 'work-draft');
-  await fsp.writeFile(filePath, JSON.stringify(buildDraft(project, entries || [], glossary || { terms: [] }, aiSettings || {}, progressState || null, groups || []), null, 2), 'utf8');
-  return { ok: true, path: filePath, outputDir: outDir };
+  await fsp.writeFile(filePath, JSON.stringify(buildDraft(project, finalEntries, glossary || { terms: [] }, aiSettings || {}, progressState || null, groups || []), null, 2), 'utf8');
+  return { ok: true, path: filePath, outputDir: outDir, warnings: collectWarnings };
 }
 
 /**
@@ -145,4 +234,4 @@ function applyDraftToEntries(entries, draftEntries) {
   });
 }
 
-module.exports = { exportPatchFiles, saveDraft, loadDraft, applyDraftToEntries };
+module.exports = { exportPatchFiles, saveDraft, loadDraft, applyDraftToEntries, collectFullEntries };

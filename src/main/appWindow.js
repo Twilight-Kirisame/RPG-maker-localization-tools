@@ -107,4 +107,22 @@ function getMainWindow() {
   return mainWindow;
 }
 
-module.exports = { createMainWindow, getMainWindow, ensureTray, destroyTray, setExitRequested, isExitRequested, setCloseBehavior, getCloseBehavior };
+/**
+ * 获取当前主窗口的 HWND（Windows）或 null。
+ * @returns {string|null} 16 进制句柄字符串
+ */
+function getMainWindowHandle() {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  try {
+    const handle = mainWindow.getNativeWindowHandle();
+    if (process.platform === 'win32' && Buffer.isBuffer(handle)) {
+      if (handle.length === 8) return handle.readBigUInt64LE(0).toString(16);
+      if (handle.length === 4) return handle.readUInt32LE(0).toString(16);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { createMainWindow, getMainWindow, getMainWindowHandle, ensureTray, destroyTray, setExitRequested, isExitRequested, setCloseBehavior, getCloseBehavior };
