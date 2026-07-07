@@ -364,7 +364,7 @@
     'findReplace.traceTitle': '查找替换', 'findReplace.traceFillTitle': '快速填充',
     'workspace.applyWriteback': '写回游戏 JSON',
     'trace.title': '调用反馈', 'trace.operationStatus': '操作状态',
-    'ai.autoSplitGroup': '译文自动断行', 'ai.autoSplit': '对话框（code:401）译文超长时按引擎约束自动拆行', 'ai.autoSplitHint': '仅作用于对话框文本；按标点优先级切分，不破坏控制码。',
+    'ai.autoSplitGroup': '译文自动断行', 'ai.autoSplit': '对话框（code:401）译文超长时按引擎约束自动拆行', 'ai.autoSplitHint': '仅作用于对话框文本；按标点优先级切分，不破坏控制码。', 'ai.autoSplitDemoTitle': '效果示例（28 字/行，最多 4 行）', 'ai.autoSplitDemoBefore': '未启用：', 'ai.autoSplitDemoAfter': '启用后：',
     'ai.glossaryGroup': '术语库自动注入', 'ai.glossaryMode': '注入模式', 'ai.glossaryModeOff': '不使用（默认）', 'ai.glossaryModeReplace': '强制替换原文（送进 AI 前先替换）', 'ai.glossaryModePrompt': '注入 System Prompt（要求 AI 遵守对照表）',
     'ai.glossaryHint': '命中术语会在每次 AI 调用前介入：替换模式直接改写原文；Prompt 模式把对照表加到系统提示后部。空术语库时所有模式均不生效。',
     'glossary.untitledSource': '未命名原文', 'glossary.untitledTarget': '未命名译名',
@@ -399,7 +399,7 @@
     'findReplace.traceTitle': 'Find / Replace', 'findReplace.traceFillTitle': 'Quick-fill repeated text',
     'workspace.applyWriteback': 'Write back to game JSON',
     'trace.title': 'Call Trace', 'trace.operationStatus': 'Operation Status',
-    'ai.autoSplitGroup': 'Auto line-break for translations', 'ai.autoSplit': 'Auto-split dialogue translations (code:401) when they exceed engine limits', 'ai.autoSplitHint': 'Only applies to dialogue text; splits by punctuation priority without breaking control codes.',
+    'ai.autoSplitGroup': 'Auto line-break for translations', 'ai.autoSplit': 'Auto-split dialogue translations (code:401) when they exceed engine limits', 'ai.autoSplitHint': 'Only applies to dialogue text; splits by punctuation priority without breaking control codes.', 'ai.autoSplitDemoTitle': 'Example (28 chars/line, max 4 lines)', 'ai.autoSplitDemoBefore': 'Disabled:', 'ai.autoSplitDemoAfter': 'Enabled:',
     'ai.glossaryGroup': 'Glossary auto-injection', 'ai.glossaryMode': 'Injection mode', 'ai.glossaryModeOff': 'Off (default)', 'ai.glossaryModeReplace': 'Force-replace source before sending to AI', 'ai.glossaryModePrompt': 'Inject into system prompt',
     'ai.glossaryHint': 'Matched glossary terms intervene before each AI call: replace mode rewrites the source; prompt mode appends the glossary to the system prompt. No effect when the glossary is empty.',
     'glossary.renameApiMissing': 'Rename API is not registered', 'glossary.renameFailed': 'Rename failed',
@@ -434,7 +434,7 @@
     'findReplace.traceTitle': '検索・置換', 'findReplace.traceFillTitle': '定型文の一括入力',
     'workspace.applyWriteback': 'ゲーム JSON に書き戻す',
     'trace.title': '呼び出しフィードバック', 'trace.operationStatus': '操作状態',
-    'ai.autoSplitGroup': '翻訳文の自動改行', 'ai.autoSplit': 'ダイアログ（code:401）の翻訳が制限を超えたら自動改行', 'ai.autoSplitHint': 'ダイアログテキストのみ；制御コードを壊さず句読点優先で分割します。',
+    'ai.autoSplitGroup': '翻訳文の自動改行', 'ai.autoSplit': 'ダイアログ（code:401）の翻訳が制限を超えたら自動改行', 'ai.autoSplitHint': 'ダイアログテキストのみ；制御コードを壊さず句読点優先で分割します。', 'ai.autoSplitDemoTitle': '効果例（1行28文字、最大4行）', 'ai.autoSplitDemoBefore': '未使用：', 'ai.autoSplitDemoAfter': '使用後：',
     'ai.glossaryGroup': '用語集の自動注入', 'ai.glossaryMode': '注入モード', 'ai.glossaryModeOff': '使用しない（デフォルト）', 'ai.glossaryModeReplace': 'AI 送信前に原文を強制置換', 'ai.glossaryModePrompt': 'システムプロンプトに注入',
     'ai.glossaryHint': 'ヒットした用語は AI 呼び出し前に介入：置換モードは原文を書き換え、プロンプトモードは対照表をシステムプロンプトに追加。用語集が空の場合は無効。',
     'glossary.renameApiMissing': '名前変更 API が未登録です', 'glossary.renameFailed': '名前変更に失敗しました',
@@ -735,6 +735,62 @@
     return { ...s, ...bucket };
   }
 
+  // 演示用轻量版自动断行算法，与主进程 AutoSplit.js 保持一致（仅用于设置面板示例）。
+  function demoAutoSplit(text, constraint) {
+    const CJK_PUNCT = /[，。！？；：、]/;
+    const ASCII_PUNCT = /[,.!?;:]/;
+    const src = String(text || '');
+    const maxChars = Math.max(0, Number(constraint?.maxCharsPerLine) || 0);
+    const maxLines = Math.max(0, Number(constraint?.maxLines) || 0);
+    if (!maxChars || src.length <= maxChars) return { lines: [src], overflow: false };
+    const lines = [];
+    let rest = src;
+    while (rest.length > maxChars) {
+      if (maxLines && lines.length >= maxLines - 1) break;
+      const slice = rest.slice(0, maxChars);
+      let breakAt = -1;
+      for (let i = slice.length - 1; i >= Math.floor(maxChars / 2); i--) {
+        if (CJK_PUNCT.test(slice[i])) { breakAt = i + 1; break; }
+      }
+      if (breakAt === -1) {
+        for (let i = slice.length - 1; i >= Math.floor(maxChars / 2); i--) {
+          if (ASCII_PUNCT.test(slice[i])) { breakAt = i + 1; break; }
+        }
+      }
+      if (breakAt === -1) {
+        for (let i = slice.length - 1; i >= Math.floor(maxChars / 2); i--) {
+          if (slice[i] === ' ') { breakAt = i + 1; break; }
+        }
+      }
+      if (breakAt === -1) breakAt = maxChars;
+      lines.push(rest.slice(0, breakAt).trim());
+      rest = rest.slice(breakAt).replace(/^\s+/, '');
+    }
+    if (rest) lines.push(rest);
+    const overflow = maxLines > 0 && lines.length > maxLines;
+    if (overflow) {
+      const tail = lines.slice(maxLines - 1).join('');
+      lines.splice(maxLines - 1, lines.length - (maxLines - 1), tail);
+    }
+    return { lines: lines.filter((line) => line.length > 0), overflow };
+  }
+
+  function updateAutoSplitDemo(enabled) {
+    const demoText = '你好，冒险者！欢迎来到这个被诅咒的村庄。这里的居民都在等待一位能够解开古老封印的英雄，你愿意接受这份命运的挑战吗？';
+    const beforeEl = $('autoSplitDemoBefore');
+    const afterEl = $('autoSplitDemoAfter');
+    if (!beforeEl || !afterEl) return;
+    beforeEl.textContent = demoText;
+    if (enabled) {
+      const { lines } = demoAutoSplit(demoText, { maxCharsPerLine: 28, maxLines: 4 });
+      afterEl.textContent = lines.join('\n');
+      afterEl.classList.remove('is-raw');
+    } else {
+      afterEl.textContent = demoText;
+      afterEl.classList.add('is-raw');
+    }
+  }
+
   // 从当前表单值组装出"新旧融合"的完整设置：只覆盖当前 provider 桶，其它桶保持不变。
   function collectAiSettings() {
     const current = migrateAiSettingsShape(getState().aiSettings || {});
@@ -800,6 +856,7 @@
     if ($('globalAiModeSelect')) $('globalAiModeSelect').value = normalized.lastEntryAiMode || activeProvider || 'baidu';
     if ($('aiGlossaryMode')) $('aiGlossaryMode').value = normalized.glossaryInjectionMode || 'off';
     if ($('aiAutoSplit')) $('aiAutoSplit').checked = !!normalized.autoSplit;
+    updateAutoSplitDemo(!!normalized.autoSplit);
     updateTraditionalProviderUI();
     updateAiProviderDefaults();
     // 按 provider 显隐对应的教程提示块
@@ -944,6 +1001,7 @@
       updateAiProviderDefaults({ preserveUserInput: false });
     });
     $('aiModelSelect')?.addEventListener('change', () => syncAiModelSelector(getSelectedAiModel()));
+    $('aiAutoSplit')?.addEventListener('change', () => updateAutoSplitDemo($('aiAutoSplit')?.checked));
     $('saveTraditionalSettingsBtn')?.addEventListener('click', () => saveTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || t('common.operationFailed'), 'error')));
     $('testTraditionalBtn')?.addEventListener('click', () => testTraditionalSettings().catch((e) => setStatus('traditionalStatus', e.message || t('common.operationFailed'), 'error')));
     $('saveAiSettingsBtn')?.addEventListener('click', () => saveAiSettings().catch((e) => setStatus('aiStatus', e.message || t('common.operationFailed'), 'error')));

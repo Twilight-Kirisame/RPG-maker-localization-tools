@@ -388,11 +388,22 @@
                 </div>
                 <div class="settings-group">
                   <h4 data-i18n="ai.autoSplitGroup">译文自动断行</h4>
-                  <label class="checkbox-label">
+                  <label class="settings-checkbox-label">
                     <input id="aiAutoSplit" type="checkbox" />
                     <span data-i18n="ai.autoSplit">对话框（code:401）译文超长时按引擎约束自动拆行</span>
                   </label>
                   <small class="settings-hint" data-i18n="ai.autoSplitHint">仅作用于对话框文本；按标点优先级切分，不破坏控制码。</small>
+                  <div class="auto-split-demo" id="autoSplitDemo">
+                    <div class="auto-split-demo-title" data-i18n="ai.autoSplitDemoTitle">效果示例（28 字/行，最多 4 行）</div>
+                    <div class="auto-split-demo-row">
+                      <span class="auto-split-demo-label" data-i18n="ai.autoSplitDemoBefore">未启用：</span>
+                      <span class="auto-split-demo-text" id="autoSplitDemoBefore"></span>
+                    </div>
+                    <div class="auto-split-demo-row">
+                      <span class="auto-split-demo-label" data-i18n="ai.autoSplitDemoAfter">启用后：</span>
+                      <span class="auto-split-demo-text" id="autoSplitDemoAfter"></span>
+                    </div>
+                  </div>
                 </div>
                 <div class="inline-actions">
                   <button id="saveAiSettingsBtn" class="primary-btn" data-i18n="ai.save">保存设置</button>

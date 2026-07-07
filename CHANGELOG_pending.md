@@ -286,6 +286,30 @@ unchanged:  README.md                        (与远端 v1.1.1 完全一致)
 - `renderer/styles.css`
 - `src/main/ipc/ui.ipc.js`
 
+### 11. UI 细节修复（滚动同步与自动断行示例）
+
+**问题**
+- 单条 / 上下文组模式的「同步滚动位置」勾选后切换模式未正确同步，且提示文字会异常换行。
+- AI 设置面板「译文自动断行」的勾选框与文字挤在一起，布局不美观。
+- 自动断行功能较抽象，用户难以直观理解勾选前后的差异。
+
+**修复**
+- `renderer/app/entries.js`：
+  - 修复上下文组模式渲染后 `_ctxGroupListScroll` 与 `modeScroll.group` 的冲突：开启同步时优先使用 `modeScroll.group` 恢复滚动位置，确保单条 ↔ 上下文组切换后位置一致。
+  - 在上下文组复选框选中 / 回到顶部时同步更新 `modeScroll.group`。
+- `renderer/styles.css`：为 `.entry-view-mode-sync` 增加 `white-space: nowrap` 与 `flex-shrink: 0`，防止提示文字换行或被压缩。
+- `renderer/index.html` + `renderer/styles.css`：将自动断行勾选框改为 `.settings-checkbox-label` 统一样式，并新增 `.auto-split-demo` 效果示例。
+- `renderer/renderer.js`：
+  - 新增 `demoAutoSplit` / `updateAutoSplitDemo`，在设置面板实时展示同一段超长中文在「启用/未启用」自动断行时的差异。
+  - 在 `syncAiSettingsFields` 与勾选框 `change` 事件中刷新示例。
+- 新增 i18n key（中/英/日）：`ai.autoSplitDemoTitle`、`ai.autoSplitDemoBefore`、`ai.autoSplitDemoAfter`。
+
+**涉及文件**
+- `renderer/app/entries.js`
+- `renderer/renderer.js`
+- `renderer/index.html`
+- `renderer/styles.css`
+
 ### C. 已知次要遗留
 
 | 问题 | 影响范围 | 风险 |

@@ -1342,6 +1342,7 @@
       e.stopPropagation();
       list.scrollTop = 0;
       _ctxGroupListScroll = 0;
+      modeScroll.group = 0;
     });
     listToolbar.appendChild(filterInput);
     listToolbar.appendChild(backToTopBtn);
@@ -1371,6 +1372,7 @@
         checkbox.addEventListener('change', () => {
           // 抓取当前滚动位置 + 搜索框焦点 / 光标，re-render 后恢复
           _ctxGroupListScroll = list.scrollTop;
+          modeScroll.group = list.scrollTop || 0; // 与滚动同步记忆保持一致
           _ctxGroupListFilterFocused = document.activeElement === filterInput;
           _ctxGroupListFilterCaret = filterInput.selectionStart || filterInput.value.length;
           const next = getContextGroupSelection();
@@ -1403,7 +1405,9 @@
 
     // 恢复 re-render 前抓取的滚动 / 焦点 / 光标
     requestAnimationFrame(() => {
-      if (_ctxGroupListScroll && list.isConnected) list.scrollTop = _ctxGroupListScroll;
+      const syncEnabled = (window.RpgAppStore?.getState?.() || {}).entryModeScrollSync;
+      const scrollTarget = syncEnabled ? (modeScroll.group || 0) : (_ctxGroupListScroll || 0);
+      if (scrollTarget && list.isConnected) list.scrollTop = scrollTarget;
       if (_ctxGroupListFilterFocused && filterInput.isConnected) {
         filterInput.focus();
         try { filterInput.setSelectionRange(_ctxGroupListFilterCaret, _ctxGroupListFilterCaret); } catch (_) { /* noop */ }
