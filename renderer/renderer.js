@@ -58,6 +58,15 @@
       'settings.titleUI': '界面设置',
       'settings.titleTraditional': '传统翻译设置',
       'settings.titleLLM': '大模型翻译设置',
+      'settings.tabAccessibility': '辅助功能',
+      'settings.titleAccessibility': '辅助功能',
+      'settings.timelineGroupTitle': '剧情流线模式',
+      'settings.enableTimelineMode': '开启剧情流线模式（按地图/事件/选择支重组台词顺序）',
+      'settings.timelineModeHint': '开启后，双语编辑器会按玩家实际体验的剧情流程排列 Map 文件中的对话、选项与分支文本；System / Database / CommonEvents 等文本仍保持原顺序。修改译文后写回 JSON 时仍使用原始物理位置，确保游戏结构安全。',
+      'settings.timelineModeOn': '剧情流线模式已开启',
+      'settings.timelineModeOff': '剧情流线模式已关闭',
+      'settings.timelineModeUnsupported': '剧情流线模式仅在 RPG Maker MV/MZ 项目中生效',
+      'settings.sceneSeparator': '场景：{scene}',
       'settings.language': '界面语言',
       'settings.themeMode': '颜色模式',
       'settings.themeSystem': '跟随系统',
@@ -378,7 +387,7 @@
     'project.open': 'Open Game Project', 'project.status': 'Project Status', 'project.unrecognized': 'Unrecognized', 'project.hint': 'Choose a game folder to detect the engine and load text.', 'project.scanDataRoots': 'Scan Text Locations',
     'features.title': 'Core Features', 'features.import': 'Import MV / MZ project assets', 'features.extract': 'Extract dialogue, choices, names, and database text', 'features.glossary': 'Local glossary storage with import/export', 'features.export': 'Export draft translations and patch folders',
     'workspace.title': 'Workspace', 'workspace.noProject': 'No project opened', 'selector.title': 'Bilingual Editor', 'selector.hint': 'Edit source and translation side by side with glossary and AI assistance', 'selector.file': 'JSON File', 'selector.search': 'Search', 'selector.searchPlaceholder': 'Enter keywords to filter', 'selector.searchScope': 'Search Scope', 'selector.searchScopeCurrent': 'Current JSON', 'selector.searchScopeAll': 'All JSON', 'editor.source': 'Source', 'editor.target': 'Translation',
-    'settings.tabUI': 'UI Settings', 'settings.tabTraditional': 'Traditional Translation', 'settings.tabLLM': 'LLM Translation', 'settings.titleUI': 'UI Settings', 'settings.titleTraditional': 'Traditional Translation Settings', 'settings.titleLLM': 'LLM Translation Settings', 'settings.language': 'Interface Language', 'settings.themeMode': 'Color Mode', 'settings.themeSystem': 'Follow System', 'settings.themeDark': 'Dark', 'settings.themeLight': 'Light', 'settings.themePalette': 'Accent Color', 'settings.paletteViolet': 'Violet', 'settings.paletteBlue': 'Sky Blue', 'settings.paletteEmerald': 'Emerald', 'settings.paletteRose': 'Rose', 'settings.paletteAmber': 'Amber', 'settings.paletteSlate': 'Slate', 'settings.backgroundImage': 'Background Image', 'settings.backgroundImagePlaceholder': 'Enter an image path or URL; leave empty for solid background', 'settings.backgroundHint': 'Supports local image paths or web image URLs. Leave empty to use the theme background.', 'settings.pickBackground': 'Choose Background Image', 'settings.previewBackground': 'Preview Background', 'settings.applyBackground': 'Apply to Current UI', 'settings.clearBackground': 'Clear Background Image', 'settings.resetTheme': 'Reset Appearance', 'settings.previewTitle': 'Background Preview', 'settings.previewEmpty': 'No background image is set', 'settings.save': 'Save Settings', 'settings.close': 'Close Settings',
+    'settings.tabUI': 'UI Settings', 'settings.tabTraditional': 'Traditional Translation', 'settings.tabLLM': 'LLM Translation', 'settings.titleUI': 'UI Settings', 'settings.titleTraditional': 'Traditional Translation Settings', 'settings.titleLLM': 'LLM Translation Settings', 'settings.tabAccessibility': 'Accessibility', 'settings.titleAccessibility': 'Accessibility', 'settings.timelineGroupTitle': 'Story Flow Mode', 'settings.enableTimelineMode': 'Enable story flow mode (reorder lines by map/event/branch)', 'settings.timelineModeHint': 'When enabled, the bilingual editor arranges Map file dialogue, choices, and branch text in the order players actually experience them. System / Database / CommonEvents text remains in original order. Writeback to JSON still uses original physical positions, keeping the game structure safe.', 'settings.timelineModeOn': 'Story flow mode enabled', 'settings.timelineModeOff': 'Story flow mode disabled', 'settings.timelineModeUnsupported': 'Story flow mode only works for RPG Maker MV/MZ projects', 'settings.sceneSeparator': 'Scene: {scene}', 'settings.language': 'Interface Language', 'settings.themeMode': 'Color Mode', 'settings.themeSystem': 'Follow System', 'settings.themeDark': 'Dark', 'settings.themeLight': 'Light', 'settings.themePalette': 'Accent Color', 'settings.paletteViolet': 'Violet', 'settings.paletteBlue': 'Sky Blue', 'settings.paletteEmerald': 'Emerald', 'settings.paletteRose': 'Rose', 'settings.paletteAmber': 'Amber', 'settings.paletteSlate': 'Slate', 'settings.backgroundImage': 'Background Image', 'settings.backgroundImagePlaceholder': 'Enter an image path or URL; leave empty for solid background', 'settings.backgroundHint': 'Supports local image paths or web image URLs. Leave empty to use the theme background.', 'settings.pickBackground': 'Choose Background Image', 'settings.previewBackground': 'Preview Background', 'settings.applyBackground': 'Apply to Current UI', 'settings.clearBackground': 'Clear Background Image', 'settings.resetTheme': 'Reset Appearance', 'settings.previewTitle': 'Background Preview', 'settings.previewEmpty': 'No background image is set', 'settings.save': 'Save Settings', 'settings.close': 'Close Settings',
     'settings.traditionalProvider': 'Traditional Translation Subtype', 'settings.providerBaidu': 'Baidu Translate', 'settings.providerGoogle': 'Google Translate', 'settings.testTraditional': 'Test Traditional Translation', 'settings.baiduAppId': 'Baidu App ID', 'settings.baiduAppIdPlaceholder': 'Enter Baidu App ID', 'settings.baiduSecret': 'Baidu Secret Key', 'settings.baiduSecretPlaceholder': 'Enter Baidu secret key', 'settings.googleApiKey': 'Google API Key', 'settings.googleApiKeyPlaceholder': 'Enter Google API Key', 'settings.sourceLang': 'Source Language', 'settings.sourceLangPlaceholder': 'auto', 'settings.targetLang': 'Target Language', 'settings.targetLangPlaceholder': 'zh-CN', 'settings.traditionalHint': 'Choose a traditional translation service. Baidu requires App ID and secret; Google requires an API key.', 'settings.llmHint': 'Useful for long text translation, style consistency, and character voice.', 'settings.closeBehaviorGroup': 'Close Behavior', 'settings.closeBehavior': 'Close Button Behavior', 'settings.closeBehaviorTray': 'Minimize to system tray', 'settings.closeBehaviorExit': 'Exit immediately', 'settings.closeBehaviorHint': 'When minimized to tray, the X button hides the window instead of quitting. Exit immediately closes the app normally.',
     'ai.provider': 'Provider', 'ai.providerMock': 'Local Demo', 'ai.apiKey': 'API Key', 'ai.baseUrl': 'Endpoint URL', 'ai.model': 'Model', 'ai.prompt': 'System Prompt', 'ai.save': 'Save Settings', 'ai.test': 'Test AI', 'ai.status': 'Choose a translation mode to start.', 'ai.apiKeyPlaceholder': 'Your API Key', 'ai.baseUrlPlaceholder': 'Endpoint URL, e.g. https://api.deepseek.com', 'ai.modelPlaceholder': 'Enter custom model name', 'ai.modelCustom': 'Custom Model', 'ai.deepseekBaseUrlHint': 'DeepSeek official base_url is https://api.deepseek.com. The app calls /chat/completions automatically; do not enter /v1/chat/completions.',
     'ai.deepseekV4Flash': 'deepseek-v4-flash (official recommended, non-thinking)', 'ai.deepseekV4Pro': 'deepseek-v4-pro (official recommended, thinking)', 'ai.deepseekChat': 'deepseek-chat (legacy name, will be deprecated)', 'ai.deepseekReasoner': 'deepseek-reasoner (legacy name, will be deprecated)',
@@ -413,7 +422,7 @@
     'project.open': 'ゲームプロジェクトを開く', 'project.status': 'プロジェクト状態', 'project.unrecognized': '未識別', 'project.hint': 'ゲームフォルダを選択すると、エンジンを判定してテキストを読み込みます。', 'project.scanDataRoots': 'テキスト位置をスキャン',
     'features.title': '主な機能', 'features.import': 'MV / MZ プロジェクト資産の読み込み', 'features.extract': '会話、選択肢、名前、データベース文言を抽出', 'features.glossary': '用語集をローカル保存し、インポート/エクスポート可能', 'features.export': '翻訳草稿とパッチフォルダを出力',
     'workspace.title': 'ワークスペース', 'workspace.noProject': 'プロジェクトは未選択です', 'selector.title': '対訳エディタ', 'selector.hint': '原文と訳文を並べて編集し、用語集と AI 補助翻訳を利用できます', 'selector.file': 'JSON ファイル', 'selector.search': '検索', 'selector.searchPlaceholder': 'キーワードで絞り込み', 'selector.searchScope': '検索範囲', 'selector.searchScopeCurrent': '現在の JSON', 'selector.searchScopeAll': 'すべての JSON', 'editor.source': '原文', 'editor.target': '訳文',
-    'settings.tabUI': 'UI 設定', 'settings.tabTraditional': '従来翻訳', 'settings.tabLLM': '大規模モデル翻訳', 'settings.titleUI': 'UI 設定', 'settings.titleTraditional': '従来翻訳設定', 'settings.titleLLM': '大規模モデル翻訳設定', 'settings.language': '表示言語', 'settings.themeMode': '配色モード', 'settings.themeSystem': 'システムに従う', 'settings.themeDark': 'ダーク', 'settings.themeLight': 'ライト', 'settings.themePalette': 'アクセントカラー', 'settings.paletteViolet': 'バイオレット', 'settings.paletteBlue': 'スカイブルー', 'settings.paletteEmerald': 'エメラルド', 'settings.paletteRose': 'ローズ', 'settings.paletteAmber': 'アンバー', 'settings.paletteSlate': 'スレート', 'settings.backgroundImage': '背景画像', 'settings.backgroundImagePlaceholder': '画像パスまたは URL。空なら単色背景', 'settings.backgroundHint': 'ローカル画像パスまたは Web 画像 URL に対応。空の場合はテーマ背景を使用します。', 'settings.pickBackground': '背景画像を選択', 'settings.previewBackground': '背景をプレビュー', 'settings.applyBackground': '現在の UI に適用', 'settings.clearBackground': '背景画像をクリア', 'settings.resetTheme': '外観を初期化', 'settings.previewTitle': '背景プレビュー', 'settings.previewEmpty': '背景画像は未設定です', 'settings.save': '設定を保存', 'settings.close': '設定を閉じる',
+    'settings.tabUI': 'UI 設定', 'settings.tabTraditional': '従来翻訳', 'settings.tabLLM': '大規模モデル翻訳', 'settings.titleUI': 'UI 設定', 'settings.titleTraditional': '従来翻訳設定', 'settings.titleLLM': '大規模モデル翻訳設定', 'settings.tabAccessibility': 'アクセシビリティ', 'settings.titleAccessibility': 'アクセシビリティ', 'settings.timelineGroupTitle': 'ストーリー流線モード', 'settings.enableTimelineMode': 'ストーリー流線モードを有効にする（マップ/イベント/選択肢でセリフ順を再構成）', 'settings.timelineModeHint': '有効にすると、対訳エディタはプレイヤーが実際に体験する剧情の流れに沿って Map ファイルの会話、選択肢、分岐テキストを並べます。System / Database / CommonEvents のテキストは元の順序のままです。JSON 書き戻し時も元の物理位置を使用し、ゲーム構造を安全に保ちます。', 'settings.timelineModeOn': 'ストーリー流線モードを有効にしました', 'settings.timelineModeOff': 'ストーリー流線モードを無効にしました', 'settings.timelineModeUnsupported': 'ストーリー流線モードは RPG Maker MV/MZ プロジェクトでのみ有効です', 'settings.sceneSeparator': 'シーン：{scene}', 'settings.language': '表示言語', 'settings.themeMode': '配色モード', 'settings.themeSystem': 'システムに従う', 'settings.themeDark': 'ダーク', 'settings.themeLight': 'ライト', 'settings.themePalette': 'アクセントカラー', 'settings.paletteViolet': 'バイオレット', 'settings.paletteBlue': 'スカイブルー', 'settings.paletteEmerald': 'エメラルド', 'settings.paletteRose': 'ローズ', 'settings.paletteAmber': 'アンバー', 'settings.paletteSlate': 'スレート', 'settings.backgroundImage': '背景画像', 'settings.backgroundImagePlaceholder': '画像パスまたは URL。空なら単色背景', 'settings.backgroundHint': 'ローカル画像パスまたは Web 画像 URL に対応。空の場合はテーマ背景を使用します。', 'settings.pickBackground': '背景画像を選択', 'settings.previewBackground': '背景をプレビュー', 'settings.applyBackground': '現在の UI に適用', 'settings.clearBackground': '背景画像をクリア', 'settings.resetTheme': '外観を初期化', 'settings.previewTitle': '背景プレビュー', 'settings.previewEmpty': '背景画像は未設定です', 'settings.save': '設定を保存', 'settings.close': '設定を閉じる',
     'settings.traditionalProvider': '従来翻訳の種類', 'settings.providerBaidu': 'Baidu 翻訳', 'settings.providerGoogle': 'Google 翻訳', 'settings.testTraditional': '従来翻訳をテスト', 'settings.baiduAppId': 'Baidu App ID', 'settings.baiduAppIdPlaceholder': 'Baidu App ID を入力', 'settings.baiduSecret': 'Baidu シークレットキー', 'settings.baiduSecretPlaceholder': 'Baidu シークレットキーを入力', 'settings.googleApiKey': 'Google API Key', 'settings.googleApiKeyPlaceholder': 'Google API Key を入力', 'settings.sourceLang': '元言語', 'settings.sourceLangPlaceholder': 'auto', 'settings.targetLang': '対象言語', 'settings.targetLangPlaceholder': 'zh-CN', 'settings.traditionalHint': '従来翻訳サービスを選択できます。Baidu は App ID とシークレット、Google は API Key が必要です。', 'settings.llmHint': '長文翻訳、文体統一、キャラクター口調に適しています。', 'settings.closeBehaviorGroup': '閉じる動作', 'settings.closeBehavior': '閉じるボタンの動作', 'settings.closeBehaviorTray': 'システムトレイに最小化', 'settings.closeBehaviorExit': 'すぐ終了', 'settings.closeBehaviorHint': 'トレイに最小化を選ぶと、X ボタンは終了せずウィンドウを隠します。すぐ終了を選ぶと通常終了します。',
     'ai.provider': '提供元', 'ai.providerMock': 'ローカルデモ', 'ai.apiKey': 'API Key', 'ai.baseUrl': 'エンドポイント URL', 'ai.model': 'モデル', 'ai.prompt': 'システムプロンプト', 'ai.save': '設定を保存', 'ai.test': 'AI をテスト', 'ai.status': '翻訳モードを選択してください。', 'ai.apiKeyPlaceholder': 'API Key', 'ai.baseUrlPlaceholder': '例：https://api.deepseek.com', 'ai.modelPlaceholder': 'カスタムモデル名を入力', 'ai.modelCustom': 'カスタムモデル', 'ai.deepseekBaseUrlHint': 'DeepSeek 公式 base_url は https://api.deepseek.com です。アプリが /chat/completions を自動で呼び出すため、/v1/chat/completions は入力しないでください。',
     'ai.deepseekV4Flash': 'deepseek-v4-flash（公式推奨、非思考）', 'ai.deepseekV4Pro': 'deepseek-v4-pro（公式推奨、思考）', 'ai.deepseekChat': 'deepseek-chat（旧互換名、廃止予定）', 'ai.deepseekReasoner': 'deepseek-reasoner（旧互換名、廃止予定）',
@@ -936,6 +945,88 @@
     applyRuntimeI18n();
   }
 
+  /**
+   * 切换主进程的剧情流线/物理顺序视图，并用返回的条目重建前端 groupedFiles。
+   * 由于主进程保证两个视图共享同一批对象指针，前端重建后修改译文仍会同步回物理池。
+   */
+  async function applyViewMode(mode = 'physical') {
+    const current = getState();
+    const project = current.project;
+    if (!project?.rootDir) return { ok: false, message: t('error.projectRequired', { action: t('action.loadProjectTexts') }) };
+    const result = await window.rpgWorkbench?.setViewMode?.(mode);
+    if (!result?.ok) return result || { ok: false };
+    const entriesResult = await window.rpgWorkbench?.getViewModeEntries?.({ page: 1, pageSize: 100000 });
+    if (!entriesResult?.ok) return entriesResult || { ok: false };
+    const entries = entriesResult.entries || [];
+    window.RpgEntries?.buildGroupedFiles?.(entries);
+    window.RpgAppStore?.setState?.({
+      viewMode: mode,
+      entryRenderLimit: 100,
+      currentEntryIndex: 0,
+    });
+    window.RpgEntries?.renderFileSelect?.();
+    window.RpgEntries?.renderEntryList?.();
+    window.RpgEntries?.renderCurrentEntry?.();
+    return { ok: true, mode, total: entriesResult.total };
+  }
+
+  async function applyTimelineModeFromSetting() {
+    const settings = window.RpgView?.getStoredUiSettings?.() || {};
+    const enabled = settings.timelineModeEnabled === true;
+    const current = getState();
+    const project = current.project;
+    if (!project?.rootDir) return;
+    if (project.useLazyLoad || current.fileList?.length) return; // 懒加载模式暂不支持剧情流线
+    const isRpgMaker = /RPG Maker|rpg-maker|rpgmaker/i.test(project.engine || project.displayName || '');
+    const mode = enabled && isRpgMaker ? 'timeline' : 'physical';
+    if (current.viewMode === mode) return;
+    await applyViewMode(mode);
+  }
+
+  function updateTimelineModeStatus(message, kind = 'normal') {
+    const statusBox = $('timelineModeStatus');
+    if (!statusBox) return;
+    statusBox.textContent = message || '';
+    statusBox.dataset.kind = kind;
+    statusBox.classList.toggle('hidden', !message);
+  }
+
+  async function saveAccessibilitySettings() {
+    const timelineCheck = $('timelineModeCheck');
+    const enabled = timelineCheck ? timelineCheck.checked : false;
+    const settings = window.RpgView?.persistUiSettings?.({ persist: true }) || {};
+    const current = getState();
+    const project = current.project;
+    let statusMsg = '';
+    let statusKind = 'normal';
+    if (project?.rootDir) {
+      const isRpgMaker = /RPG Maker|rpg-maker|rpgmaker/i.test(project.engine || project.displayName || '');
+      if (enabled && !isRpgMaker) {
+        statusMsg = t('settings.timelineModeUnsupported');
+        statusKind = 'warning';
+      } else if (project.useLazyLoad || current.fileList?.length) {
+        statusMsg = enabled ? t('settings.timelineModeUnsupported') : t('settings.timelineModeOff');
+        statusKind = enabled ? 'warning' : 'success';
+      } else {
+        try {
+          const result = await applyViewMode(enabled ? 'timeline' : 'physical');
+          statusMsg = enabled ? t('settings.timelineModeOn') : t('settings.timelineModeOff');
+          statusKind = result?.ok ? 'success' : 'error';
+          if (!result?.ok) statusMsg = result?.message || t('common.operationFailed');
+        } catch (error) {
+          statusMsg = error?.message || t('common.operationFailed');
+          statusKind = 'error';
+        }
+      }
+    }
+    updateTimelineModeStatus(statusMsg, statusKind);
+    window.RpgView?.updateWorkspaceLayout?.();
+    if (statusKind === 'success') {
+      setStatusBox('projectStatus', t('trace.uiSettingsSaved'), 'success', t('trace.uiSettings'));
+    }
+    return settings;
+  }
+
   function bindShellActions() {
     const t = translate;
     // 密钥输入框的"眼睛"切换按钮：点击时把对应 input 的 type 在 password / text 之间翻转。
@@ -1027,6 +1118,11 @@
     });
     $('previewThemeBackgroundBtn')?.addEventListener('click', () => window.RpgView?.updateThemePreview?.());
     $('resetUiThemeBtn')?.addEventListener('click', () => { window.RpgView?.resetUiSettings?.(); applyRuntimeI18n(); syncGlobalAiModeSelect(); render(); setStatusBox('projectStatus', t('trace.defaultThemeRestored'), 'success', t('trace.uiSettings')); });
+    $('timelineModeCheck')?.addEventListener('change', () => {
+      // 切换开关时立即给出视觉反馈，但真正生效需要点击“保存设置”
+      updateTimelineModeStatus('');
+    });
+    $('saveAccessibilitySettingsBtn')?.addEventListener('click', () => saveAccessibilitySettings().catch((e) => updateTimelineModeStatus(e.message || t('common.operationFailed'), 'error')));
   }
 
   window.RpgApp = {
@@ -1046,7 +1142,7 @@
     const savedLang = localStorage.getItem('rpg-workbench-language') || 'zh-CN';
     const langSelect = $('languageSelect'); if (langSelect) langSelect.value = ['zh-CN', 'en', 'ja'].includes(savedLang) ? savedLang : 'zh-CN';
     mergeI18nFallbacks(); window.RpgView = window.RpgView || {}; window.RpgView.t = translate;
-    window.RpgView?.syncUiSettingsFields?.(); applyRuntimeI18n(); switchSettingsTab('ui'); closeSettings();
+    window.RpgView?.syncUiSettingsFields?.(); window.RpgView?.updateWorkspaceLayout?.(); applyRuntimeI18n(); switchSettingsTab('ui'); closeSettings();
     await loadAndApplyAiSettings(); syncGlobalAiModeSelect(); bindShellActions();
     window.RpgGlossaryModule?.bindGlossaryActions?.(); window.RpgEntries?.bindEntryActions?.(); window.RpgProject?.bindProjectActions?.(); window.RpgFindReplace?.bindActions?.();
     if (window.RpgExportModule?.init) window.RpgExportModule.init(() => { const s = getState(); return { project: s.project, glossary: s.glossary, aiSettings: s.aiSettings, progressState: s.progressState, groups: s.contextGroups || [], entries: window.RpgEntries?.getExportEntries?.() || s.entries || [], draftPath: s.draftPath || '', lastPatchDir: s.lastPatchDir || '' }; });

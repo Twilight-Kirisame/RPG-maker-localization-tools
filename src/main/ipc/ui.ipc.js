@@ -12,16 +12,34 @@ const UI_SETTINGS_FILE = appStoragePath('ui-settings.json');
 
 function readUiSettings() {
   try {
-    if (!fs.existsSync(UI_SETTINGS_FILE)) return { closeBehavior: 'minimize-to-tray', enableGamePreview: true, previewWindowMode: 'popup' };
+    if (!fs.existsSync(UI_SETTINGS_FILE)) return defaultUiSettings();
     const parsed = JSON.parse(fs.readFileSync(UI_SETTINGS_FILE, 'utf8'));
-    return {
-      closeBehavior: parsed.closeBehavior || 'minimize-to-tray',
-      enableGamePreview: parsed.enableGamePreview !== false,
-      previewWindowMode: ['popup', 'embedded'].includes(parsed.previewWindowMode) ? parsed.previewWindowMode : 'popup',
-    };
+    return normalizeUiSettings(parsed);
   } catch {
-    return { closeBehavior: 'minimize-to-tray', enableGamePreview: true, previewWindowMode: 'popup' };
+    return defaultUiSettings();
   }
+}
+
+function defaultUiSettings() {
+  return {
+    closeBehavior: 'minimize-to-tray',
+    enableGamePreview: true,
+    previewWindowMode: 'popup',
+    showPreviewNotification: true,
+    previewNotificationPosition: 'top-center',
+    timelineModeEnabled: false,
+  };
+}
+
+function normalizeUiSettings(parsed) {
+  return {
+    closeBehavior: parsed.closeBehavior || 'minimize-to-tray',
+    enableGamePreview: parsed.enableGamePreview !== false,
+    previewWindowMode: ['popup', 'embedded'].includes(parsed.previewWindowMode) ? parsed.previewWindowMode : 'popup',
+    showPreviewNotification: parsed.showPreviewNotification !== false,
+    previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(parsed.previewNotificationPosition) ? parsed.previewNotificationPosition : 'top-center',
+    timelineModeEnabled: parsed.timelineModeEnabled === true,
+  };
 }
 
 function writeUiSettings(settings) {
@@ -29,6 +47,9 @@ function writeUiSettings(settings) {
     closeBehavior: ['minimize-to-tray', 'exit-immediately'].includes(settings?.closeBehavior) ? settings.closeBehavior : 'minimize-to-tray',
     enableGamePreview: settings?.enableGamePreview !== false,
     previewWindowMode: ['popup', 'embedded'].includes(settings?.previewWindowMode) ? settings.previewWindowMode : 'popup',
+    showPreviewNotification: settings?.showPreviewNotification !== false,
+    previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(settings?.previewNotificationPosition) ? settings.previewNotificationPosition : 'top-center',
+    timelineModeEnabled: settings?.timelineModeEnabled === true,
     updatedAt: new Date().toISOString(),
   };
   fs.mkdirSync(path.dirname(UI_SETTINGS_FILE), { recursive: true });

@@ -137,7 +137,15 @@ button, textarea, input, select { font: inherit; }
 .stat-label { color: #b8c0d9; font-size: 14px; line-height: 1.4; }
 .stat-card strong { font-size: 28px; }
 .panel-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; color: #b8c0d9; }
-.workspace-top-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }
+.workspace-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.workspace-stage.has-embedded-preview {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
 .translation-panel { min-width: 0; padding: 18px; }
 .translation-panel-header { margin-bottom: 10px; align-items: center; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .translation-panel-header h3 { margin: 0 0 4px; font-size: 17px; }
@@ -453,21 +461,15 @@ ul { padding-left: 18px; color: #cdd5ea; }
 .glossary-delete { border: 0; width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.08); color: #eef2ff; cursor: pointer; }
 .glossary-delete:hover { background: rgba(255, 99, 99, 0.22); color: #ffb3b3; }
 .status-box { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.05); color: #cdd5ea; }
-.call-trace-panel .panel-header { position: sticky; top: 0; z-index: 1; padding-bottom: 8px; background: linear-gradient(180deg, rgba(17, 23, 38, 0.98), rgba(17, 23, 38, 0.92)); }
-.call-trace-panel-main {
-  display: block;
-  padding: 12px;
+.call-trace-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-height: 0;
-  opacity: 0.92;
-  position: sticky;
-  top: 16px;
 }
-.call-trace-panel-main .panel-header { margin-bottom: 8px; }
-.call-trace-panel-main .panel-header h3 { font-size: 15px; margin: 0; }
-.call-trace-panel-main .panel-header span { font-size: 12px; }
-.call-trace-dock { display: none; }
+.call-trace-card h2 { margin: 0 0 2px; font-size: 16px; }
+.call-trace-card > .settings-hint { margin: 0; }
 .call-trace-box {
-  max-height: 240px;
   overflow-y: auto;
   overflow-x: hidden;
   display: grid;
@@ -475,8 +477,11 @@ ul { padding-left: 18px; color: #cdd5ea; }
   padding-right: 6px;
   scroll-behavior: smooth;
 }
-.call-trace-box-main { max-height: 240px; font-size: 12px; gap: 6px; }
-.call-trace-box-docked { max-height: 120px; font-size: 12px; gap: 6px; }
+.call-trace-box-sidebar {
+  max-height: 280px;
+  font-size: 12px;
+  gap: 8px;
+}
 .call-trace-box .status-box { flex: 0 0 auto; }
 .call-trace-box[data-kind="success"] { box-shadow: inset 0 0 0 1px rgba(50, 190, 120, 0.18); }
 .call-trace-box[data-kind="error"] { box-shadow: inset 0 0 0 1px rgba(255, 99, 99, 0.18); }
@@ -888,6 +893,68 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
 .entry-view-mode-sync:hover { color: var(--text); border-color: rgba(124,140,255,0.35); }
 :root[data-theme="light"] .entry-view-mode-sync { background: rgba(42,56,86,0.06); }
 
+/* ===== 剧情流线模式（虚拟剧本时间线）UI ===== */
+.timeline-scene-separator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 4px 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(124, 140, 255, 0.10);
+  border: 1px solid rgba(124, 140, 255, 0.25);
+  color: #c8d0ff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.timeline-scene-separator::before {
+  content: '';
+  flex: 1 1 0;
+  height: 1px;
+  background: rgba(124, 140, 255, 0.25);
+}
+.timeline-scene-separator::after {
+  content: '';
+  flex: 1 1 0;
+  height: 1px;
+  background: rgba(124, 140, 255, 0.25);
+}
+:root[data-theme="light"] .timeline-scene-separator {
+  background: rgba(42, 56, 86, 0.06);
+  border-color: rgba(42, 56, 86, 0.18);
+  color: #4a5a7a;
+}
+:root[data-theme="light"] .timeline-scene-separator::before,
+:root[data-theme="light"] .timeline-scene-separator::after {
+  background: rgba(42, 56, 86, 0.18);
+}
+
+.paired-row.timeline-row {
+  border-left: 3px solid rgba(124, 140, 255, 0.45);
+}
+.paired-row.timeline-row.timeline-same-speaker {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+.paired-row.timeline-row.timeline-same-speaker + .paired-row.timeline-row.timeline-same-speaker {
+  margin-top: -7px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+.tag.timeline-speaker-tag {
+  background: rgba(124, 140, 255, 0.18);
+  color: #c8d0ff;
+  border: 1px solid rgba(124, 140, 255, 0.35);
+}
+#timelineModeStatus {
+  margin-top: 6px;
+}
+#timelineModeStatus[data-kind="success"] { color: #8ff0bf; }
+#timelineModeStatus[data-kind="error"] { color: #ff9b9b; }
+#timelineModeStatus[data-kind="warning"] { color: #ffd56b; }
+
 /* ===== 上下文行模式 ===== */
 .context-group-panel { display: grid; gap: 10px; min-width: 0; }
 .context-group-summary { font-size: 12px; line-height: 1.45; padding: 6px 10px; }
@@ -928,10 +995,10 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
 }
 
 /* 工作区停止游戏预览按钮 */
-#stopPreviewBtn {
+#stopPreviewBtn, #returnToTitleBtn {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
-#stopPreviewBtn:not(.hidden) {
+#stopPreviewBtn:not(.hidden), #returnToTitleBtn:not(.hidden) {
   animation: fadeIn 0.2s ease;
 }
 @keyframes fadeIn {
@@ -939,18 +1006,14 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 游戏内预览嵌入容器 */
-.game-preview-container {
+/* ===== 游戏内预览嵌入容器 / 电视机造型 ===== */
+.game-preview-panel {
   display: grid;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid var(--border);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  gap: 14px;
+  padding: 16px;
+  min-width: 0;
 }
-.game-preview-container.hidden { display: none; }
+.game-preview-panel.hidden { display: none; }
 .game-preview-header {
   display: flex;
   align-items: center;
@@ -960,30 +1023,214 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
 .game-preview-title {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .game-preview-title strong {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text);
 }
 .game-preview-hint {
   font-size: 12px;
   color: var(--muted);
+  line-height: 1.45;
 }
+
+/* 电视机：复古 / 现代 / 街机 三种皮肤，可通过 data-tv-style 切换 */
+.tv-set {
+  --tv-frame: #2a2f3d;
+  --tv-bezel: #1a1e29;
+  --tv-screen-bg: #0b0d12;
+  --tv-glow: rgba(124, 140, 255, 0.18);
+  --tv-leg: #3a3f4d;
+  --tv-knob: #4b5163;
+  --tv-led-off: #5c6378;
+  --tv-led-on: #32be78;
+
+  display: grid;
+  gap: 0;
+  justify-items: center;
+  padding: 10px 0 0;
+}
+.tv-set[data-tv-style="modern"] {
+  --tv-frame: #0f1115;
+  --tv-bezel: #050608;
+  --tv-screen-bg: #000000;
+  --tv-glow: rgba(56, 189, 248, 0.14);
+  --tv-leg: #1f2937;
+  --tv-knob: #374151;
+}
+.tv-set[data-tv-style="arcade"] {
+  --tv-frame: #2d1b4e;
+  --tv-bezel: #1a1030;
+  --tv-screen-bg: #12091f;
+  --tv-glow: rgba(251, 113, 133, 0.22);
+  --tv-leg: #4c1d95;
+  --tv-knob: #7c3aed;
+}
+
+.tv-antenna {
+  width: 8px;
+  height: 28px;
+  background: linear-gradient(90deg, var(--tv-leg), var(--tv-knob));
+  border-radius: 4px 4px 0 0;
+  position: relative;
+}
+.tv-antenna::before,
+.tv-antenna::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 42px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--tv-leg), var(--tv-knob));
+  border-radius: 2px;
+}
+.tv-antenna::before { right: 50%; transform: rotate(-28deg); transform-origin: right center; }
+.tv-antenna::after { left: 50%; transform: rotate(28deg); transform-origin: left center; }
+
+.tv-body {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 16px 16px 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, var(--tv-frame), var(--tv-bezel));
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.tv-bezel {
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--tv-bezel), var(--tv-frame));
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.35);
+}
+
+.tv-screen {
+  position: relative;
+  border-radius: 14px;
+  background: var(--tv-screen-bg);
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  box-shadow:
+    inset 0 0 24px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(255,255,255,0.04);
+}
+
 .game-preview-host {
-  min-height: 420px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 2px dashed rgba(124, 140, 255, 0.35);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
-  color: var(--muted);
-  font-size: 13px;
-  position: relative;
   overflow: hidden;
 }
-.game-preview-host::before {
-  content: attr(data-placeholder);
+.game-preview-host:empty {
+  background: transparent;
+}
+
+.game-preview-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  background: radial-gradient(ellipse at center, rgba(124,140,255,0.08), transparent 70%);
+}
+.tv-set[data-preview-active="true"] .game-preview-placeholder {
+  display: none;
+}
+.game-preview-host:not(:empty) ~ .game-preview-placeholder {
+  display: none;
+}
+
+.tv-scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0.22),
+    rgba(0,0,0,0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.45;
+  mix-blend-mode: multiply;
+}
+.tv-screen-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--tv-glow), transparent 72%);
+  opacity: 0.6;
+}
+
+.tv-controls {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 8px 4px;
+}
+.tv-control-label {
+  font-size: 10px;
+  color: var(--muted);
+  writing-mode: vertical-rl;
+  letter-spacing: 0.12em;
+}
+.tv-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.25), var(--tv-knob));
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+.tv-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tv-led-off);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.tv-led[data-state="on"] {
+  background: var(--tv-led-on);
+  box-shadow: 0 0 10px var(--tv-led-on), inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.tv-stand {
+  width: 46%;
+  height: 18px;
+  margin-top: -2px;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, var(--tv-leg), #1a1d26);
+  position: relative;
+  z-index: -1;
+}
+.tv-stand::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 12px;
+  background: linear-gradient(180deg, var(--tv-leg), var(--tv-bezel));
+  border-radius: 4px;
 }
 
 /* 勾选条目列表 —— 独立成纯 flex，绝不复用 paired-row 的三列网格 */
@@ -1113,10 +1360,21 @@ label span, .panel-header, .stat-label, .settings-hint, .glossary-hint, .glossar
 
 @media (max-width: 1400px) {
   .app-shell, .stats-row, .entry-toolbar { grid-template-columns: 1fr; }
-  .workspace-top-grid { grid-template-columns: minmax(0, 1fr); }
-  .call-trace-panel-main { position: static; }
+  .workspace-stage.has-embedded-preview { grid-template-columns: minmax(0, 1fr); }
   .paired-cell { flex-basis: 100%; }
   .paired-ai-bar { flex-basis: 100%; }
   .find-replace-row { grid-template-columns: 1fr; }
   .find-replace-dialog { width: calc(100vw - 32px); max-height: 88vh; }
+}
+
+@media (max-width: 1080px) {
+  .workspace-stage { grid-template-columns: minmax(0, 1fr); }
+  .workspace-stage.has-embedded-preview { grid-template-columns: minmax(0, 1fr); }
+  .tv-body { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .tv-controls { grid-template-columns: repeat(4, auto); grid-template-rows: auto; align-items: center; }
+  .tv-control-label { writing-mode: horizontal-tb; }
+}
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
 }

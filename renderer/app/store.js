@@ -25,6 +25,8 @@
     currentEntryIndex: 0,
     contextGroups: [],
     entryViewMode: 'single',
+    viewMode: 'physical',
+    timelineModeEnabled: false,
     progressState: null,
     fileProgress: [],
     globalProgress: null,

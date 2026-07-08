@@ -182,6 +182,9 @@
       if (firstFile) {
         await loadFile(firstFile);
       }
+      if (window.applyTimelineModeFromSetting) {
+        window.applyTimelineModeFromSetting().catch?.(() => {});
+      }
       return;
     }
 
@@ -211,6 +214,10 @@
       }
     });
     window.showProjectStatus?.(`${t('workspace.load')}：${entries.length} ${t('stats.groups')}`, synced.recognized ? 'success' : 'warning');
+    // 项目加载完成后，根据设置应用剧情流线/物理顺序视图
+    if (window.applyTimelineModeFromSetting) {
+      window.applyTimelineModeFromSetting().catch?.(() => {});
+    }
   }
 
   async function loadProject(rootDir) {
@@ -241,6 +248,32 @@
     const saveDraftBtn = get('saveDraftBtn');
     const resetProjectBtn = get('resetProjectBtn');
     const stopPreviewBtn = get('stopPreviewBtn');
+    const returnToTitleBtn = get('returnToTitleBtn');
+
+    function clearPreviewState() {
+      window.RpgAppStore?.setState?.({ previewPid: null, previewRunning: false });
+      stopPreviewBtn?.classList.add('hidden');
+      returnToTitleBtn?.classList.add('hidden');
+      window.RpgView?.updateWorkspaceLayout?.();
+    }
+
+    returnToTitleBtn?.addEventListener('click', async () => {
+      const rootDir = state().project?.rootDir;
+      const gamePid = state().previewPid;
+      if (!rootDir || !gamePid) return;
+      window.showAiStatus?.(t('workspace.returningToTitle') || '正在退回标题画面…', 'pending');
+      try {
+        const api = window.RpgAppController?.returnToTitle || window.rpgWorkbench?.returnToTitle;
+        const result = api ? await api({ rootDir, gamePid }) : null;
+        if (result?.ok) {
+          window.showAiStatus?.(t('workspace.returnedToTitle') || '已退回标题画面', 'success');
+        } else {
+          window.showAiStatus?.(result?.message || t('workspace.returnToTitleFailed') || '退回标题失败', 'error');
+        }
+      } catch (error) {
+        window.showAiStatus?.(error.message || t('workspace.returnToTitleFailed') || '退回标题失败', 'error');
+      }
+    });
 
     stopPreviewBtn?.addEventListener('click', async () => {
       const rootDir = state().project?.rootDir;
@@ -249,8 +282,7 @@
       try {
         const api = window.RpgAppController?.stopPreview || window.rpgWorkbench?.stopPreview;
         const result = api ? await api(rootDir) : null;
-        stopPreviewBtn?.classList.add('hidden');
-        document.getElementById('gamePreviewContainer')?.classList.add('hidden');
+        clearPreviewState();
         if (result?.restored) {
           window.showAiStatus?.(tf('workspace.previewStoppedRestored', { files: result.files.length }), 'success');
           window.traceCall?.(t('trace.projectStatus'), tf('workspace.previewStoppedRestored', { files: result.files.length }), 'success');
@@ -270,8 +302,7 @@
       try {
         const api = window.RpgAppController?.stopPreview || window.rpgWorkbench?.stopPreview;
         const result = api ? await api(rootDir) : null;
-        stopPreviewBtn?.classList.add('hidden');
-        document.getElementById('gamePreviewContainer')?.classList.add('hidden');
+        clearPreviewState();
         if (result?.restored) {
           window.showAiStatus?.(tf('workspace.previewStoppedRestored', { files: result.files.length }), 'success');
         } else {

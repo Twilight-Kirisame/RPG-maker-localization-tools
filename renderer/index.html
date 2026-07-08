@@ -57,6 +57,14 @@
             <button id="openGlossaryManagerBtn" class="secondary-btn" data-i18n="glossary.manage">管理术语库</button>
           </div>
         </div>
+
+        <div class="card call-trace-card">
+          <h2 data-i18n="trace.title">调用反馈</h2>
+          <p class="settings-hint" data-i18n="trace.operationStatus">操作状态</p>
+          <div id="callTrace" class="call-trace-box call-trace-box-sidebar">
+            <div class="status-box call-trace-placeholder" data-i18n="trace.waiting">等待操作…</div>
+          </div>
+        </div>
       </aside>
 
       <main class="main-content">
@@ -72,6 +80,7 @@
             <button id="exportPatchBtn" class="primary-btn" data-i18n="workspace.export" data-i18n-title="workspace.exportTitle" title="导出可回写的补丁目录">导出补丁</button>
             <button id="applyWritebackBtn" class="primary-btn" data-i18n="workspace.applyWriteback" data-i18n-title="workspace.applyWritebackTitle" title="把当前译文按原结构写回新 JSON（不覆盖原文件，输出到 localization_patch/data/）">写回游戏 JSON</button>
             <button id="stopPreviewBtn" class="secondary-btn danger-btn hidden" data-i18n="workspace.stopPreview" data-i18n-title="workspace.stopPreviewTitle" title="强制停止游戏预览并恢复被修改的原始 JSON 备份">停止游戏预览</button>
+            <button id="returnToTitleBtn" class="secondary-btn hidden" data-i18n="workspace.returnToTitle" data-i18n-title="workspace.returnToTitleTitle" title="不关闭游戏，直接退回标题画面">退回标题画面</button>
           </div>
         </section>
 
@@ -90,7 +99,7 @@
           </div>
         </section>
 
-        <div class="workspace-top-grid">
+        <div class="workspace-stage" id="workspaceStage">
           <section class="panel translation-panel">
             <div class="panel-header translation-panel-header">
               <div>
@@ -143,7 +152,7 @@
               <button id="openFindReplaceBtn" class="secondary-btn" type="button" data-i18n="findReplace.openBtn" data-i18n-title="findReplace.openTitle" title="查找/替换与快速填充重复文本">查找替换</button>
             </div>
             <div class="entry-view-mode">
-              <span data-i18n="context.viewMode">显示模式</span>
+              <span data-i18n="context.viewMode">翻译模式</span>
               <button id="singleEntryModeBtn" class="secondary-btn active" data-entry-mode="single" data-i18n="context.singleMode">单条模式</button>
               <button id="contextGroupModeBtn" class="secondary-btn" data-entry-mode="group" data-i18n="context.groupMode">上下文组模式</button>
               <label class="entry-view-mode-sync">
@@ -158,26 +167,35 @@
             <div id="entryList" class="paired-list"></div>
           </section>
 
-          <section class="panel call-trace-panel call-trace-panel-main">
-            <div class="panel-header">
-              <h3 data-i18n="trace.title">调用反馈</h3>
-              <span data-i18n="trace.operationStatus">操作状态</span>
+          <section class="panel game-preview-panel hidden" id="gamePreviewContainer">
+            <div class="game-preview-header">
+              <div class="game-preview-title">
+                <strong data-i18n="preview.embeddedTitle">游戏预览</strong>
+                <span class="game-preview-hint" data-i18n="preview.embeddedHint">游戏窗口将嵌入下方区域，关闭游戏或点击右侧按钮即可恢复备份</span>
+              </div>
+              <button id="closeGamePreviewBtn" type="button" class="secondary-btn" data-i18n="preview.close">关闭预览</button>
             </div>
-            <div id="callTrace" class="call-trace-box call-trace-box-main">
-              <div class="status-box call-trace-placeholder" data-i18n="trace.waiting">等待操作…</div>
+            <div class="tv-set" id="tvSet" data-tv-style="retro">
+              <div class="tv-antenna"></div>
+              <div class="tv-body">
+                <div class="tv-bezel">
+                  <div class="tv-screen">
+                    <div id="gamePreviewHost" class="game-preview-host"></div>
+                    <div id="gamePreviewPlaceholder" class="game-preview-placeholder" data-i18n="preview.tvPlaceholder">点击译文行的「预览」按钮，游戏画面将显示在这里</div>
+                    <div class="tv-scanlines"></div>
+                    <div class="tv-screen-glow"></div>
+                  </div>
+                </div>
+                <div class="tv-controls">
+                  <div class="tv-control-label" data-i18n="preview.tvPower">电源</div>
+                  <div class="tv-knob"></div>
+                  <div class="tv-knob"></div>
+                  <div class="tv-led" data-state="off"></div>
+                </div>
+              </div>
+              <div class="tv-stand"></div>
             </div>
           </section>
-        </div>
-
-        <div id="gamePreviewContainer" class="game-preview-container hidden">
-          <div class="game-preview-header">
-            <div class="game-preview-title">
-              <strong data-i18n="preview.embeddedTitle">游戏预览</strong>
-              <span class="game-preview-hint" data-i18n="preview.embeddedHint">游戏窗口将嵌入下方区域，关闭游戏或点击右侧按钮即可恢复备份</span>
-            </div>
-            <button id="closeGamePreviewBtn" type="button" class="secondary-btn" data-i18n="preview.close">关闭预览</button>
-          </div>
-          <div id="gamePreviewHost" class="game-preview-host"></div>
         </div>
 
         <div id="settingsModal" class="settings-modal hidden" aria-hidden="true">
@@ -186,6 +204,7 @@
             <button id="settingsCloseBtn" class="settings-close" data-i18n-aria-label="settings.close" aria-label="Close settings">×</button>
             <div class="settings-tabs">
               <button class="settings-tab active" data-tab="ui" data-i18n="settings.tabUI">界面设置</button>
+              <button class="settings-tab" data-tab="accessibility" data-i18n="settings.tabAccessibility">辅助功能</button>
               <button class="settings-tab" data-tab="traditional" data-i18n="settings.tabTraditional">传统翻译</button>
               <button class="settings-tab" data-tab="llm" data-i18n="settings.tabLLM">大模型翻译</button>
               <button class="settings-tab" data-tab="glossary" data-i18n="glossary.manage">术语库</button>
@@ -238,21 +257,6 @@
                   </div>
                 </div>
                 <div class="settings-hint" data-i18n="settings.backgroundHint">支持本地图片路径或网络图片 URL；留空时仅保留纯色背景。可将图片文件拖拽到输入框自动填入路径。</div>
-                <div class="settings-group settings-preview-group">
-                  <h4 data-i18n="settings.previewGroupTitle">游戏内预览</h4>
-                  <label class="settings-checkbox-label">
-                    <input id="enableGamePreviewCheck" type="checkbox" checked />
-                    <span data-i18n="settings.enableGamePreview">启用游戏内快速预览（仅在 RPG Maker MV/MZ 项目中显示）</span>
-                  </label>
-                  <label>
-                    <span data-i18n="settings.previewWindowMode">预览窗口模式</span>
-                    <select id="previewWindowModeSelect">
-                      <option value="popup" data-i18n="settings.previewWindowModePopup">弹出式独立窗口（Game.exe）</option>
-                      <option value="embedded" data-i18n="settings.previewWindowModeEmbedded">嵌入主窗口底部</option>
-                    </select>
-                  </label>
-                  <small class="settings-hint" data-i18n="settings.enableGamePreviewHint">关闭后，单条模式与上下文组模式中的「预览」按钮将不再显示。</small>
-                </div>
                 <div class="settings-group settings-close-group">
                   <h4 data-i18n="settings.closeBehaviorGroup">关闭行为</h4>
                   <label>
@@ -267,6 +271,51 @@
                 <div class="inline-actions">
                   <button id="saveUiSettingsBtn" class="primary-btn" data-i18n="settings.save">保存设置</button>
                   <button id="resetUiThemeBtn" class="secondary-btn" data-i18n="settings.resetTheme">恢复默认外观</button>
+                </div>
+              </div>
+              <div class="settings-pane hidden" data-pane="accessibility">
+                <h3 id="settingsTitleAccessibility" data-i18n="settings.titleAccessibility">辅助功能</h3>
+                <div class="settings-group settings-accessibility-group">
+                  <h4 data-i18n="settings.timelineGroupTitle">剧情流线模式</h4>
+                  <label class="settings-checkbox-label">
+                    <input id="timelineModeCheck" type="checkbox" />
+                    <span data-i18n="settings.enableTimelineMode">开启剧情流线模式（按地图/事件/选择支重组台词顺序）</span>
+                  </label>
+                  <small class="settings-hint" data-i18n="settings.timelineModeHint">开启后，双语编辑器会按玩家实际体验的剧情流程排列 Map 文件中的对话、选项与分支文本；System / Database / CommonEvents 等文本仍保持原顺序。修改译文后写回 JSON 时仍使用原始物理位置，确保游戏结构安全。</small>
+                  <div id="timelineModeStatus" class="status-box hidden"></div>
+                </div>
+                <div class="settings-group settings-preview-group">
+                  <h4 data-i18n="settings.previewGroupTitle">游戏内预览</h4>
+                  <label class="settings-checkbox-label">
+                    <input id="enableGamePreviewCheck" type="checkbox" checked />
+                    <span data-i18n="settings.enableGamePreview">启用游戏内快速预览（仅在 RPG Maker MV/MZ 项目中显示）</span>
+                  </label>
+                  <label class="settings-checkbox-label">
+                    <input id="showPreviewNotificationCheck" type="checkbox" checked />
+                    <span data-i18n="settings.showPreviewNotification">启动预览时在游戏中显示“文本内容预览模式”提示</span>
+                  </label>
+                  <label>
+                    <span data-i18n="settings.previewWindowMode">预览窗口模式</span>
+                    <select id="previewWindowModeSelect">
+                      <option value="popup" data-i18n="settings.previewWindowModePopup">弹出式独立窗口（Game.exe）</option>
+                      <option value="embedded" data-i18n="settings.previewWindowModeEmbedded">嵌入主窗口底部</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span data-i18n="settings.previewNotificationPosition">提示文字位置</span>
+                    <select id="previewNotificationPositionSelect">
+                      <option value="top-left" data-i18n="settings.previewNotificationPositionTopLeft">顶部左侧</option>
+                      <option value="top-center" data-i18n="settings.previewNotificationPositionTopCenter">顶部居中</option>
+                      <option value="top-right" data-i18n="settings.previewNotificationPositionTopRight">顶部右侧</option>
+                      <option value="bottom-left" data-i18n="settings.previewNotificationPositionBottomLeft">底部左侧</option>
+                      <option value="bottom-center" data-i18n="settings.previewNotificationPositionBottomCenter">底部居中</option>
+                      <option value="bottom-right" data-i18n="settings.previewNotificationPositionBottomRight">底部右侧</option>
+                    </select>
+                  </label>
+                  <small class="settings-hint" data-i18n="settings.enableGamePreviewHint">关闭后，单条模式与上下文组模式中的「预览」按钮将不再显示。</small>
+                </div>
+                <div class="inline-actions">
+                  <button id="saveAccessibilitySettingsBtn" class="primary-btn" data-i18n="settings.save">保存设置</button>
                 </div>
               </div>
               <div class="settings-pane hidden" data-pane="traditional">

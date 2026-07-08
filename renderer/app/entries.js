@@ -19,36 +19,63 @@
 
   // ── 单条 / 上下文组两个模式的滚动位置记忆（模块级，跨 render / re-bind 共享）─────
   // 组模式内部的 .context-group-entry-list 是每次渲染时新建的 DOM，无法一次挂载复用。
-  // 用 modeScroll 记住"两模式各自的最近 scrollTop"，再由 wireEntryScrollTracking 在
-  // 每次渲染完成后：① 给当前模式的滚动容器挂 scroll 监听把变化写回 modeScroll，
-  //                ② 把 modeScroll[当前模式] 回填到容器 scrollTop（RAF 中执行以等 DOM 落定）。
+  // 同步关闭时：各自记忆 scrollTop（modeScroll）。
+  // 同步开启时：按滚动百分比（scrollTop / scrollHeight）同步，因为两种翻译模式行高不同，
+  //            但条目数量相同，百分比能大致对齐可视区域，避免像素同步导致的错位。
   const modeScroll = { single: 0, group: 0 };
+  const modeScrollPct = { single: 0, group: 0 };
+  let _ignoreScrollEvents = false; // 清空 DOM 或程序回填导致的 scroll 事件不应污染模式记忆
   function _getScrollElForMode(mode) {
     const entryListEl = document.getElementById('entryList');
     if (!entryListEl) return null;
     if (mode === 'group') return entryListEl.querySelector('.context-group-entry-list') || entryListEl;
     return entryListEl;
   }
+
   function wireEntryScrollTracking() {
     const activeMode = (window.RpgAppStore?.getState?.() || {}).entryViewMode || 'single';
     const el = _getScrollElForMode(activeMode);
-    if (!el) return;
+    if (!el) {
+      // 没有目标容器时也要恢复标志，避免后续滚动事件被永久忽略
+      _ignoreScrollEvents = false;
+      return;
+    }
     if (el.dataset.modeScrollBound !== '1') {
       el.dataset.modeScrollBound = '1';
       el.addEventListener('scroll', () => {
+        if (_ignoreScrollEvents) return;
         const mode = (window.RpgAppStore?.getState?.() || {}).entryViewMode || 'single';
         modeScroll[mode] = el.scrollTop || 0;
-        // 开了同步开关就把另一模式的记忆也同步过来，下次切模式时不会"跳回"
-        if ((window.RpgAppStore?.getState?.() || {}).entryModeScrollSync) {
+        const syncEnabled = (window.RpgAppStore?.getState?.() || {}).entryModeScrollSync;
+        if (syncEnabled) {
           const other = mode === 'single' ? 'group' : 'single';
-          modeScroll[other] = modeScroll[mode];
+          const pct = el.scrollHeight > 0 ? el.scrollTop / el.scrollHeight : 0;
+          modeScrollPct[mode] = pct;
+          modeScrollPct[other] = pct;
+          // 若另一模式容器已挂载（同时可见的情况），实时同步其滚动百分比
+          const otherEl = _getScrollElForMode(other);
+          if (otherEl && otherEl.isConnected && otherEl !== el) {
+            _ignoreScrollEvents = true;
+            const otherTarget = Math.round(pct * otherEl.scrollHeight);
+            otherEl.scrollTop = Math.min(otherTarget, Math.max(0, otherEl.scrollHeight - otherEl.clientHeight));
+            requestAnimationFrame(() => { _ignoreScrollEvents = false; });
+          }
         }
       }, { passive: true });
     }
     // 回填记忆位置（等本轮渲染的 DOM 稳定）
     requestAnimationFrame(() => {
       const target = _getScrollElForMode(activeMode);
-      if (target) target.scrollTop = modeScroll[activeMode] || 0;
+      if (!target) return;
+      // 先解除忽略，让本次回填触发 scroll 事件时 modeScroll 能被正常更新
+      _ignoreScrollEvents = false;
+      const syncEnabled = (window.RpgAppStore?.getState?.() || {}).entryModeScrollSync;
+      if (syncEnabled) {
+        const desiredScrollTop = Math.round(modeScrollPct[activeMode] * target.scrollHeight);
+        target.scrollTop = Math.min(desiredScrollTop, Math.max(0, target.scrollHeight - target.clientHeight));
+      } else {
+        target.scrollTop = modeScroll[activeMode] || 0;
+      }
     });
   }
 
@@ -391,10 +418,98 @@
   }
 
   /**
-   * 构造并返回游戏内预览按钮。点击时会把当前文件所有已翻译条目作为依赖上下文一起写回游戏。
+   * 触发指定条目的游戏内预览（支持首次启动与无缝重开）。
    * @param {Object} entry 入口条目
-   * @param {string|function} targetTextOrFn 当前译文或获取译文的函数
-   * @param {Object[]} [extraEntries] 额外传入主进程的依赖条目（如上下文组选中条目）
+   * @param {string} targetText 当前译文
+   * @param {Object[]} [extraEntries] 额外依赖条目
+   * @param {Object} [opts]
+   * @param {boolean} [opts.forceRepreview] 强制走重开流程
+   */
+  async function previewEntry(entry, targetText, extraEntries, opts = {}) {
+    const rootDir = state().project?.rootDir;
+    if (!rootDir) return;
+    if (!String(targetText || '').trim()) {
+      window.showAiStatus?.(t('entry.previewEmpty') || '译文为空，无法预览', 'warning');
+      return;
+    }
+    window.showAiStatus?.(t('entry.previewPending') || '正在启动游戏预览…', 'pending');
+    const currentState = state();
+    const isRepreview = opts.forceRepreview || (currentState.previewRunning && currentState.previewPid);
+    const api = isRepreview
+      ? (window.RpgAppController?.repreviewInGame || window.rpgWorkbench?.repreviewInGame)
+      : (window.RpgAppController?.previewInGame || window.rpgWorkbench?.previewInGame);
+    if (!api) {
+      window.showAiStatus?.(t('entry.previewApiMissing') || '预览接口不可用', 'error');
+      return;
+    }
+
+    const currentFileGroup = (state().groupedFiles || []).find((g) => g.file === entry.file);
+    const fileEntries = currentFileGroup?.items || [];
+    const entries = extraEntries?.length > 0 ? [...new Set([...fileEntries, ...extraEntries])] : fileEntries;
+
+    const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
+    const previewWindowMode = uiSettings.previewWindowMode || 'popup';
+    const options = {
+      jumpToStart: true,
+      entries,
+      previewWindowMode,
+      dataRoots: state().project?.dataRoots,
+      showPreviewNotification: uiSettings.showPreviewNotification !== false,
+      previewNotificationPosition: uiSettings.previewNotificationPosition || 'top-center',
+      previewNotificationPrevLabel: t('preview.buttonPrev') || '上一句',
+      previewNotificationNextLabel: t('preview.buttonNext') || '下一句',
+      previewNotificationTitleLabel: t('preview.buttonTitle') || '返回标题',
+    };
+
+    if (!isRepreview && previewWindowMode === 'embedded') {
+      const container = document.getElementById('gamePreviewContainer');
+      const host = document.getElementById('gamePreviewHost');
+      if (container && host) {
+        container.classList.remove('hidden');
+        host.textContent = '';
+        host.removeAttribute('data-placeholder');
+        const rect = host.getBoundingClientRect();
+        const scaleFactor = window.devicePixelRatio || 1;
+        options.embedRect = {
+          x: Math.round(rect.x * scaleFactor),
+          y: Math.round(rect.y * scaleFactor),
+          width: Math.round(rect.width * scaleFactor),
+          height: Math.round(rect.height * scaleFactor),
+        };
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      window.RpgView?.updateWorkspaceLayout?.();
+    }
+
+    const apiPayload = {
+      rootDir,
+      entry: { file: entry.file, path: entry.path, key: entry.key, kind: entry.kind },
+      targetText,
+      options,
+    };
+    if (isRepreview) {
+      apiPayload.options.gamePid = currentState.previewPid;
+    }
+    const result = await api(apiPayload);
+    if (result?.ok) {
+      const extras = result.patchCount > 1 ? `（连带 ${result.patchCount - 1} 处依赖文本）` : '';
+      const msgKey = isRepreview ? 'entry.repreviewStarted' : 'entry.previewStarted';
+      window.showAiStatus?.((tf(msgKey, { pid: result.pid }) || (isRepreview ? `预览点位已更新 (PID: ${result.pid})` : `预览已启动 (PID: ${result.pid})`)) + extras, 'success');
+      window.RpgAppStore?.setState?.({ previewRunning: true, previewPid: result.pid });
+      document.getElementById('stopPreviewBtn')?.classList.remove('hidden');
+      document.getElementById('returnToTitleBtn')?.classList.remove('hidden');
+      window.RpgView?.updateWorkspaceLayout?.();
+    } else {
+      window.showAiStatus?.(result?.message || t('entry.previewFailed') || '预览启动失败', 'error');
+      if (!isRepreview && previewWindowMode === 'embedded') {
+        window.RpgView?.updateWorkspaceLayout?.();
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 构造并返回游戏内预览按钮。
    */
   function renderPreviewAction(entry, targetTextOrFn, extraEntries) {
     const previewBtn = document.createElement('button');
@@ -404,65 +519,8 @@
     previewBtn.title = t('entry.previewTitle');
     previewBtn.addEventListener('click', async (event) => {
       event.stopPropagation();
-      const rootDir = state().project?.rootDir;
-      if (!rootDir) return;
       const targetText = typeof targetTextOrFn === 'function' ? targetTextOrFn() : targetTextOrFn;
-      if (!String(targetText || '').trim()) {
-        window.showAiStatus?.(t('entry.previewEmpty') || '译文为空，无法预览', 'warning');
-        return;
-      }
-      window.showAiStatus?.(t('entry.previewPending') || '正在启动游戏预览…', 'pending');
-      const api = window.RpgAppController?.previewInGame || window.rpgWorkbench?.previewInGame;
-      if (!api) {
-        window.showAiStatus?.(t('entry.previewApiMissing') || '预览接口不可用', 'error');
-        return;
-      }
-      // 把当前文件所有条目传给主进程做依赖分析；同事件/上下文组内已翻译文本会一并带入游戏
-      const currentFileGroup = (state().groupedFiles || []).find((g) => g.file === entry.file);
-      const fileEntries = currentFileGroup?.items || [];
-      const entries = extraEntries?.length > 0 ? [...new Set([...fileEntries, ...extraEntries])] : fileEntries;
-
-      const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
-      const previewWindowMode = uiSettings.previewWindowMode || 'popup';
-      const options = { jumpToStart: true, entries, previewWindowMode, dataRoots: state().project?.dataRoots };
-
-      // 嵌入模式：显示容器并测量安放位置
-      if (previewWindowMode === 'embedded') {
-        const container = document.getElementById('gamePreviewContainer');
-        const host = document.getElementById('gamePreviewHost');
-        if (container && host) {
-          container.classList.remove('hidden');
-          host.textContent = '';
-          host.removeAttribute('data-placeholder');
-          const rect = host.getBoundingClientRect();
-          const scaleFactor = window.devicePixelRatio || 1;
-          options.embedRect = {
-            x: Math.round(rect.x * scaleFactor),
-            y: Math.round(rect.y * scaleFactor),
-            width: Math.round(rect.width * scaleFactor),
-            height: Math.round(rect.height * scaleFactor),
-          };
-          // 滚动到预览区域
-          container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-
-      const result = await api({
-        rootDir,
-        entry: { file: entry.file, path: entry.path, key: entry.key, kind: entry.kind },
-        targetText,
-        options,
-      });
-      if (result?.ok) {
-        const extras = result.patchCount > 1 ? `（连带 ${result.patchCount - 1} 处依赖文本）` : '';
-        window.showAiStatus?.((tf('entry.previewStarted', { pid: result.pid }) || `预览已启动 (PID: ${result.pid})`) + extras, 'success');
-        document.getElementById('stopPreviewBtn')?.classList.remove('hidden');
-      } else {
-        window.showAiStatus?.(result?.message || t('entry.previewFailed') || '预览启动失败', 'error');
-        if (previewWindowMode === 'embedded') {
-          document.getElementById('gamePreviewContainer')?.classList.add('hidden');
-        }
-      }
+      await previewEntry(entry, targetText, extraEntries);
     });
     return previewBtn;
   }
@@ -1364,6 +1422,7 @@
       filtered.forEach((entry) => {
         const row = document.createElement('div');
         row.className = `context-group-select-row ${selection.has(getContextGroupSelectionKey(entry)) ? 'selected' : ''}`;
+        row.dataset.localIndex = String(entry.localIndex ?? '');
         const checkboxWrap = document.createElement('label');
         checkboxWrap.className = 'context-group-source';
         const checkbox = document.createElement('input');
@@ -1403,11 +1462,9 @@
     panel.appendChild(list);
     entryList.appendChild(panel);
 
-    // 恢复 re-render 前抓取的滚动 / 焦点 / 光标
+    // 恢复 re-render 前抓取的焦点 / 光标；滚动位置统一由 wireEntryScrollTracking 回填，
+    // 避免两个 RAF 竞争导致 group 模式 scrollTop 被覆盖。
     requestAnimationFrame(() => {
-      const syncEnabled = (window.RpgAppStore?.getState?.() || {}).entryModeScrollSync;
-      const scrollTarget = syncEnabled ? (modeScroll.group || 0) : (_ctxGroupListScroll || 0);
-      if (scrollTarget && list.isConnected) list.scrollTop = scrollTarget;
       if (_ctxGroupListFilterFocused && filterInput.isConnected) {
         filterInput.focus();
         try { filterInput.setSelectionRange(_ctxGroupListFilterCaret, _ctxGroupListFilterCaret); } catch (_) { /* noop */ }
@@ -1447,8 +1504,12 @@
   function renderEntryList() {
     const entryList = get('entryList');
     if (!entryList) return;
+    // 清空 DOM 会同步触发 scroll 事件并把 scrollTop 归零，
+    // 该事件不应污染 modeScroll，因此先标记忽略。
+    _ignoreScrollEvents = true;
     entryList.innerHTML = '';
     const currentMode = state().entryViewMode || 'single';
+    const viewMode = state().viewMode || 'physical';
     if (currentMode === 'group') {
       renderGroupMode();
       // 组模式内部的 .context-group-entry-list 是每次渲染新建的 DOM，需重新挂 scroll 监听并回填位置
@@ -1465,9 +1526,27 @@
     const limit = current.entryRenderLimit || LOAD_MORE_INITIAL;
     const visibleItems = items.length <= limit ? items : items.slice(0, limit);
     const hasMore = visibleItems.length < items.length;
-    visibleItems.forEach((entry) => {
+    let previousTimelineContext = null;
+    visibleItems.forEach((entry, index) => {
       const current = state();
       const sourceEntry = entry._searchScope === 'all' ? (current.groupedFiles || []).flatMap((group) => group.items || []).find((item) => item.id === entry.id) || entry : entry;
+      const tlCtx = viewMode === 'timeline' ? (sourceEntry.timelineContext || sourceEntry.context || {}) : {};
+      const currentScene = tlCtx.scene || '';
+      const currentSpeaker = tlCtx.speaker || '';
+      const currentTrigger = tlCtx.trigger || '';
+      const prevScene = previousTimelineContext?.scene || '';
+      const prevSpeaker = previousTimelineContext?.speaker || '';
+      const prevTrigger = previousTimelineContext?.trigger || '';
+      const sceneChanged = viewMode === 'timeline' && currentScene && currentScene !== prevScene;
+      const sameSpeakerGroup = viewMode === 'timeline' && currentSpeaker && currentSpeaker === prevSpeaker && currentTrigger && currentTrigger === prevTrigger;
+
+      if (sceneChanged) {
+        const sceneSeparator = document.createElement('div');
+        sceneSeparator.className = 'timeline-scene-separator';
+        sceneSeparator.textContent = t('settings.sceneSeparator', { scene: currentScene });
+        entryList.appendChild(sceneSeparator);
+      }
+
       // 命中检测优先用"同分类聚合"的术语合集；缺失时回退到当前活动子库的术语，保持向后兼容。
       const hitTerms = (current.aggregatedGlossary?.terms || current.glossary?.terms || []);
       sourceEntry.glossaryHits = hitTerms.filter((term) => term.enabled !== false && term.source && sourceEntry.source.includes(term.source));
@@ -1475,7 +1554,8 @@
       const translated = isTranslated(sourceEntry);
       const hitCount = (sourceEntry.glossaryHits || []).length;
       const controlCharHit = /\\[VNCP]\[\d+\]/.test(sourceEntry.source || '');
-      row.className = `paired-row ${sourceEntry.localIndex === current.currentEntryIndex && sourceEntry.file === current.currentFile ? 'active' : ''} ${translated ? 'translated' : 'untranslated'} ${hitCount ? 'has-hits' : ''} ${controlCharHit ? 'has-controls' : ''}`;
+      row.className = `paired-row ${sourceEntry.localIndex === current.currentEntryIndex && sourceEntry.file === current.currentFile ? 'active' : ''} ${translated ? 'translated' : 'untranslated'} ${hitCount ? 'has-hits' : ''} ${controlCharHit ? 'has-controls' : ''} ${viewMode === 'timeline' ? 'timeline-row' : ''} ${sameSpeakerGroup ? 'timeline-same-speaker' : ''}`;
+      row.dataset.localIndex = String(sourceEntry.localIndex ?? index);
       const sourceCell = document.createElement('div');
       sourceCell.className = 'paired-cell source';
       sourceCell.setAttribute('tabindex', '0');
@@ -1554,6 +1634,13 @@
         updateCounts();
       });
       tags.appendChild(statusBtn);
+      if (viewMode === 'timeline' && currentSpeaker) {
+        const speakerTag = document.createElement('em');
+        speakerTag.className = 'tag timeline-speaker-tag';
+        speakerTag.textContent = currentSpeaker;
+        speakerTag.title = currentTrigger || '';
+        tags.appendChild(speakerTag);
+      }
       const classTag = document.createElement('em');
       classTag.className = 'tag class-tag';
       classTag.textContent = t(`textClass.${sourceEntry.textClass || 'unknown'}`);
@@ -1606,6 +1693,7 @@
       row.appendChild(meta);
       entryList.appendChild(row);
       renderGlossaryInline(row, entry, targetCell);
+      previousTimelineContext = { scene: currentScene, speaker: currentSpeaker, trigger: currentTrigger };
     });
     if (hasMore) {
       const sentinel = document.createElement('div');
@@ -1722,6 +1810,9 @@
       const selectedFile = fileSelect.value;
       const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
       const isLoaded = useLazyLoad ? (current.fileList || []).find((f) => f.file === selectedFile)?.loaded : true;
+      // 切换文件后滚动位置重置到顶端，避免旧文件的位置被带到新文件
+      modeScroll.single = 0;
+      modeScroll.group = 0;
       window.RpgAppStore?.setState?.({
         ...current,
         currentFile: selectedFile,
@@ -1765,7 +1856,14 @@
       const prevMode = state().entryViewMode || 'single';
       if (prevMode === nextMode) return;
       const prevEl = _getScrollElForMode(prevMode);
-      if (prevEl) modeScroll[prevMode] = prevEl.scrollTop || 0;
+      if (prevEl) {
+        modeScroll[prevMode] = prevEl.scrollTop || 0;
+        if (state().entryModeScrollSync) {
+          const pct = prevEl.scrollHeight > 0 ? prevEl.scrollTop / prevEl.scrollHeight : 0;
+          modeScrollPct[prevMode] = pct;
+          modeScrollPct[nextMode] = pct;
+        }
+      }
       if (state().entryModeScrollSync) {
         modeScroll[nextMode] = modeScroll[prevMode];
       }
@@ -1787,9 +1885,13 @@
       if (enabled) {
         const activeMode = state().entryViewMode || 'single';
         const el = _getScrollElForMode(activeMode);
-        if (el) modeScroll[activeMode] = el.scrollTop || 0;
-        const other = activeMode === 'single' ? 'group' : 'single';
-        modeScroll[other] = modeScroll[activeMode];
+        if (el) {
+          modeScroll[activeMode] = el.scrollTop || 0;
+          const pct = el.scrollHeight > 0 ? el.scrollTop / el.scrollHeight : 0;
+          modeScrollPct[activeMode] = pct;
+          const other = activeMode === 'single' ? 'group' : 'single';
+          modeScrollPct[other] = pct;
+        }
       }
     });
 
@@ -1883,6 +1985,17 @@
       }
       const ok = jumpTo(targetFile, nextIdx);
       if (ok) window.showAiStatus?.(tf('progress.gotoLastDone', { action: t('progress.nextPending'), file: targetFile, index: nextIdx + 1 }), 'success');
+    });
+  }
+
+  // 游戏进程异常退出或被关闭后，自动重置渲染端预览状态
+  if (window.rpgWorkbench?.onPreviewProcessExited) {
+    window.rpgWorkbench.onPreviewProcessExited(() => {
+      window.RpgAppStore?.setState?.({ previewRunning: false, previewPid: null });
+      document.getElementById('stopPreviewBtn')?.classList.add('hidden');
+      document.getElementById('returnToTitleBtn')?.classList.add('hidden');
+      window.RpgView?.updateWorkspaceLayout?.();
+      window.showAiStatus?.(t('workspace.previewProcessExited') || '游戏预览进程已结束，备份已恢复', 'notice');
     });
   }
 

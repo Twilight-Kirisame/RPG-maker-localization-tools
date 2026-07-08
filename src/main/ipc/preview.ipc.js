@@ -4,7 +4,7 @@
  */
 
 const { ipcMain } = require('electron');
-const { previewInGame, stopPreview, cleanupOnStartup } = require('../services/preview/GamePreviewService');
+const { previewInGame, repreviewInGame, returnToTitle, stopPreview, cleanupOnStartup } = require('../services/preview/GamePreviewService');
 
 /**
  * 注册预览相关 IPC。
@@ -17,6 +17,26 @@ function registerPreviewIpc() {
       return result;
     } catch (error) {
       return { ok: false, message: error.message || '预览启动失败' };
+    }
+  });
+
+  ipcMain.handle('repreview-in-game', async (_event, payload = {}) => {
+    try {
+      const { rootDir, entry, targetText, options } = payload;
+      const result = await repreviewInGame(rootDir, entry, targetText, options);
+      return result;
+    } catch (error) {
+      return { ok: false, message: error.message || '无缝重开预览失败' };
+    }
+  });
+
+  ipcMain.handle('return-to-title', async (_event, payload = {}) => {
+    try {
+      const { rootDir, gamePid } = payload;
+      returnToTitle(rootDir, gamePid);
+      return { ok: true, message: '已发送退回标题指令' };
+    } catch (error) {
+      return { ok: false, message: error.message || '退回标题失败' };
     }
   });
 

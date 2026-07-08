@@ -7,6 +7,9 @@
     closeBehavior: 'rpg-workbench-close-behavior',
     enableGamePreview: 'rpg-workbench-enable-game-preview',
     previewWindowMode: 'rpg-workbench-preview-window-mode',
+    showPreviewNotification: 'rpg-workbench-show-preview-notification',
+    previewNotificationPosition: 'rpg-workbench-preview-notification-position',
+    timelineModeEnabled: 'rpg-workbench-timeline-mode-enabled',
   };
 
   const defaults = {
@@ -17,11 +20,17 @@
     closeBehavior: 'minimize-to-tray',
     enableGamePreview: true,
     previewWindowMode: 'popup',
+    showPreviewNotification: true,
+    previewNotificationPosition: 'top-center',
+    timelineModeEnabled: false,
   };
 
   function getStoredUiSettings() {
     const rawEnable = localStorage.getItem(storageKeys.enableGamePreview);
     const rawMode = localStorage.getItem(storageKeys.previewWindowMode);
+    const rawShowNotification = localStorage.getItem(storageKeys.showPreviewNotification);
+    const rawNotificationPosition = localStorage.getItem(storageKeys.previewNotificationPosition);
+    const rawTimelineMode = localStorage.getItem(storageKeys.timelineModeEnabled);
     return {
       language: localStorage.getItem(storageKeys.language) || defaults.language,
       themeMode: localStorage.getItem(storageKeys.themeMode) || defaults.themeMode,
@@ -30,6 +39,9 @@
       closeBehavior: localStorage.getItem(storageKeys.closeBehavior) || defaults.closeBehavior,
       enableGamePreview: rawEnable === null ? defaults.enableGamePreview : rawEnable === 'true',
       previewWindowMode: ['popup', 'embedded'].includes(rawMode) ? rawMode : defaults.previewWindowMode,
+      showPreviewNotification: rawShowNotification === null ? defaults.showPreviewNotification : rawShowNotification === 'true',
+      previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(rawNotificationPosition) ? rawNotificationPosition : defaults.previewNotificationPosition,
+      timelineModeEnabled: rawTimelineMode === null ? defaults.timelineModeEnabled : rawTimelineMode === 'true',
     };
   }
 
@@ -104,6 +116,9 @@
     const closeBehaviorSelect = document.getElementById('closeBehaviorSelect');
     const enableGamePreviewCheck = document.getElementById('enableGamePreviewCheck');
     const previewWindowModeSelect = document.getElementById('previewWindowModeSelect');
+    const showPreviewNotificationCheck = document.getElementById('showPreviewNotificationCheck');
+    const previewNotificationPositionSelect = document.getElementById('previewNotificationPositionSelect');
+    const timelineModeCheck = document.getElementById('timelineModeCheck');
     if (languageSelect) languageSelect.value = ['zh-CN', 'en', 'ja'].includes(settings.language) ? settings.language : defaults.language;
     if (themeModeSelect) themeModeSelect.value = ['system', 'dark', 'light'].includes(settings.themeMode) ? settings.themeMode : defaults.themeMode;
     if (themePaletteSelect) themePaletteSelect.value = ['violet', 'blue', 'emerald', 'rose', 'amber', 'slate'].includes(settings.palette) ? settings.palette : defaults.palette;
@@ -111,6 +126,9 @@
     if (closeBehaviorSelect) closeBehaviorSelect.value = ['minimize-to-tray', 'exit-immediately'].includes(settings.closeBehavior) ? settings.closeBehavior : defaults.closeBehavior;
     if (enableGamePreviewCheck) enableGamePreviewCheck.checked = Boolean(settings.enableGamePreview);
     if (previewWindowModeSelect) previewWindowModeSelect.value = ['popup', 'embedded'].includes(settings.previewWindowMode) ? settings.previewWindowMode : defaults.previewWindowMode;
+    if (showPreviewNotificationCheck) showPreviewNotificationCheck.checked = Boolean(settings.showPreviewNotification);
+    if (previewNotificationPositionSelect) previewNotificationPositionSelect.value = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(settings.previewNotificationPosition) ? settings.previewNotificationPosition : defaults.previewNotificationPosition;
+    if (timelineModeCheck) timelineModeCheck.checked = Boolean(settings.timelineModeEnabled);
     applyThemeSettings({ ...settings, backgroundImage: preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage });
     updateThemePreview(preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage);
   }
@@ -123,6 +141,9 @@
     const closeBehaviorSelect = document.getElementById('closeBehaviorSelect');
     const enableGamePreviewCheck = document.getElementById('enableGamePreviewCheck');
     const previewWindowModeSelect = document.getElementById('previewWindowModeSelect');
+    const showPreviewNotificationCheck = document.getElementById('showPreviewNotificationCheck');
+    const previewNotificationPositionSelect = document.getElementById('previewNotificationPositionSelect');
+    const timelineModeCheck = document.getElementById('timelineModeCheck');
     const settings = {
       language: languageSelect?.value || defaults.language,
       themeMode: themeModeSelect?.value || defaults.themeMode,
@@ -131,6 +152,9 @@
       closeBehavior: closeBehaviorSelect?.value || defaults.closeBehavior,
       enableGamePreview: enableGamePreviewCheck ? enableGamePreviewCheck.checked : defaults.enableGamePreview,
       previewWindowMode: ['popup', 'embedded'].includes(previewWindowModeSelect?.value) ? previewWindowModeSelect.value : defaults.previewWindowMode,
+      showPreviewNotification: showPreviewNotificationCheck ? showPreviewNotificationCheck.checked : defaults.showPreviewNotification,
+      previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(previewNotificationPositionSelect?.value) ? previewNotificationPositionSelect.value : defaults.previewNotificationPosition,
+      timelineModeEnabled: timelineModeCheck ? timelineModeCheck.checked : defaults.timelineModeEnabled,
     };
     if (persist) {
       localStorage.setItem(storageKeys.language, settings.language);
@@ -140,6 +164,9 @@
       localStorage.setItem(storageKeys.closeBehavior, settings.closeBehavior);
       localStorage.setItem(storageKeys.enableGamePreview, String(settings.enableGamePreview));
       localStorage.setItem(storageKeys.previewWindowMode, settings.previewWindowMode);
+      localStorage.setItem(storageKeys.showPreviewNotification, String(settings.showPreviewNotification));
+      localStorage.setItem(storageKeys.previewNotificationPosition, settings.previewNotificationPosition);
+      localStorage.setItem(storageKeys.timelineModeEnabled, String(settings.timelineModeEnabled));
       window.rpgWorkbench?.saveUiSettings?.(settings).catch?.(() => {});
     }
     applyThemeSettings(settings);
@@ -147,6 +174,7 @@
     window.RpgApp?.render?.();
     window.RpgGlossaryModule?.render?.();
     updateThemePreview(settings.backgroundImage);
+    updateWorkspaceLayout();
     return settings;
   }
 
@@ -170,6 +198,9 @@
     localStorage.setItem(storageKeys.closeBehavior, defaults.closeBehavior);
     localStorage.setItem(storageKeys.enableGamePreview, String(defaults.enableGamePreview));
     localStorage.setItem(storageKeys.previewWindowMode, defaults.previewWindowMode);
+    localStorage.setItem(storageKeys.showPreviewNotification, String(defaults.showPreviewNotification));
+    localStorage.setItem(storageKeys.previewNotificationPosition, defaults.previewNotificationPosition);
+    localStorage.setItem(storageKeys.timelineModeEnabled, String(defaults.timelineModeEnabled));
     syncUiSettingsFields();
     return getStoredUiSettings();
   }
@@ -201,6 +232,29 @@
     preview.dataset.previewUrl = normalized;
   }
 
+  function updateWorkspaceLayout() {
+    const settings = getStoredUiSettings();
+    const stage = document.getElementById('workspaceStage');
+    const panel = document.getElementById('gamePreviewContainer');
+    const host = document.getElementById('gamePreviewHost');
+    const tvSet = document.getElementById('tvSet');
+    const led = document.querySelector('.tv-led');
+    const shouldSplit = Boolean(settings.enableGamePreview && settings.previewWindowMode === 'embedded');
+
+    if (stage) stage.classList.toggle('has-embedded-preview', shouldSplit);
+    if (panel) panel.classList.toggle('hidden', !shouldSplit);
+
+    if (shouldSplit) {
+      const isRunning = Boolean((window.RpgAppStore?.getState?.() || {}).previewRunning);
+      if (tvSet) tvSet.dataset.previewActive = isRunning ? 'true' : 'false';
+      if (led) led.dataset.state = isRunning ? 'on' : 'off';
+      if (host && !isRunning) {
+        host.textContent = '';
+        host.removeAttribute('data-placeholder');
+      }
+    }
+  }
+
   function installTransientScrollbars() {
     const timers = new WeakMap();
     const mark = (target) => {
@@ -223,6 +277,7 @@
     getCloseBehavior,
     setCloseBehavior,
     updateThemePreview,
+    updateWorkspaceLayout,
     resetUiSettings,
     installTransientScrollbars,
     updateLocalText: window.RpgView?.updateLocalText || (() => {}),

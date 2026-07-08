@@ -8,6 +8,7 @@ const path = require('path');
 const { EngineAdapter } = require('../EngineAdapter');
 const { createLocalizationEntry, createContextGroup } = require('../../localization/LocalizationEntry');
 const { classifyDatabaseField, classifyEventCommand } = require('../../localization/TextClassificationService');
+const { globalProjectStore } = require('../../project/ProjectStore');
 
 function buildDialogueText(value) {
   if (Array.isArray(value)) return value.map((v) => String(v ?? '')).join('\n').trim();
@@ -374,6 +375,8 @@ class RpgMakerAdapter extends EngineAdapter {
       });
     });
     const groups = this.buildContextGroups(entries);
+    // 把提取结果同步写入全局双轨存储器，并生成剧情时间线
+    globalProjectStore.setPhysicalEntries(rootDir, entries, this.engineName);
     return { ok: true, ...info, engine: 'RPG Maker MV/MZ', adapterEngine: this.engineName, entries, groups, warnings };
   }
 }

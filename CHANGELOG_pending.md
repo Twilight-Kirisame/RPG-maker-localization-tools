@@ -264,18 +264,22 @@ unchanged:  README.md                        (与远端 v1.1.1 完全一致)
   - 通过 `child_process.spawn` 启动 `Game.exe --test` 测试模式（自带穿墙/快进）
   - 游戏退出或启动失败后自动恢复备份；支持 5 分钟过期的锁文件，防止崩溃残留导致死锁
   - 支持任意层级的 `data/` 数据目录（如 `Game/data/System.json`），优先根据 `entry.file` 与 `project.dataRoots` 推导 `System.json` 位置，而不是只认 `data/` 或 `www/data/`
-- 新增 IPC：`preview-in-game`、`stop-preview`、`restore-preview-backups`、`cleanup-preview-on-startup`
+  - **预览模式游戏内提示**：启动预览时自动向游戏注入临时 RPG Maker 插件 `RpgWorkbenchPreviewNotifier`，在游戏画面显示“文本内容预览模式”半透明提示条；支持在设置中开关以及选择 6 种显示位置（上/下 × 左/中/右）；游戏退出或预览中断后自动移除插件并恢复 `plugins.js`
+  - **无缝重开预览**：游戏窗口保持不关闭的前提下，点击其他条目的「预览」按钮可更新补丁与出生点，并向游戏窗口发送 `F12`（退回标题并重载数据）+ `Enter`（开始新游戏），直接跳转到新点位
+- 新增 IPC：`preview-in-game`、`repreview-in-game`、`return-to-title`、`stop-preview`、`restore-preview-backups`、`cleanup-preview-on-startup`
 - 渲染端：
   - 单条模式列表行内显示「预览」按钮（Map / CommonEvents 文件，兼容任意层级的 `data/` 目录结构，如 `Game/data/Map*.json`）
   - 上下文组模式在操作栏增加「预览」按钮，以首句为入口带动整组依赖
-  - 工作区右上角增加「停止游戏预览」按钮，可强制恢复备份
-  - 项目加载时自动调用 `stop-preview` 清理上次崩溃可能残留的备份
+  - 工作区右上角增加「停止游戏预览」与「退回标题画面」按钮；前者恢复备份并关闭流程，后者不关闭游戏、直接发送 F12 退回标题
+  - 单条模式 / 上下文组模式的「预览」按钮支持无缝重开：当前已有预览游戏运行时，再次点击会更新补丁并通过 F12+Enter 跳转新点位，无需重新启动 Game.exe
+  - 项目加载时自动调用 `stop-preview` 清理上次崩溃可能残留的备份与插件
   - 界面设置 → UI 标签页新增「启用游戏内快速预览」开关，默认开启；关闭后隐藏所有预览入口
 - 新增约 13 个 i18n key 到 `bootstrap.js` 三语词典
 
 **涉及文件**
 - `src/main/services/preview/GamePreviewService.js`
 - `src/main/ipc/preview.ipc.js`
+- `src/main/ipc/ui.ipc.js`
 - `src/preload/preload.js`
 - `renderer/app/controller.js`
 - `renderer/app/entries.js`
@@ -284,7 +288,7 @@ unchanged:  README.md                        (与远端 v1.1.1 完全一致)
 - `renderer/app/bootstrap.js`
 - `renderer/index.html`
 - `renderer/styles.css`
-- `src/main/ipc/ui.ipc.js`
+- `scripts/smoke-preview.js`
 
 ### 11. UI 细节修复（滚动同步与自动断行示例）
 

@@ -1,11 +1,14 @@
 /**
  * 游戏内快速预览服务冒烟测试
- * 使用仓库自带的 test/fixtures/mv-mini 项目，验证依赖分析与补丁写回/恢复。
- * 同时覆盖 data/ 与 www/data/ 两种常见项目结构。
+ * 使用仓库自带的 assets/test-projects/mv-mini 项目，验证：
+ *   - 依赖分析与补丁写回/恢复
+ *   - data/ / www/data/ / Game/data/ 三种项目结构
+ *   - 预览提示插件（RpgWorkbenchPreviewNotifier）的注入与清理
+ *   - 无缝重开（repreviewInGame）与退回标题（returnToTitle）
  */
 const fs = require('fs');
 const path = require('path');
-const { previewInGame, stopPreview, cleanupOnStartup } = require('../src/main/services/preview/GamePreviewService');
+const { previewInGame, repreviewInGame, returnToTitle, stopPreview, cleanupOnStartup } = require('../src/main/services/preview/GamePreviewService');
 
 const FIXTURE = path.resolve(__dirname, '..', 'assets', 'test-projects', 'mv-mini');
 
@@ -14,7 +17,15 @@ async function runScenario(name, tmpDir, dataPrefix) {
   console.log('tmp project:', tmpDir);
   const mapRel = `${dataPrefix}Map001.json`;
   const systemRel = `${dataPrefix}System.json`;
+  const jsPrefix = dataPrefix.replace(/data\/$/, 'js/');
+  const pluginsJsPath = path.join(tmpDir, jsPrefix, 'plugins.js');
+  const pluginFilePath = path.join(tmpDir, jsPrefix, 'plugins', 'RpgWorkbenchPreviewNotifier.js');
   console.log('original text:', JSON.parse(fs.readFileSync(path.join(tmpDir, mapRel), 'utf8')).events[1].pages[0].list[1].parameters[0]);
+
+  // 构造一个最小 js/plugins.js 用于验证插件注入/恢复
+  fs.mkdirSync(path.dirname(pluginsJsPath), { recursive: true });
+  const originalPluginsJs = 'var $plugins = [{"name":"DummyPlugin","status":true,"description":"dummy","parameters":{}}];';
+  fs.writeFileSync(pluginsJsPath, originalPluginsJs, 'utf8');
 
   await cleanupOnStartup(tmpDir);
 
@@ -27,12 +38,19 @@ async function runScenario(name, tmpDir, dataPrefix) {
   const result = await previewInGame(tmpDir, entry, '改后：你好，世界！', {
     jumpToStart: true,
     entries,
+    showPreviewNotification: true,
+    previewNotificationPosition: 'top-center',
     gameExePath: process.execPath,
     gameArgs: ['-e', 'setInterval(()=>{}, 10000)'],
   });
 
   console.log('preview result:', result);
   if (!result.ok) throw new Error(`preview failed: ${result.message}`);
+
+  // 验证预览提示插件已注入
+  if (!fs.existsSync(pluginFilePath)) throw new Error('预览提示插件文件未创建');
+  const pluginsJsAfter = fs.readFileSync(pluginsJsPath, 'utf8');
+  if (!pluginsJsAfter.includes('RpgWorkbenchPreviewNotifier')) throw new Error('预览提示插件未注册到 plugins.js');
 
   const mapJson = JSON.parse(fs.readFileSync(path.join(tmpDir, mapRel), 'utf8'));
   const patchedText = mapJson.events[1].pages[0].list[1].parameters[0];
@@ -47,9 +65,31 @@ async function runScenario(name, tmpDir, dataPrefix) {
   if (depText !== '这是同事件的第二句。') throw new Error('依赖条目未写入');
   if (untouchedText === '这是同事件的第二句。') throw new Error('不应把依赖文本写到无关路径');
 
+  // 无缝重开测试：更新到另一个文本并发送 F12/Enter 指令
+  const repreviewResult = await repreviewInGame(tmpDir, entry, '改后：无缝重开测试', {
+    jumpToStart: true,
+    entries,
+    gamePid: result.pid,
+  });
+  console.log('repreview result:', repreviewResult);
+  if (!repreviewResult.ok) throw new Error(`repreview failed: ${repreviewResult.message}`);
+  await new Promise((r) => setTimeout(r, 400));
+  const mapJsonAfterRepreview = JSON.parse(fs.readFileSync(path.join(tmpDir, mapRel), 'utf8'));
+  if (mapJsonAfterRepreview.events[1].pages[0].list[1].parameters[0] !== '改后：无缝重开测试') {
+    throw new Error('无缝重开未更新文本');
+  }
+
+  // returnToTitle 不应抛错
+  returnToTitle(tmpDir, result.pid);
+
   const restored = await stopPreview(tmpDir);
   console.log('restored:', restored);
   if (!restored.restored) throw new Error('备份未恢复');
+
+  // 验证预览提示插件已清理
+  const pluginsJsRestored = fs.readFileSync(pluginsJsPath, 'utf8');
+  if (pluginsJsRestored !== originalPluginsJs) throw new Error('plugins.js 未恢复到原始内容');
+  if (fs.existsSync(pluginFilePath)) throw new Error('预览提示插件文件未清理');
 
   const mapJson2 = JSON.parse(fs.readFileSync(path.join(tmpDir, mapRel), 'utf8'));
   if (mapJson2.events[1].pages[0].list[1].parameters[0] === '改后：你好，世界！') {
