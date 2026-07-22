@@ -13,6 +13,7 @@ const { loadAiSettings } = require('../services/translation/TranslationService')
 const { loadDraft, applyDraftToEntries } = require('../services/export/ExportService');
 const { calculateGlobalProgress, calculateFileProgress, calculateCurrentFileProgress } = require('../services/localization/ProgressService');
 const { loadProjectProgressState, updateLastTranslatedPosition, rebuildProjectProgressState } = require('../services/localization/ProjectProgressStateService');
+const { loadProjectSettings, saveProjectSettings } = require('../services/storage/ProjectSettingsService');
 const { cleanupOnStartup } = require('../services/preview/GamePreviewService');
 
 /**
@@ -119,7 +120,11 @@ function registerProjectIpc() {
         return { ok: true, draft, project, glossary, aggregatedGlossary, aiSettings, entries: [], warnings, draftPath: filePath, progressState, fileProgress: [], globalProgress: null, currentFileProgress: null, groups: [], useLazyLoad: true };
       }
 
-      const entries = Array.isArray(draft?.entries) ? applyDraftToEntries(project.entries || [], draft.entries) : (project.entries || []);
+      let entries = Array.isArray(draft?.entries) ? applyDraftToEntries(project.entries || [], draft.entries) : (project.entries || []);
+      if (entries.length && !useLazyLoad) {
+        const { globalProjectStore } = require('../services/project/ProjectStore');
+        globalProjectStore.setPhysicalEntries(rootDir, entries, project.engine || 'unknown');
+      }
       const progressState = await rebuildProjectProgressState(project, entries, draft?.progressState || draft?.projectProgressState || null);
       const fileProgress = calculateFileProgress(entries);
       const globalProgress = calculateGlobalProgress(entries);
@@ -155,6 +160,8 @@ function registerProjectIpc() {
     }
     project.engine = project.engine || adapter.displayName;
     project.adapterId = adapter.id;
+    const projectSettings = await loadProjectSettings(project);
+    if (projectSettings?.draftDir) project.draftDir = projectSettings.draftDir;
     const glossary = await ensureProjectGlossary(project);
     const aggregated = await loadAggregatedGlossary(project, glossary?.category, glossary);
     const aiSettings = await loadAiSettings(project);
@@ -165,15 +172,23 @@ function registerProjectIpc() {
     if (!project.dataRoots?.length && adapter.id === 'rpgmaker-mvmz') warnings.push('未自动发现可扫描的数据目录');
 
     if (useLazyLoad) {
+      const draft = await loadDraft(rootDir);
+      const draftEntries = draft?.entries || [];
+      const globalProgress = draftEntries.length ? calculateGlobalProgress(draftEntries) : null;
+      const fileProgress = draftEntries.length ? calculateFileProgress(draftEntries) : [];
       const previousProgressState = await loadProjectProgressState(project);
-      const progressState = await rebuildProjectProgressState(project, [], previousProgressState);
+      const progressState = await rebuildProjectProgressState(project, draftEntries, previousProgressState);
       if (!lazyFiles.length) warnings.push('未扫描到可提取的文本文件');
-      return normalizeProjectPayload(project, { project, glossary, aggregatedGlossary: aggregated, aiSettings, entries: [], warnings, progressState, fileProgress: [], globalProgress: null, currentFileProgress: null, groups: [], rootDir });
+      return normalizeProjectPayload(project, { project, glossary, aggregatedGlossary: aggregated, aiSettings, entries: [], warnings, progressState, fileProgress, globalProgress, currentFileProgress: null, groups: [], rootDir });
     }
 
     let entries = detectGlossaryHits(project.entries || [], aggregated);
     const draft = await loadDraft(rootDir);
-    if (draft?.entries?.length) entries = applyDraftToEntries(entries, draft.entries);
+    if (draft?.entries?.length) {
+      entries = applyDraftToEntries(entries, draft.entries);
+      const { globalProjectStore } = require('../services/project/ProjectStore');
+      globalProjectStore.setPhysicalEntries(rootDir, entries, project.engine || adapter.displayName);
+    }
     const previousProgressState = await loadProjectProgressState(project);
     const progressState = await rebuildProjectProgressState(project, entries, previousProgressState);
     const fileProgress = calculateFileProgress(entries);
@@ -226,6 +241,27 @@ function registerProjectIpc() {
     const result = await shell.openPath(folderPath);
     if (result) return { ok: false, message: result };
     return { ok: true };
+  });
+
+  ipcMain.handle('get-project-settings', async (_event, project = {}) => {
+    if (!project?.rootDir) return { ok: false, message: '缺少项目根目录', settings: {} };
+    const settings = await loadProjectSettings(project);
+    return { ok: true, settings };
+  });
+
+  ipcMain.handle('save-project-settings', async (_event, payload = {}) => {
+    const project = payload.project || { rootDir: payload.rootDir || '' };
+    if (!project?.rootDir) return { ok: false, message: '缺少项目根目录' };
+    return saveProjectSettings(project, payload.settings || {});
+  });
+
+  ipcMain.handle('pick-draft-dir', async (_event, defaultPath = '') => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      defaultPath: defaultPath || undefined,
+    });
+    if (canceled || !filePaths[0]) return { ok: false, canceled: true };
+    return { ok: true, filePath: filePaths[0] };
   });
 }
 

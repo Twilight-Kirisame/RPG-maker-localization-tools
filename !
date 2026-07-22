@@ -1,0 +1,19 @@
+[48120:0713/181833.432:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: 拒绝访问。 (0x5)
+[48120:0713/181833.432:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: 拒绝访问。 (0x5)
+[48120:0713/181833.432:ERROR:net\disk_cache\cache_util_win.cc:25] Unable to move the cache: 拒绝访问。 (0x5)
+[48120:0713/181833.440:ERROR:net\disk_cache\disk_cache.cc:284] Unable to create cache
+[48120:0713/181833.440:ERROR:gpu\ipc\host\gpu_disk_cache.cc:737] Gpu Cache Creation failed: -2
+[48120:0713/181833.443:ERROR:net\disk_cache\disk_cache.cc:284] Unable to create cache
+[48120:0713/181833.444:ERROR:gpu\ipc\host\gpu_disk_cache.cc:737] Gpu Cache Creation failed: -2
+[48120:0713/181833.444:ERROR:net\disk_cache\disk_cache.cc:284] Unable to create cache
+[48120:0713/181833.444:ERROR:gpu\ipc\host\gpu_disk_cache.cc:737] Gpu Cache Creation failed: -2
+[48120:0713/181833.456:WARNING:content\browser\btm\btm_database.cc:128] Failed to initialize the DIPS SQLite database.
+[48120:0713/181833.692:INFO:CONSOLE:1001] "Uncaught SyntaxError: await is only valid in async functions and the top level bodies of modules", source: file:///F:/%E3%83%95%E3%83%AA%E3%83%BC%E3%82%B2%E3%83%BC%E3%83%A0/RPG%20localization/renderer/renderer.js (1001)
+[48120:0713/181833.693:INFO:CONSOLE:2] "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security
+  Policy set or a policy with "unsafe-eval" enabled. This exposes users of
+  this app to unnecessary security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.", source: node:electron/js2c/renderer_init (2)

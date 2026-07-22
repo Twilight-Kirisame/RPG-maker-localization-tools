@@ -55,6 +55,11 @@ function glossaryPathFor(project, glossaryName = 'default') {
  * @returns {string}
  */
 function draftDirFor(project) {
+  const customDir = project?.draftDir ? path.resolve(project.draftDir) : '';
+  if (customDir) {
+    ensureDir(customDir);
+    return customDir;
+  }
   const dir = project?.rootDir
     ? path.join(project.rootDir, 'localization_drafts')
     : path.join(app.getPath('userData'), 'projects', toSafeFileName(project?.rootDir || 'default'), 'drafts');

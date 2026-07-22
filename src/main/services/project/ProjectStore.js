@@ -14,15 +14,24 @@
 
 const fs = require('fs');
 const path = require('path');
+const { buildMapTimeline, sortNonMapEntries, buildChapterIndex, buildChapterGroupsSummary, createCustomGroup, rebuildChapterIndexWithOverrides } = require('./TimelineBuilder');
+const { loadProjectSettings, saveProjectSettings } = require('../storage/ProjectSettingsService');
 
 class ProjectStore {
   constructor() {
     this.physicalEntries = [];
     this.timelineEntries = [];
+    this.chapterIndex = null;
+    this.chapterGroups = [];
     this.viewMode = 'physical'; // 'physical' | 'timeline'
     this.projectRoot = '';
     this.engineName = '';
     this.timelineMeta = { sceneCount: 0, eventCount: 0 };
+    // 用户手动章节管理覆盖层
+    this.chapterOverrides = new Map();
+    this.customGroups = new Map();
+    this.chapterGroupNames = new Map();
+    this.chapterSubGroupNames = new Map();
   }
 
   /**
@@ -31,10 +40,16 @@ class ProjectStore {
   clear() {
     this.physicalEntries = [];
     this.timelineEntries = [];
+    this.chapterIndex = null;
+    this.chapterGroups = [];
     this.viewMode = 'physical';
     this.projectRoot = '';
     this.engineName = '';
     this.timelineMeta = { sceneCount: 0, eventCount: 0 };
+    this.chapterOverrides = new Map();
+    this.customGroups = new Map();
+    this.chapterGroupNames = new Map();
+    this.chapterSubGroupNames = new Map();
   }
 
   /**
@@ -48,9 +63,12 @@ class ProjectStore {
     this.engineName = engineName || '';
     this.physicalEntries = Array.isArray(entries) ? entries : [];
     this.timelineEntries = this.buildTimelineEntries();
+    this._loadChapterSettingsSync();
+    this._rebuildChapterGroups();
     return {
       physicalCount: this.physicalEntries.length,
       timelineCount: this.timelineEntries.length,
+      chapterGroups: this.chapterGroups,
       meta: this.timelineMeta,
     };
   }
@@ -98,18 +116,17 @@ class ProjectStore {
    * 构建剧情时间线。
    * 目前仅对 RPG Maker MV/MZ 的 Map*.json 按事件流拓扑重排；
    * 重排以文件为单位进行，保证文件分组与前端文件选择器兼容。
-   * 其它文件（System / Database / CommonEvents / 通用 JSON）的条目按原物理顺序追加。
+   * 其它文件（System / Database / CommonEvents / 通用 JSON）的条目按文本优先级排序后追加。
    */
   buildTimelineEntries() {
     if (this.engineName !== 'rpg-maker' && !/RPG Maker/i.test(this.engineName)) {
       return this.physicalEntries.slice();
     }
     const timeline = [];
-    const usedIds = new Set();
     const sceneSet = new Set();
     let eventCount = 0;
 
-    // 按文件顺序逐个处理：Map 文件内部按事件流重排，其它文件保持原顺序
+    // 按文件顺序逐个处理：Map 文件内部按剧情流启发式重排，其它文件按文本优先级排序
     const byFile = new Map();
     this.physicalEntries.forEach((entry) => {
       const file = entry.file;
@@ -120,8 +137,9 @@ class ProjectStore {
     for (const [file, entries] of byFile.entries()) {
       const fileName = path.basename(file || '');
       const isMap = /^Map\d+\.json$/i.test(fileName);
+
       if (!isMap) {
-        entries.forEach((entry) => {
+        sortNonMapEntries(entries).forEach((entry) => {
           this._clearTimelineContext(entry);
           timeline.push(entry);
         });
@@ -129,100 +147,33 @@ class ProjectStore {
       }
 
       const filePath = path.join(this.projectRoot, file);
-      if (!fs.existsSync(filePath)) {
-        entries.forEach((entry) => {
+      let mapJson = null;
+      if (fs.existsSync(filePath)) {
+        try {
+          mapJson = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        } catch {
+          mapJson = null;
+        }
+      }
+
+      if (!mapJson) {
+        sortNonMapEntries(entries).forEach((entry) => {
           this._clearTimelineContext(entry);
           timeline.push(entry);
         });
         continue;
       }
-      let mapJson;
-      try {
-        mapJson = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      } catch {
-        entries.forEach((entry) => {
-          this._clearTimelineContext(entry);
-          timeline.push(entry);
-        });
-        continue;
-      }
+
       const sceneName = mapJson.displayName || fileName;
       sceneSet.add(sceneName);
 
-      const indexByPath = new Map(entries.map((entry) => [entry.path || entry.key || entry.id, entry]));
-      const events = Array.isArray(mapJson.events) ? mapJson.events : [];
-      const fileUsedIds = new Set();
+      const { timeline: mapTimeline, unmatched, eventCount: fileEventCount } = buildMapTimeline(entries, mapJson, fileName);
+      eventCount += fileEventCount;
 
-      events.forEach((event, eventIndex) => {
-        if (!event || !Array.isArray(event.pages)) return;
-        eventCount += 1;
-        event.pages.forEach((page, pageIndex) => {
-          let currentSpeaker = '';
-          const list = Array.isArray(page?.list) ? page.list : [];
-          list.forEach((command, cmdIndex) => {
-            if (!command || typeof command !== 'object') return;
-            const code = Number(command.code);
-            const params = Array.isArray(command.parameters) ? command.parameters : [];
-
-            if (code === 101) {
-              currentSpeaker = String(params[4] || '').trim();
-            }
-
-            if (code === 401) {
-              const entry = this._findEntryByCommandPath(indexByPath, `events[${eventIndex}].pages[${pageIndex}].list[${cmdIndex}].parameters[0]`);
-              if (entry) {
-                this._attachTimelineContext(entry, {
-                  scene: sceneName,
-                  trigger: `事件 ${eventIndex}${event.name ? ` · ${event.name}` : ''} (页 ${pageIndex})`,
-                  speaker: currentSpeaker || entry.context?.speaker || '',
-                });
-                timeline.push(entry);
-                fileUsedIds.add(entry.id);
-                usedIds.add(entry.id);
-              }
-            }
-
-            if (code === 102) {
-              const choices = Array.isArray(params[0]) ? params[0] : [];
-              choices.forEach((_choice, choiceIndex) => {
-                const entry = this._findEntryByCommandPath(indexByPath, `events[${eventIndex}].pages[${pageIndex}].list[${cmdIndex}].parameters[0][${choiceIndex}]`);
-                if (entry) {
-                  this._attachTimelineContext(entry, {
-                    scene: sceneName,
-                    trigger: `事件 ${eventIndex}${event.name ? ` · ${event.name}` : ''} (页 ${pageIndex}) · 分支选择`,
-                    speaker: currentSpeaker || entry.context?.speaker || '',
-                  });
-                  timeline.push(entry);
-                  fileUsedIds.add(entry.id);
-                  usedIds.add(entry.id);
-                }
-              });
-            }
-
-            if (code === 402) {
-              const entry = this._findEntryByCommandPath(indexByPath, `events[${eventIndex}].pages[${pageIndex}].list[${cmdIndex}].parameters[1]`);
-              if (entry) {
-                this._attachTimelineContext(entry, {
-                  scene: sceneName,
-                  trigger: `事件 ${eventIndex}${event.name ? ` · ${event.name}` : ''} (页 ${pageIndex}) · 分支`,
-                  speaker: currentSpeaker || entry.context?.speaker || '',
-                });
-                timeline.push(entry);
-                fileUsedIds.add(entry.id);
-                usedIds.add(entry.id);
-              }
-            }
-          });
-        });
-      });
-
-      // 同文件中未被事件流覆盖的条目（如 speaker 名字本身）按原物理顺序追加
-      entries.forEach((entry) => {
-        if (!fileUsedIds.has(entry.id)) {
-          this._clearTimelineContext(entry);
-          timeline.push(entry);
-          usedIds.add(entry.id);
-        }
+      mapTimeline.forEach((entry) => timeline.push(entry));
+      unmatched.forEach((entry) => {
+        this._clearTimelineContext(entry);
+        timeline.push(entry);
       });
     }
 
@@ -263,6 +214,306 @@ class ProjectStore {
       delete entry.context.sceneHint;
       delete entry.context.eventName;
     }
+  }
+
+  // ========== 手动章节管理覆盖层 ==========
+
+  /**
+   * 从 project-settings.json 同步加载章节覆盖层。
+   */
+  _loadChapterSettingsSync() {
+    if (!this.projectRoot) return;
+    const { projectStoragePath } = require('../storage/StorageService');
+    const filePath = projectStoragePath({ rootDir: this.projectRoot }, 'project-settings.json');
+    let settings = {};
+    if (fs.existsSync(filePath)) {
+      try {
+        settings = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      } catch {
+        settings = {};
+      }
+    }
+    this.chapterOverrides = new Map(Object.entries(settings?.chapterOverrides || {}));
+    this.chapterGroupNames = new Map(Object.entries(settings?.chapterGroupNames || {}));
+    this.chapterSubGroupNames = new Map(Object.entries(settings?.chapterSubGroupNames || {}));
+    // customGroups 可能是数组或对象
+    const rawCustomGroups = settings?.customGroups || [];
+    this.customGroups = new Map();
+    if (Array.isArray(rawCustomGroups)) {
+      rawCustomGroups.forEach((g) => { if (g?.id) this.customGroups.set(g.id, g); });
+    } else {
+      Object.entries(rawCustomGroups).forEach(([id, g]) => { this.customGroups.set(id, { id, ...g }); });
+    }
+  }
+
+  /**
+   * 把章节覆盖层写回 project-settings.json。
+   */
+  async _saveChapterSettings() {
+    if (!this.projectRoot) return;
+    const project = { rootDir: this.projectRoot };
+    const subGroupNamesObj = {};
+    this.chapterSubGroupNames.forEach((value, key) => {
+      subGroupNamesObj[key] = value instanceof Map ? Object.fromEntries(value) : value;
+    });
+    const settings = {
+      chapterOverrides: Object.fromEntries(this.chapterOverrides),
+      chapterGroupNames: Object.fromEntries(this.chapterGroupNames),
+      chapterSubGroupNames: subGroupNamesObj,
+      customGroups: Array.from(this.customGroups.values()),
+    };
+    await saveProjectSettings(project, settings);
+  }
+
+  /**
+   * 使用当前覆盖层重建 chapterIndex 和 chapterGroups。
+   */
+  _rebuildChapterGroups() {
+    const subGroupNames = new Map();
+    this.chapterSubGroupNames.forEach((value, key) => {
+      subGroupNames.set(key, value instanceof Map ? value : new Map(Object.entries(value || {})));
+    });
+    this.chapterIndex = rebuildChapterIndexWithOverrides(
+      this.timelineEntries,
+      this.chapterOverrides,
+      this.customGroups,
+      this.chapterGroupNames,
+      subGroupNames
+    );
+    this.chapterGroups = buildChapterGroupsSummary(this.chapterIndex);
+  }
+
+  /**
+   * 获取指定章节/子分组内的所有条目。
+   * @param {string} groupId
+   * @param {string} subGroupId
+   * @returns {Object[]}
+   */
+  getEntriesByChapter(groupId, subGroupId = '') {
+    if (!this.chapterIndex?.groups) return [];
+    const group = this.chapterIndex.groups.get(groupId);
+    if (!group) return [];
+    if (subGroupId && group.subGroups) {
+      const sub = group.subGroups.get(subGroupId);
+      return sub ? sub.entries : [];
+    }
+    if (group.subGroups) {
+      const all = [];
+      group.subGroups.forEach((sub) => all.push(...sub.entries));
+      return all;
+    }
+    return group.entries || [];
+  }
+
+  /**
+   * 获取章节树摘要（供前端渲染）。
+   * @returns {Object[]}
+   */
+  getChapterGroups() {
+    return this.chapterGroups || [];
+  }
+
+  /**
+   * 人工修正：把条目移动到目标章节组。
+   * @param {string} entryId
+   * @param {string} targetGroupId
+   * @param {string} targetSubGroupId
+   * @returns {Promise<boolean>}
+   */
+  async moveEntryToChapter(entryId, targetGroupId, targetSubGroupId = '') {
+    const entry = this.findPhysicalEntryById(entryId);
+    if (!entry || !this.chapterIndex?.groups) return false;
+
+    const fromGroup = entry.chapterGroup;
+    const fromSubGroup = entry.chapterSubGroup;
+    if (fromGroup === targetGroupId && fromSubGroup === targetSubGroupId) return true;
+
+    // 记录覆盖并重建（保持与自动分类、其它覆盖的一致性）
+    this.chapterOverrides.set(entryId, { groupId: targetGroupId, subGroupId: targetSubGroupId || '' });
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return true;
+  }
+
+  /**
+   * 创建自定义章节组。
+   * @param {string} name
+   * @param {number} [order]
+   * @returns {Promise<Object|null>}
+   */
+  async createChapterGroup(name, order = 0) {
+    if (!this.chapterIndex?.groups || !String(name || '').trim()) return null;
+    const id = `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const group = {
+      id,
+      name: String(name).trim(),
+      order: Number(order) || 0,
+      subGroups: [],
+    };
+    this.customGroups.set(id, group);
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return group;
+  }
+
+  /**
+   * 重命名章节组。
+   * @param {string} groupId
+   * @param {string} newName
+   * @returns {Promise<boolean>}
+   */
+  async renameChapterGroup(groupId, newName) {
+    if (!this.chapterIndex?.groups || !String(newName || '').trim()) return false;
+    const group = this.chapterIndex.groups.get(groupId);
+    if (!group) return false;
+
+    const name = String(newName).trim();
+    if (group.type === 'custom') {
+      const custom = this.customGroups.get(groupId);
+      if (custom) custom.name = name;
+    } else {
+      this.chapterGroupNames.set(groupId, name);
+    }
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return true;
+  }
+
+  /**
+   * 删除章节组。
+   * 仅允许删除自定义组；删除后组内条目按自动规则重新归类。
+   * @param {string} groupId
+   * @returns {Promise<boolean>}
+   */
+  async deleteChapterGroup(groupId) {
+    if (!this.chapterIndex?.groups) return false;
+    const group = this.chapterIndex.groups.get(groupId);
+    if (!group || group.type !== 'custom') return false;
+
+    // 移除所有指向该组的覆盖
+    this.chapterOverrides.forEach((override, entryId) => {
+      if (override.groupId === groupId) this.chapterOverrides.delete(entryId);
+    });
+    this.customGroups.delete(groupId);
+    this.chapterGroupNames.delete(groupId);
+    this.chapterSubGroupNames.delete(groupId);
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return true;
+  }
+
+  /**
+   * 在指定章节组下创建子组。
+   * @param {string} groupId
+   * @param {string} subGroupName
+   * @returns {Promise<Object|null>}
+   */
+  async createChapterSubGroup(groupId, subGroupName) {
+    if (!this.chapterIndex?.groups || !String(subGroupName || '').trim()) return null;
+    const group = this.chapterIndex.groups.get(groupId);
+    if (!group) return null;
+
+    const name = String(subGroupName).trim();
+    const id = `sub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+    if (group.type === 'custom') {
+      const custom = this.customGroups.get(groupId);
+      if (custom) {
+        if (!Array.isArray(custom.subGroups)) custom.subGroups = [];
+        custom.subGroups.push({ id, name });
+      }
+    } else {
+      let groupMap = this.chapterSubGroupNames.get(groupId);
+      if (!(groupMap instanceof Map)) {
+        groupMap = groupMap ? new Map(Object.entries(groupMap)) : new Map();
+      }
+      groupMap.set(id, name);
+      this.chapterSubGroupNames.set(groupId, groupMap);
+    }
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return { id, name };
+  }
+
+  /**
+   * 重命名子组。
+   * @param {string} groupId
+   * @param {string} subGroupId
+   * @param {string} newName
+   * @returns {Promise<boolean>}
+   */
+  async renameChapterSubGroup(groupId, subGroupId, newName) {
+    if (!this.chapterIndex?.groups || !String(newName || '').trim() || !subGroupId) return false;
+    const group = this.chapterIndex.groups.get(groupId);
+    if (!group || !group.subGroups?.has(subGroupId)) return false;
+
+    const name = String(newName).trim();
+    if (group.type === 'custom') {
+      const custom = this.customGroups.get(groupId);
+      if (custom && Array.isArray(custom.subGroups)) {
+        const sub = custom.subGroups.find((s) => s.id === subGroupId);
+        if (sub) sub.name = name;
+      }
+    } else {
+      let groupMap = this.chapterSubGroupNames.get(groupId);
+      if (!(groupMap instanceof Map)) {
+        groupMap = groupMap ? new Map(Object.entries(groupMap)) : new Map();
+      }
+      groupMap.set(subGroupId, name);
+      this.chapterSubGroupNames.set(groupId, groupMap);
+    }
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return true;
+  }
+
+  /**
+   * 删除子组。
+   * 子组内条目会回到父组默认分类（移除指向该子组的覆盖）。
+   * @param {string} groupId
+   * @param {string} subGroupId
+   * @returns {Promise<boolean>}
+   */
+  async deleteChapterSubGroup(groupId, subGroupId) {
+    if (!this.chapterIndex?.groups || !subGroupId) return false;
+    const group = this.chapterIndex.groups.get(groupId);
+    if (!group || !group.subGroups?.has(subGroupId)) return false;
+
+    // 移除指向该子组的覆盖
+    this.chapterOverrides.forEach((override, entryId) => {
+      if (override.groupId === groupId && override.subGroupId === subGroupId) {
+        this.chapterOverrides.delete(entryId);
+      }
+    });
+
+    if (group.type === 'custom') {
+      const custom = this.customGroups.get(groupId);
+      if (custom && Array.isArray(custom.subGroups)) {
+        custom.subGroups = custom.subGroups.filter((s) => s.id !== subGroupId);
+      }
+    } else {
+      const groupMap = this.chapterSubGroupNames.get(groupId);
+      if (groupMap instanceof Map) groupMap.delete(subGroupId);
+      else if (groupMap) delete groupMap[subGroupId];
+    }
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return true;
+  }
+
+  /**
+   * 一键恢复默认：清空所有手动覆盖、自定义组、重命名。
+   * @returns {Promise<boolean>}
+   */
+  async resetChapterOverrides() {
+    if (!this.chapterIndex?.groups) return false;
+    this.chapterOverrides = new Map();
+    this.customGroups = new Map();
+    this.chapterGroupNames = new Map();
+    this.chapterSubGroupNames = new Map();
+    this._rebuildChapterGroups();
+    await this._saveChapterSettings();
+    return true;
   }
 }
 

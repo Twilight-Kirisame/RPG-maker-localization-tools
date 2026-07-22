@@ -12,6 +12,7 @@ const { readUiSettings } = require('./ipc/ui.ipc');
  * 启动应用。
  */
 function bootstrap() {
+  app.setAppUserModelId(app.name || 'com.rpg.localization.workbench');
   app.whenReady().then(async () => {
     registerAllIpc();
     const uiSettings = readUiSettings();

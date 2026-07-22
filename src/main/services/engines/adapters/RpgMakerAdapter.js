@@ -143,6 +143,7 @@ class RpgMakerAdapter extends EngineAdapter {
         index: meta.index ?? null,
         field: meta.field || '',
         rawPath: meta.path || key,
+        ...(meta.adapterMeta || {}),
       },
     });
   }
@@ -177,7 +178,7 @@ class RpgMakerAdapter extends EngineAdapter {
     return entries;
   }
 
-  extractEventCommandTexts(projectRoot, list, file, basePath, context = {}) {
+  extractEventCommandTexts(projectRoot, list, file, basePath, context = {}, pageMeta = {}) {
     const entries = [];
     if (!Array.isArray(list)) return entries;
     let currentSpeaker = '';
@@ -186,26 +187,27 @@ class RpgMakerAdapter extends EngineAdapter {
       const code = Number(command.code);
       const params = Array.isArray(command.parameters) ? command.parameters : [];
       const commandPath = `${basePath}.list[${index}]`;
+      const baseMeta = { code, index, path: `${commandPath}.parameters[0]`, context: { ...context, speaker: currentSpeaker }, adapterMeta: pageMeta };
       if (code === 101) currentSpeaker = buildDialogueText(params[4]);
       if (code === 401) {
         const text = buildDialogueText(params[0]);
-        if (isSafeRpgText(text)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[0]`, text, { kind: 'dialogue-line', code, index, path: `${commandPath}.parameters[0]`, context: { ...context, speaker: currentSpeaker } }));
+        if (isSafeRpgText(text)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[0]`, text, baseMeta));
       }
       if (code === 405) {
         const text = buildDialogueText(params[0]);
-        if (isSafeRpgText(text)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[0]`, text, { kind: 'long-description', code, index, path: `${commandPath}.parameters[0]`, context }));
+        if (isSafeRpgText(text)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[0]`, text, { ...baseMeta, kind: 'long-description' }));
       }
       if (code === 102) {
         const choices = Array.isArray(params[0]) ? params[0].filter((choice) => isSafeRpgText(choice)) : [];
-        choices.forEach((choice, choiceIndex) => entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[0][${choiceIndex}]`, choice, { kind: 'choice', code, index: choiceIndex, path: `${commandPath}.parameters[0][${choiceIndex}]`, context, classification: { textClass: 'atomic', textType: 'choice-option', semanticRole: 'choice' } })));
+        choices.forEach((choice, choiceIndex) => entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[0][${choiceIndex}]`, choice, { kind: 'choice', code, index: choiceIndex, path: `${commandPath}.parameters[0][${choiceIndex}]`, context, adapterMeta: pageMeta, classification: { textClass: 'atomic', textType: 'choice-option', semanticRole: 'choice' } })));
       }
       if (code === 402) {
         const branchName = buildDialogueText(params[1]);
-        if (isSafeRpgText(branchName)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[1]`, branchName, { kind: 'choice-branch', code, index, path: `${commandPath}.parameters[1]`, context, classification: { textClass: 'atomic', textType: 'choice-option', semanticRole: 'choice-branch' } }));
+        if (isSafeRpgText(branchName)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[1]`, branchName, { kind: 'choice-branch', code, index, path: `${commandPath}.parameters[1]`, context, adapterMeta: pageMeta, classification: { textClass: 'atomic', textType: 'choice-option', semanticRole: 'choice-branch' } }));
       }
       if (code === 101) {
         const speaker = buildDialogueText(params[4]);
-        if (isSafeRpgText(speaker)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[4]`, speaker, { kind: 'speaker', code, index, path: `${commandPath}.parameters[4]`, context, classification: { textClass: 'atomic', textType: 'actor-name', semanticRole: 'speaker' } }));
+        if (isSafeRpgText(speaker)) entries.push(this.createEntry(projectRoot, file, `${commandPath}.parameters[4]`, speaker, { kind: 'speaker', code, index, path: `${commandPath}.parameters[4]`, context, adapterMeta: pageMeta, classification: { textClass: 'atomic', textType: 'actor-name', semanticRole: 'speaker' } }));
       }
     });
     return entries;
@@ -215,12 +217,20 @@ class RpgMakerAdapter extends EngineAdapter {
     const entries = [];
     if (!mapJson || typeof mapJson !== 'object') return entries;
     const events = Array.isArray(mapJson.events) ? mapJson.events : [];
+    const mapDisplayName = mapJson.displayName || '';
     events.forEach((event, eventIndex) => {
       if (!event || typeof event !== 'object') return;
       const pages = Array.isArray(event.pages) ? event.pages : [];
       pages.forEach((page, pageIndex) => {
         const basePath = `events[${eventIndex}].pages[${pageIndex}]`;
-        entries.push(...this.extractEventCommandTexts(projectRoot, page?.list || [], file, basePath, { eventName: event.name || '', mapName: mapJson.displayName || '', mapId: mapJson.mapId ?? null }));
+        const pageMeta = {
+          eventId: eventIndex,
+          pageIndex,
+          triggerType: page?.triggerType ?? 0,
+          conditions: page?.conditions || {},
+          mapDisplayName,
+        };
+        entries.push(...this.extractEventCommandTexts(projectRoot, page?.list || [], file, basePath, { eventName: event.name || '', mapName: mapDisplayName, mapId: mapJson.mapId ?? null }, pageMeta));
       });
     });
     return entries;

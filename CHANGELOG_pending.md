@@ -314,6 +314,49 @@ unchanged:  README.md                        (与远端 v1.1.1 完全一致)
 - `renderer/index.html`
 - `renderer/styles.css`
 
+### 12. 虚拟剧情章节流（Virtual Timeline Decoupling Layer）
+
+**问题**
+- 编辑器左侧一直以物理 JSON 文件（`Map001.json` / `Items.json` …）为单位展示文本。
+- RPG Maker 的 `Map*.json` 按空间维度（事件坐标、事件 ID）存储，玩家体验却是时间维度（剧情线）。
+- 同一张地图可能被序章、中篇、终章复用，导致同一文件里混杂不同时期的台词；系统/道具/说明文字与剧情流混在一起。
+
+**改进**
+- 在 `RpgMakerAdapter` 提取 Map 文本时，为每个 entry 的 `adapterMeta` 完整记录 `eventId`、`pageIndex`、`triggerType`、`conditions`、`mapDisplayName`。
+- 新增/扩展 `src/main/services/project/TimelineBuilder.js`：
+  - 按触发类型 + 页面条件 + 坐标 + 页码对 Map 内事件排序；
+  - 按条件把条目分到三类：
+    - `系统与道具`：System / Items / Weapons / Armors / Skills / Actors / Classes / States / Enemies / CommonEvents / 通用 JSON；
+    - `静态环境调查`：Map 中无条件的事件页，按地图 displayName 细分；
+    - `剧情流章节`：Map 中带有条件的事件页，按 `switch1Id > variableValue > switch2Id > selfSwitch > item > actor` 的权重升序排列成章节。
+- `ProjectStore` 维护 `chapterIndex` / `chapterGroups`，提供 `getChapterGroups`、`getEntriesByChapter`、`moveEntryToChapter`。
+- 新增 IPC：`get-chapter-tree`、`get-chapter-entries`、`move-entry-chapter`。
+- 渲染端：
+  - 剧情流线模式下，左侧文件下拉框替换为可折叠的`章节树`；
+  - 点击章节节点，中间列表展示该章节跨越多个 JSON 的文本；
+  - 右键条目可`移动到其他章节组`，修改的是同一 entry 对象的分类元数据，不影响写回路径；
+  - 物理模式保持原样。
+- 章节标签接入 i18n（中/英/日）：`chapter.system`、`chapter.static`、`chapter.switch`、`chapter.variable` 等，切换界面语言即时生效。
+- 修复浅色模式可读性：
+  - 主题图片遮罩在浅色模式下改为浅色调；
+  - 设置标签页、次要按钮、进度徽标、右键菜单、章节树等使用深色文字与合适的半透明背景；
+  - 统一使用 CSS 变量，避免浅色模式下出现浅色文字配浅色背景。
+- 写回/导出仍基于 `physicalEntries` 的原始 `file` + `path`，不破坏游戏 JSON 结构。
+
+**涉及文件**
+- `src/main/services/engines/adapters/RpgMakerAdapter.js`
+- `src/main/services/project/TimelineBuilder.js`
+- `src/main/services/project/ProjectStore.js`
+- `src/main/ipc/timeline.ipc.js`
+- `src/preload/preload.js`
+- `renderer/app/store.js`
+- `renderer/index.html`
+- `renderer/styles.css`
+- `renderer/app/entries.js`
+- `renderer/renderer.js`
+- `assets/test-projects/mv-mini/data/Map002.json`
+- `scripts/smoke-timeline.js`
+
 ### C. 已知次要遗留
 
 | 问题 | 影响范围 | 风险 |

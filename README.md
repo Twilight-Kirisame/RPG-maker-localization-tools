@@ -177,7 +177,7 @@
 | 前端界面 | 原生 HTML / CSS / JavaScript |
 | 主进程服务 | Node.js 文件系统与 Electron IPC |
 | 打包工具 | electron-builder |
-| 目标平台 | Windows portable exe |
+| 目标平台 | Windows NSIS 安装程序（Setup .exe）+ 便携版 .exe |
 
 本项目目前没有使用 React、Vue、Vite、Webpack 等前端框架或构建链。渲染层以原生浏览器 API 编写，主进程以 CommonJS 模块组织。
 
@@ -222,18 +222,32 @@ npm run dev
 双击运行项目根目录的 `打包发布版.bat`，菜单选择：
 
 ```
-1. Build stable release  (dist/)
-2. Build test release    (dist-test/)
+1. Build Windows stable installer   (dist/,      Setup .exe)
+2. Build Windows test installer     (dist-test/, Setup .exe)
+3. Build Windows stable portable    (dist/,      .exe)
+4. Build Windows test portable      (dist-test/, .exe)
+5. Build macOS   stable release     (dist/,      .zip x64+arm64)
+6. Build macOS   test release       (dist-test/, .zip x64+arm64)
 ```
 
-脚本会自动安装依赖（如缺失）、清理旧构建残留、调用对应 npm 脚本、产出可分发的 portable exe。
+默认选项（`1`）生成标准 Windows Setup 安装程序，支持：
+
+- 选择安装路径
+- 显示文件解压进度条
+- 为当前用户或所有用户安装
+- 自动创建开始菜单与桌面快捷方式
+- 自带卸载程序，可在「设置 → 应用」中卸载
+
+选项 `3` / `4` 继续产出绿色便携版 `.exe`，适合临时使用或 U 盘携带。脚本会自动安装依赖（如缺失）、清理旧构建残留、调用对应 npm 脚本。
 
 ### 命令行打包
 
 | 命令 | 输出位置 | 用途 |
 | --- | --- | --- |
-| `npm run dist`      | `dist/`      | **稳定版**：`RPG汉化工作台` |
-| `npm run dist:test` | `dist-test/` | **测试版**：`RPG汉化工作台-测试版`（与稳定版安装目录、注册键、用户数据完全独立，方便同机并存对比） |
+| `npm run dist`      | `dist/`      | **稳定版 Setup 安装程序**：`RPG汉化工作台 Setup 1.0.0.exe` |
+| `npm run dist:test` | `dist-test/` | **测试版 Setup 安装程序**：`RPG汉化工作台-测试版 Setup 1.0.0.exe`（与稳定版安装目录、注册键、用户数据完全独立，方便同机并存对比） |
+| `npm run dist:portable`      | `dist/`      | **稳定版便携版**：`RPG汉化工作台 1.0.0.exe` |
+| `npm run dist:test:portable` | `dist-test/` | **测试版便携版**：`RPG汉化工作台-测试版 1.0.0.exe` |
 | `npm run pack`      | `dist/`      | 稳定版未打包目录（调试用） |
 | `npm run pack:test` | `dist-test/` | 测试版未打包目录（调试用） |
 
@@ -243,25 +257,42 @@ npm run dev
 
 ```json
 {
-  “build”: {
-    “asar”: true,
-    “files”: [
-      “main.js”,
-      “preload.js”,
-      “src/**/*”,
-      “renderer/**/*”,
-      “assets/**/*”,
-      “package.json”
+  "build": {
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
     ],
-    “directories”: {
-      “output”: “dist”
+    "directories": {
+      "output": "dist"
     },
-    “win”: {
-      “signAndEditExecutable”: false,
-      “target”: [“portable”]
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
     },
-    “extraMetadata”: {
-      “name”: “rpg-localization-workbench”
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RPG汉化工作台",
+      "uninstallDisplayName": "RPG汉化工作台 ${version}",
+      "installerIcon": "assets/app-icon.ico",
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "unicode": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "extraMetadata": {
+      "name": "rpg-localization-workbench"
     }
   }
 }
@@ -280,7 +311,7 @@ RPG localization/
 ├── package.json                    # 项目元信息、脚本、electron-builder 配置
 ├── package-lock.json               # npm 依赖锁定文件
 ├── README.md                       # 项目说明文档
-├── 打包发布版.bat                  # 交互式打包脚本（菜单选择 stable / test）
+├── 打包发布版.bat                  # 交互式打包脚本（菜单选择 installer / portable / macOS）
 ├── scripts/
 │   └── smoke-writeback.js          # 端到端冒烟（不依赖 Electron）：提取→注入→断行→写回→断言
 ├── assets/
@@ -479,8 +510,10 @@ Thumbs.db
 | `npm run dev` | 开发模式启动，当前等同于 `npm start` |
 | `npm run pack` | 打包为 Windows unpacked 目录（稳定版） |
 | `npm run pack:test` | 打包为 Windows unpacked 目录（测试版，输出到 `dist-test/`） |
-| `npm run dist` | 打包为 Windows portable exe（稳定版） |
-| `npm run dist:test` | 打包为 Windows portable exe（测试版） |
+| `npm run dist` | 打包为 Windows NSIS Setup 安装程序（稳定版） |
+| `npm run dist:test` | 打包为 Windows NSIS Setup 安装程序（测试版） |
+| `npm run dist:portable` | 打包为 Windows portable exe（稳定版） |
+| `npm run dist:test:portable` | 打包为 Windows portable exe（测试版） |
 | `npm run lint` | 当前为占位命令 |
 | `node scripts/smoke-writeback.js` | 端到端冒烟：提取 → 术语注入 → 自动断行 → 写回 fixture → 12 项断言；不依赖 Electron 运行时，可入 CI |
 | `node scripts/smoke-mainproc-require.js` | stub Electron 后 require 全部主进程模块，确保启动期没有缺失 import / 循环依赖 |
@@ -492,7 +525,7 @@ Thumbs.db
 ## 当前限制
 
 - 当前主要面向 Windows 桌面环境。
-- 当前打包目标为 Windows portable exe。
+- Windows 端同时提供 NSIS Setup 安装程序与绿色便携版 .exe。
 - **引擎支持**：当前仅 RPG Maker MV / MZ 适配器是完整可用的。Unity 适配器是占位（仅识别、不提取）。**RPG Maker XP / VX Ace（`.rgss2a` / `.rgss3a` 封包）、Wolf RPG Editor、Vahren / ヴァーレントゥーガ、KiriKiri、自制引擎**等暂未支持，打开后会显示「未识别」或回退到 RPG Maker 适配器后扫不到 `data/*.json`。
 - **大型 MV/MZ 项目已支持按文件懒加载**：满足 `单文件 ≥512KB` / `项目总大小 ≥50MB` / `总条目 ≥5 万` 中任一阈值时，首次只加载文件索引，切换文件时按需拉取，显著降低主进程与渲染端内存峰值。懒加载模式下跨全部文件搜索、完整导出/写回尚未完全开放，会给出明确提示。
 - 文本提取规则仍以 RPG Maker MV / MZ 常见 JSON 结构为主。
@@ -531,7 +564,7 @@ Thumbs.db
 - 增加完整自动化测试。
 - 增加 GitHub Actions 自动构建 Windows release。
 - 增加版本号自动更新与 changelog 自动生成。
-- 增加安装包目标，例如 NSIS installer。
+- ~~增加安装包目标，例如 NSIS installer。~~ ✅ 已完成：Windows 端默认输出 NSIS Setup 安装程序，支持选择安装路径与进度条，同时保留便携版。
 - 探索 macOS / Linux 支持。
 
 ### 用户体验

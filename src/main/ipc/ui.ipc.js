@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { ipcMain } = require('electron');
+const { ipcMain, shell } = require('electron');
 const { appStoragePath } = require('../services/storage/StorageService');
 
 const UI_SETTINGS_FILE = appStoragePath('ui-settings.json');
@@ -28,10 +28,18 @@ function defaultUiSettings() {
     showPreviewNotification: true,
     previewNotificationPosition: 'top-center',
     timelineModeEnabled: false,
+    autoSaveEnabled: false,
+    autoSaveIntervalMinutes: 5,
+    autoSaveDir: '',
+    maskIntensity: 55,
+    backgroundBlur: 0,
   };
 }
 
 function normalizeUiSettings(parsed) {
+  const interval = Number(parsed.autoSaveIntervalMinutes);
+  const maskIntensity = Number(parsed.maskIntensity);
+  const backgroundBlur = Number(parsed.backgroundBlur);
   return {
     closeBehavior: parsed.closeBehavior || 'minimize-to-tray',
     enableGamePreview: parsed.enableGamePreview !== false,
@@ -39,10 +47,18 @@ function normalizeUiSettings(parsed) {
     showPreviewNotification: parsed.showPreviewNotification !== false,
     previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(parsed.previewNotificationPosition) ? parsed.previewNotificationPosition : 'top-center',
     timelineModeEnabled: parsed.timelineModeEnabled === true,
+    autoSaveEnabled: parsed.autoSaveEnabled === true,
+    autoSaveIntervalMinutes: Number.isFinite(interval) && interval >= 1 && interval <= 120 ? interval : 5,
+    autoSaveDir: String(parsed.autoSaveDir || '').trim(),
+    maskIntensity: Number.isFinite(maskIntensity) && maskIntensity >= 0 && maskIntensity <= 100 ? maskIntensity : 55,
+    backgroundBlur: Number.isFinite(backgroundBlur) && backgroundBlur >= 0 && backgroundBlur <= 20 ? backgroundBlur : 0,
   };
 }
 
 function writeUiSettings(settings) {
+  const interval = Number(settings?.autoSaveIntervalMinutes);
+  const maskIntensity = Number(settings?.maskIntensity);
+  const backgroundBlur = Number(settings?.backgroundBlur);
   const payload = {
     closeBehavior: ['minimize-to-tray', 'exit-immediately'].includes(settings?.closeBehavior) ? settings.closeBehavior : 'minimize-to-tray',
     enableGamePreview: settings?.enableGamePreview !== false,
@@ -50,6 +66,11 @@ function writeUiSettings(settings) {
     showPreviewNotification: settings?.showPreviewNotification !== false,
     previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(settings?.previewNotificationPosition) ? settings.previewNotificationPosition : 'top-center',
     timelineModeEnabled: settings?.timelineModeEnabled === true,
+    autoSaveEnabled: settings?.autoSaveEnabled === true,
+    autoSaveIntervalMinutes: Number.isFinite(interval) && interval >= 1 && interval <= 120 ? interval : 5,
+    autoSaveDir: String(settings?.autoSaveDir || '').trim(),
+    maskIntensity: Number.isFinite(maskIntensity) && maskIntensity >= 0 && maskIntensity <= 100 ? maskIntensity : 55,
+    backgroundBlur: Number.isFinite(backgroundBlur) && backgroundBlur >= 0 && backgroundBlur <= 20 ? backgroundBlur : 0,
     updatedAt: new Date().toISOString(),
   };
   fs.mkdirSync(path.dirname(UI_SETTINGS_FILE), { recursive: true });
@@ -60,6 +81,14 @@ function writeUiSettings(settings) {
 function registerUiIpc() {
   ipcMain.handle('get-ui-settings', async () => ({ ok: true, settings: readUiSettings() }));
   ipcMain.handle('save-ui-settings', async (_event, payload) => ({ ok: true, settings: writeUiSettings(payload) }));
+  ipcMain.handle('open-external-link', async (_event, url) => {
+    try {
+      await shell.openExternal(String(url));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
 }
 
 module.exports = { registerUiIpc, readUiSettings, writeUiSettings };

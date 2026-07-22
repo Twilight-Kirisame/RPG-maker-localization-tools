@@ -18,6 +18,8 @@
     const projectPath = get('projectPath');
     const engineBadge = get('engineBadge');
     const engineHint = get('engineHint');
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.classList.toggle('project-empty', !project.rootDir);
     if (projectPath) projectPath.textContent = project.rootDir || t('workspace.noProject');
     if (engineBadge) {
       engineBadge.textContent = recognized ? (displayName === 'unknown' ? t('project.recognized') : displayName) : t('project.unrecognized');
@@ -55,6 +57,13 @@
     refreshProjectStatusUi({ project, recognized, displayName, hasDataRoots, warnings: current.loading ? [t('project.statusLoading')] : [], status });
   }
 
+  const getProjectNameFromRoot = (rootDir) => {
+    if (!rootDir) return '';
+    const normalized = String(rootDir).replace(/\\/g, '/');
+    const base = normalized.split('/').filter(Boolean).pop() || '';
+    return base;
+  };
+
   /**
    * 合并主进程返回的 project info 与当前 store 中的 project，再回写并刷新 UI。
    * 适用于 pickProjectFolder / loadProjectTexts / loadDraftFile 三类入口的返回值。
@@ -73,7 +82,12 @@
       adapterId: incomingProject.adapterId || currentProject.adapterId || '',
       displayName: incomingProject.displayName || currentProject.displayName || incomingProject.engine || currentProject.engine || 'unknown',
     };
-    const glossary = info?.glossary || current.glossary;
+    let glossary = info?.glossary || current.glossary;
+    // 兜底：只要识别到项目目录，术语库的 projectName 必须能显示为项目目录名，避免 UI 上"闪一下后重置为空"。
+    const expectedProjectName = getProjectNameFromRoot(project.rootDir);
+    if (expectedProjectName && (!glossary?.projectName || String(glossary.projectName).trim() === '')) {
+      glossary = { ...(glossary || {}), projectName: expectedProjectName };
+    }
     // 项目加载 / 草稿加载时主进程会把"按分类聚合的术语合集"一并返回。命中检测与 AI 注入都走聚合版，
     // 这样多个子库（如「角色名」「物品名」）只要分类相同就能同时参与命中。
     const aggregatedGlossary = info?.aggregatedGlossary || current.aggregatedGlossary || null;
@@ -218,6 +232,15 @@
     if (window.applyTimelineModeFromSetting) {
       window.applyTimelineModeFromSetting().catch?.(() => {});
     }
+    // 加载项目级设置（如自定义草稿目录）并回填到设置页
+    if (synced.recognized && synced.project?.rootDir) {
+      window.rpgWorkbench?.getProjectSettings?.(synced.project).then((res) => {
+        if (res?.ok && res.settings?.draftDir) {
+          const input = document.getElementById('draftDirInput');
+          if (input) input.value = res.settings.draftDir;
+        }
+      }).catch?.(() => {});
+    }
   }
 
   async function loadProject(rootDir) {
@@ -254,13 +277,14 @@
       window.RpgAppStore?.setState?.({ previewPid: null, previewRunning: false });
       stopPreviewBtn?.classList.add('hidden');
       returnToTitleBtn?.classList.add('hidden');
+      window.RpgEntries?.teardownPreviewResizeObserver?.();
       window.RpgView?.updateWorkspaceLayout?.();
     }
 
     returnToTitleBtn?.addEventListener('click', async () => {
       const rootDir = state().project?.rootDir;
       const gamePid = state().previewPid;
-      if (!rootDir || !gamePid) return;
+      if (!rootDir) return;
       window.showAiStatus?.(t('workspace.returningToTitle') || '正在退回标题画面…', 'pending');
       try {
         const api = window.RpgAppController?.returnToTitle || window.rpgWorkbench?.returnToTitle;
@@ -311,6 +335,36 @@
       } catch (error) {
         window.showAiStatus?.(error.message || t('workspace.previewStopFailed') || '停止预览失败', 'error');
       }
+    });
+
+    const previewPrevBtn = get('previewPrevBtn');
+    const previewNextBtn = get('previewNextBtn');
+    const previewTitleBtn = get('previewTitleBtn');
+
+    async function sendPreviewCommand(apiName, pendingMsg, errorMsg) {
+      const rootDir = state().project?.rootDir;
+      if (!rootDir) return;
+      window.showAiStatus?.(pendingMsg, 'pending');
+      try {
+        const api = window.RpgAppController?.[apiName] || window.rpgWorkbench?.[apiName];
+        const result = api ? await api({ rootDir }) : null;
+        if (result?.ok) {
+          window.showAiStatus?.(result.message || pendingMsg.replace(/…/g, ''), 'success');
+        } else {
+          window.showAiStatus?.(result?.message || errorMsg, 'error');
+        }
+      } catch (error) {
+        window.showAiStatus?.(error.message || errorMsg, 'error');
+      }
+    }
+
+    previewPrevBtn?.addEventListener('click', () => sendPreviewCommand('prevPreviewEntry', '正在发送上一句指令…', '上一句指令发送失败'));
+    previewNextBtn?.addEventListener('click', () => sendPreviewCommand('nextPreviewEntry', '正在发送下一句指令…', '下一句指令发送失败'));
+    previewTitleBtn?.addEventListener('click', () => {
+      const rootDir = state().project?.rootDir;
+      if (!rootDir) return;
+      const api = window.RpgAppController?.returnToTitle || window.rpgWorkbench?.returnToTitle;
+      api?.({ rootDir }).catch(() => {});
     });
 
     pickFolderBtn?.addEventListener('click', async () => {

@@ -15,6 +15,36 @@ const constraints = {
   Unity: {
     default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
   },
+  TyranoBuilder: {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'Kirikiri / KAG': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  "Ren'Py": {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'RPG Maker 2000/2003/XP/VX/VX Ace': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'MKXP / MKXP-Z': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'Wolf RPG': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'SRPG Studio': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'SMILE GAME BUILDER': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  Bakin: {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
+  'Pixel Game Maker MV': {
+    default: { maxCharsPerLine: 0, maxLines: 0, preserveControlCodes: false },
+  },
 };
 
 const KIND_TO_CONSTRAINT_KEY = {

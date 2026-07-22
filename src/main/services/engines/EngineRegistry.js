@@ -5,6 +5,16 @@
 
 const { RpgMakerAdapter } = require('./adapters/RpgMakerAdapter');
 const { UnityAdapterStub } = require('./adapters/UnityAdapter.stub');
+const { TyranoBuilderAdapter } = require('./adapters/TyranoBuilderAdapter');
+const { KirikiriAdapter } = require('./adapters/KirikiriAdapter');
+const { RenPyAdapter } = require('./adapters/RenPyAdapter');
+const { RpgMakerOldAdapter } = require('./adapters/RpgMakerOldAdapter');
+const { MkxpAdapter } = require('./adapters/MkxpAdapter');
+const { WolfRpgAdapter } = require('./adapters/WolfRpgAdapter');
+const { SrpgStudioAdapter } = require('./adapters/SrpgStudioAdapter');
+const { SmileGameBuilderAdapter } = require('./adapters/SmileGameBuilderAdapter');
+const { BakinAdapter } = require('./adapters/BakinAdapter');
+const { PixelGameMakerMvAdapter } = require('./adapters/PixelGameMakerMvAdapter');
 
 /**
  * 懒加载阈值：满足任一条件即对项目启用文件级懒加载。
@@ -81,5 +91,15 @@ function applyProjectTexts(rootDir, entries, options = {}) {
 
 registerAdapter(new RpgMakerAdapter());
 registerAdapter(new UnityAdapterStub());
+registerAdapter(new TyranoBuilderAdapter());
+registerAdapter(new KirikiriAdapter());
+registerAdapter(new RenPyAdapter());
+registerAdapter(new RpgMakerOldAdapter());
+registerAdapter(new MkxpAdapter());
+registerAdapter(new WolfRpgAdapter());
+registerAdapter(new SrpgStudioAdapter());
+registerAdapter(new SmileGameBuilderAdapter());
+registerAdapter(new BakinAdapter());
+registerAdapter(new PixelGameMakerMvAdapter());
 
 module.exports = { registerAdapter, getAdapter, detectEngine, listProjectFiles, extractProjectFile, extractProjectTexts, applyProjectTexts, shouldUseLazyLoad, LAZY_LOAD_FILE_SIZE_BYTES, LAZY_LOAD_TOTAL_SIZE_BYTES, LAZY_LOAD_TOTAL_ENTRIES };

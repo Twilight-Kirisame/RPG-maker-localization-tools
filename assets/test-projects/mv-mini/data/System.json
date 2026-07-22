@@ -2,11 +2,23 @@
   "gameTitle": "テスト",
   "currencyUnit": "円",
   "terms": {
-    "commands": ["攻撃", "防御", "アイテム", "魔法"],
-    "basic": ["レベル", "HP", "MP"],
+    "commands": [
+      "攻撃",
+      "防御",
+      "アイテム",
+      "魔法"
+    ],
+    "basic": [
+      "レベル",
+      "HP",
+      "MP"
+    ],
     "messages": {
       "alwaysDash": "常に走る",
       "commandRemember": "コマンドを記憶"
     }
-  }
+  },
+  "startMapId": 2,
+  "startX": 0,
+  "startY": 0
 }

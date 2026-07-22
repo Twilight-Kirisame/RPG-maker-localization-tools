@@ -18,7 +18,10 @@
     if (!window.rpgWorkbench?.saveDraft) throw new Error(t('error.saveDraftApiMissing'));
     const result = await window.rpgWorkbench.saveDraft(payload);
     if (!result?.ok) throw new Error(result?.message || t('error.exportDraftFailed'));
-    if (result.outputDir && window.rpgWorkbench?.openFolder) await window.rpgWorkbench.openFolder(result.outputDir);
+    const savedPath = result.path || result.outputDir || '';
+    if (savedPath) {
+      window.traceCall?.(t('action.exportDraft'), tf('export.draftSavedPath', { path: savedPath }), 'success');
+    }
     return result;
   }
 

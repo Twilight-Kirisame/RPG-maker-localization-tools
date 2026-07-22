@@ -15,10 +15,49 @@ let closeBehavior = 'minimize-to-tray';
 
 function getTrayIcon() {
   const candidates = [
+    path.join(app.getAppPath(), 'assets', 'tray-icon-16.png'),
+    path.join(app.getAppPath(), 'assets', 'tray-icon-32.png'),
     path.join(app.getAppPath(), 'assets', 'tray-icon.png'),
     path.join(app.getAppPath(), 'assets', 'tray-icon.ico'),
     path.join(app.getAppPath(), 'assets', 'tray-icon.svg'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'tray-icon-16.png'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'tray-icon-32.png'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'tray-icon.png'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'tray-icon.ico'),
+    path.join(path.dirname(app.getPath('exe')), 'resources', 'app.asar.unpacked', 'assets', 'tray-icon-16.png'),
     appStoragePath('tray-icon.png'),
+  ];
+  for (const iconPath of candidates) {
+    try {
+      if (fs.existsSync(iconPath)) {
+        const icon = nativeImage.createFromPath(iconPath);
+        if (!icon.isEmpty()) return icon;
+      }
+    } catch {
+      // try next
+    }
+  }
+  // 兜底：使用窗口图标作为托盘图标
+  const windowIcon = getWindowIcon();
+  if (!windowIcon.isEmpty()) return windowIcon.resize({ width: 16, height: 16 });
+  return nativeImage.createEmpty();
+}
+
+function getWindowIcon() {
+  // 开发模式、打包后（app.asar 内外）、以及从 unpacked 目录启动时都可能需要不同的查找路径。
+  const candidates = [
+    path.join(app.getAppPath(), 'assets', 'app-icon.ico'),
+    path.join(app.getAppPath(), 'assets', 'app-icon.png'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'app-icon.ico'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'app-icon.png'),
+    path.join(process.resourcesPath, 'assets', 'app-icon.ico'),
+    path.join(process.resourcesPath, 'assets', 'app-icon.png'),
+    path.join(path.dirname(app.getPath('exe')), 'resources', 'app.asar', 'assets', 'app-icon.ico'),
+    path.join(path.dirname(app.getPath('exe')), 'resources', 'app.asar', 'assets', 'app-icon.png'),
+    path.join(path.dirname(app.getPath('exe')), 'resources', 'app.asar.unpacked', 'assets', 'app-icon.ico'),
+    path.join(path.dirname(app.getPath('exe')), 'resources', 'app.asar.unpacked', 'assets', 'app-icon.png'),
+    path.join(__dirname, '..', '..', 'assets', 'app-icon.ico'),
+    path.join(__dirname, '..', '..', 'assets', 'app-icon.png'),
   ];
   for (const iconPath of candidates) {
     try {
@@ -79,11 +118,13 @@ function createMainWindow() {
     minHeight: 860,
     backgroundColor: '#0f1115',
     title: 'RPG 汉化工作台',
+    icon: getWindowIcon(),
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      webviewTag: true,
     },
   });
 

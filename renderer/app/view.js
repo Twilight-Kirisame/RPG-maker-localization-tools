@@ -10,6 +10,13 @@
     showPreviewNotification: 'rpg-workbench-show-preview-notification',
     previewNotificationPosition: 'rpg-workbench-preview-notification-position',
     timelineModeEnabled: 'rpg-workbench-timeline-mode-enabled',
+    autoSaveEnabled: 'rpg-workbench-auto-save-enabled',
+    autoSaveIntervalMinutes: 'rpg-workbench-auto-save-interval',
+    autoSaveDir: 'rpg-workbench-auto-save-dir',
+    uiFont: 'rpg-workbench-ui-font',
+    importedFonts: 'rpg-workbench-imported-fonts',
+    maskIntensity: 'rpg-workbench-mask-intensity',
+    backgroundBlur: 'rpg-workbench-background-blur',
   };
 
   const defaults = {
@@ -23,7 +30,18 @@
     showPreviewNotification: true,
     previewNotificationPosition: 'top-center',
     timelineModeEnabled: false,
+    autoSaveEnabled: false,
+    autoSaveIntervalMinutes: 5,
+    autoSaveDir: '',
+    uiFont: 'auto',
+    importedFonts: [],
+    maskIntensity: 55,
+    backgroundBlur: 0,
   };
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, Number(value) || min));
+  }
 
   function getStoredUiSettings() {
     const rawEnable = localStorage.getItem(storageKeys.enableGamePreview);
@@ -31,6 +49,14 @@
     const rawShowNotification = localStorage.getItem(storageKeys.showPreviewNotification);
     const rawNotificationPosition = localStorage.getItem(storageKeys.previewNotificationPosition);
     const rawTimelineMode = localStorage.getItem(storageKeys.timelineModeEnabled);
+    const rawAutoSave = localStorage.getItem(storageKeys.autoSaveEnabled);
+    const rawAutoSaveInterval = localStorage.getItem(storageKeys.autoSaveIntervalMinutes);
+    const rawAutoSaveDir = localStorage.getItem(storageKeys.autoSaveDir);
+    const rawUiFont = localStorage.getItem(storageKeys.uiFont);
+    const rawImportedFonts = localStorage.getItem(storageKeys.importedFonts);
+    const rawMaskIntensity = localStorage.getItem(storageKeys.maskIntensity);
+    const rawBackgroundBlur = localStorage.getItem(storageKeys.backgroundBlur);
+    const interval = Number(rawAutoSaveInterval);
     return {
       language: localStorage.getItem(storageKeys.language) || defaults.language,
       themeMode: localStorage.getItem(storageKeys.themeMode) || defaults.themeMode,
@@ -42,6 +68,15 @@
       showPreviewNotification: rawShowNotification === null ? defaults.showPreviewNotification : rawShowNotification === 'true',
       previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(rawNotificationPosition) ? rawNotificationPosition : defaults.previewNotificationPosition,
       timelineModeEnabled: rawTimelineMode === null ? defaults.timelineModeEnabled : rawTimelineMode === 'true',
+      autoSaveEnabled: rawAutoSave === null ? defaults.autoSaveEnabled : rawAutoSave === 'true',
+      autoSaveIntervalMinutes: Number.isFinite(interval) && interval >= 1 && interval <= 120 ? interval : defaults.autoSaveIntervalMinutes,
+      autoSaveDir: rawAutoSaveDir || defaults.autoSaveDir,
+      uiFont: rawUiFont || defaults.uiFont,
+      importedFonts: (() => {
+        try { return JSON.parse(rawImportedFonts || '[]'); } catch { return []; }
+      })(),
+      maskIntensity: rawMaskIntensity !== null ? clamp(Number(rawMaskIntensity), 0, 100) : defaults.maskIntensity,
+      backgroundBlur: rawBackgroundBlur !== null ? clamp(Number(rawBackgroundBlur), 0, 20) : defaults.backgroundBlur,
     };
   }
 
@@ -67,10 +102,167 @@
       const normalized = /^https?:\/\//i.test(background) || /^file:/i.test(background) ? background : background.replace(/\\/g, '/');
       document.documentElement.style.setProperty('--theme-image', `url("${normalized}")`);
       document.documentElement.classList.add('has-theme-image');
+      const maskIntensity = Number.isFinite(settings.maskIntensity) ? settings.maskIntensity : defaults.maskIntensity;
+      const backgroundBlur = Number.isFinite(settings.backgroundBlur) ? settings.backgroundBlur : defaults.backgroundBlur;
+      document.documentElement.style.setProperty('--theme-mask-opacity', String(clamp(maskIntensity, 0, 100) / 100));
+      document.documentElement.style.setProperty('--theme-blur', `${clamp(backgroundBlur, 0, 20)}px`);
     } else {
       document.documentElement.style.removeProperty('--theme-image');
       document.documentElement.classList.remove('has-theme-image');
+      document.documentElement.style.removeProperty('--theme-mask-opacity');
+      document.documentElement.style.removeProperty('--theme-blur');
     }
+  }
+
+  function injectImportedFontFaces(importedFonts = []) {
+    if (!importedFonts.length) {
+      const existing = document.getElementById('imported-font-faces');
+      if (existing) existing.textContent = '';
+      return;
+    }
+    let styleEl = document.getElementById('imported-font-faces');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'imported-font-faces';
+      document.head.appendChild(styleEl);
+    }
+    const formatOf = (filePath = '') => {
+      const ext = String(filePath).split('.').pop().toLowerCase();
+      const map = { ttf: 'truetype', otf: 'opentype', woff: 'woff', woff2: 'woff2' };
+      return map[ext] || 'truetype';
+    };
+    styleEl.textContent = importedFonts.map((f) => {
+      const family = f.familyName || f.name || f.key;
+      const src = String(f.filePath || '').replace(/\\/g, '/');
+      return `@font-face { font-family: '${family.replace(/'/g, "\\'")}'; src: url("${src}") format('${formatOf(f.filePath)}'); font-display: swap; }`;
+    }).join('\n');
+  }
+
+  function applyUiFont(fontValue = getStoredUiSettings().uiFont) {
+    const settings = getStoredUiSettings();
+    const importedFonts = settings.importedFonts || [];
+    const importedKeys = importedFonts.map((f) => f.key);
+    const presetFonts = ['auto', 'system', 'source-han', 'noto-sans', 'noto-serif', 'microsoft', 'pingfang', 'yugothic', 'meiryo', 'jingnan-maiyuan', 'rounded', 'kaiti', 'songti'];
+    const validFonts = [...presetFonts, ...importedKeys];
+    const value = validFonts.includes(fontValue) ? fontValue : defaults.uiFont;
+    const lang = localStorage.getItem(storageKeys.language) || defaults.language;
+
+    const baseFallback = "'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', sans-serif";
+    const jaFallback = "'Yu Gothic', 'Meiryo', 'Hiragino Kaku Gothic ProN', 'MS PGothic', 'Noto Sans CJK JP', sans-serif";
+    const koFallback = "'Malgun Gothic', 'Noto Sans CJK KR', 'Microsoft YaHei', sans-serif";
+
+    const families = {
+      'source-han': {
+        ui: "'Source Han Sans SC', 'Source Han Sans CN', 'Segoe UI', 'Microsoft YaHei', sans-serif",
+        zh: "'Source Han Sans SC', 'Source Han Sans CN', 'Microsoft YaHei', 'PingFang SC', sans-serif",
+        ja: "'Yu Gothic', 'Meiryo', 'Hiragino Kaku Gothic ProN', 'Source Han Sans SC', 'MS PGothic', sans-serif",
+        ko: "'Malgun Gothic', 'Source Han Sans SC', 'Noto Sans CJK KR', sans-serif",
+        en: "'Source Han Sans SC', 'Source Han Sans CN', 'Segoe UI', sans-serif",
+      },
+      'noto-sans': {
+        ui: "'Noto Sans CJK SC', 'Segoe UI', 'Microsoft YaHei', sans-serif",
+        zh: "'Noto Sans CJK SC', 'Noto Sans CJK TC', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif",
+        ja: "'Noto Sans CJK JP', 'Yu Gothic', 'Meiryo', 'Hiragino Kaku Gothic ProN', sans-serif",
+        ko: "'Noto Sans CJK KR', 'Malgun Gothic', 'Microsoft YaHei', sans-serif",
+        en: "'Noto Sans CJK SC', 'Segoe UI', sans-serif",
+      },
+      'noto-serif': {
+        ui: "'Noto Serif CJK SC', 'Georgia', 'Source Han Sans SC', serif",
+        zh: "'Noto Serif CJK SC', 'Noto Serif CJK TC', 'Source Han Sans SC', serif",
+        ja: "'Noto Serif CJK JP', 'Yu Mincho', 'MS Mincho', 'Source Han Sans SC', serif",
+        ko: "'Noto Serif CJK KR', 'Malgun Gothic', 'Source Han Sans SC', serif",
+        en: "'Noto Serif CJK SC', 'Georgia', serif",
+      },
+      'microsoft': {
+        ui: "'Microsoft YaHei', 'Segoe UI', 'PingFang SC', sans-serif",
+        zh: "'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
+        ja: "'Microsoft YaHei', 'Yu Gothic', 'Meiryo', sans-serif",
+        ko: "'Microsoft YaHei', 'Malgun Gothic', sans-serif",
+        en: "'Segoe UI', 'Microsoft YaHei', sans-serif",
+      },
+      'pingfang': {
+        ui: "'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif",
+        zh: "'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+        ja: "'PingFang SC', 'Yu Gothic', 'Meiryo', sans-serif",
+        ko: "'PingFang SC', 'Malgun Gothic', sans-serif",
+        en: "'PingFang SC', 'Segoe UI', sans-serif",
+      },
+      'yugothic': {
+        ui: "'Yu Gothic', 'Segoe UI', 'Microsoft YaHei', sans-serif",
+        zh: "'Yu Gothic', 'Microsoft YaHei', 'PingFang SC', sans-serif",
+        ja: "'Yu Gothic', 'Yu Gothic UI', 'Hiragino Kaku Gothic ProN', 'Meiryo', 'MS PGothic', sans-serif",
+        ko: "'Yu Gothic', 'Malgun Gothic', sans-serif",
+        en: "'Yu Gothic', 'Segoe UI', sans-serif",
+      },
+      'meiryo': {
+        ui: "'Meiryo', 'Segoe UI', 'Microsoft YaHei', sans-serif",
+        zh: "'Meiryo', 'Microsoft YaHei', 'PingFang SC', sans-serif",
+        ja: "'Meiryo', 'Meiryo UI', 'MS PGothic', 'Yu Gothic', sans-serif",
+        ko: "'Meiryo', 'Malgun Gothic', sans-serif",
+        en: "'Meiryo', 'Segoe UI', sans-serif",
+      },
+      'jingnan-maiyuan': {
+        ui: "'Jingnan Maiyuan Ti', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif",
+        zh: "'Jingnan Maiyuan Ti', 'Source Han Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif",
+        ja: "'Jingnan Maiyuan Ti', 'Yu Gothic', 'Meiryo', 'Source Han Sans SC', sans-serif",
+        ko: "'Jingnan Maiyuan Ti', 'Malgun Gothic', 'Source Han Sans SC', sans-serif",
+        en: "'Jingnan Maiyuan Ti', 'Segoe UI', 'Source Han Sans SC', sans-serif",
+      },
+      'rounded': {
+        ui: "'Rounded Font', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif",
+        zh: "'Rounded Font', 'Source Han Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif",
+        ja: "'Rounded Font', 'Yu Gothic', 'Meiryo', 'Source Han Sans SC', sans-serif",
+        ko: "'Rounded Font', 'Malgun Gothic', 'Source Han Sans SC', sans-serif",
+        en: "'Rounded Font', 'Segoe UI', 'Source Han Sans SC', sans-serif",
+      },
+      'kaiti': {
+        ui: "'Kaiti Font', 'Source Han Sans SC', 'Microsoft YaHei', serif",
+        zh: "'Kaiti Font', 'Source Han Sans SC', 'KaiTi', 'STKaiti', serif",
+        ja: "'Kaiti Font', 'Yu Mincho', 'MS Mincho', 'Source Han Sans SC', serif",
+        ko: "'Kaiti Font', 'Malgun Gothic', 'Source Han Sans SC', serif",
+        en: "'Kaiti Font', 'Georgia', 'Source Han Sans SC', serif",
+      },
+      'songti': {
+        ui: "'Songti Font', 'Source Han Sans SC', 'Microsoft YaHei', serif",
+        zh: "'Songti Font', 'Source Han Sans SC', 'SimSun', 'STSong', serif",
+        ja: "'Songti Font', 'Yu Mincho', 'MS Mincho', 'Source Han Sans SC', serif",
+        ko: "'Songti Font', 'Malgun Gothic', 'Source Han Sans SC', serif",
+        en: "'Songti Font', 'Georgia', 'Source Han Sans SC', serif",
+      },
+    };
+
+    injectImportedFontFaces(importedFonts);
+
+    let selected;
+    if (value === 'system') {
+      selected = { ui: baseFallback, zh: baseFallback, ja: baseFallback, ko: baseFallback, en: baseFallback };
+    } else if (value === 'auto') {
+      const autoByLang = {
+        'zh-CN': { ui: families['source-han'].zh, zh: families['source-han'].zh, ja: jaFallback, ko: koFallback, en: baseFallback },
+        'ja': { ui: families['source-han'].ja, zh: families['source-han'].zh, ja: jaFallback, ko: koFallback, en: baseFallback },
+        'en': { ui: baseFallback, zh: families['source-han'].zh, ja: jaFallback, ko: koFallback, en: baseFallback },
+      };
+      selected = autoByLang[lang] || autoByLang['en'];
+    } else if (importedKeys.includes(value)) {
+      const imported = importedFonts.find((f) => f.key === value) || {};
+      const family = imported.familyName || imported.name || value;
+      const safeFamily = family.replace(/'/g, "\\'");
+      selected = {
+        ui: `'${safeFamily}', 'Source Han Sans SC', 'Microsoft YaHei', sans-serif`,
+        zh: `'${safeFamily}', 'Source Han Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif`,
+        ja: `'${safeFamily}', 'Yu Gothic', 'Meiryo', 'Source Han Sans SC', sans-serif`,
+        ko: `'${safeFamily}', 'Malgun Gothic', 'Source Han Sans SC', sans-serif`,
+        en: `'${safeFamily}', 'Segoe UI', 'Source Han Sans SC', sans-serif`,
+      };
+    } else {
+      selected = families[value] || families['source-han'];
+    }
+
+    document.documentElement.style.setProperty('--ui-font-stack', selected.ui);
+    document.documentElement.style.setProperty('--editor-font-zh', selected.zh);
+    document.documentElement.style.setProperty('--editor-font-ja', selected.ja);
+    document.documentElement.style.setProperty('--editor-font-ko', selected.ko);
+    document.documentElement.style.setProperty('--editor-font-en', selected.en);
   }
 
   function applyI18n() {
@@ -119,6 +311,15 @@
     const showPreviewNotificationCheck = document.getElementById('showPreviewNotificationCheck');
     const previewNotificationPositionSelect = document.getElementById('previewNotificationPositionSelect');
     const timelineModeCheck = document.getElementById('timelineModeCheck');
+    const autoSaveEnabledCheck = document.getElementById('autoSaveEnabledCheck');
+    const autoSaveIntervalInput = document.getElementById('autoSaveIntervalInput');
+    const autoSaveDirInput = document.getElementById('autoSaveDirInput');
+    const uiFontSelect = document.getElementById('uiFontSelect');
+    const maskIntensitySlider = document.getElementById('maskIntensitySlider');
+    const maskIntensityValue = document.getElementById('maskIntensityValue');
+    const backgroundBlurSlider = document.getElementById('backgroundBlurSlider');
+    const backgroundBlurValue = document.getElementById('backgroundBlurValue');
+    const backgroundEffectsGroup = document.getElementById('backgroundEffectsGroup');
     if (languageSelect) languageSelect.value = ['zh-CN', 'en', 'ja'].includes(settings.language) ? settings.language : defaults.language;
     if (themeModeSelect) themeModeSelect.value = ['system', 'dark', 'light'].includes(settings.themeMode) ? settings.themeMode : defaults.themeMode;
     if (themePaletteSelect) themePaletteSelect.value = ['violet', 'blue', 'emerald', 'rose', 'amber', 'slate'].includes(settings.palette) ? settings.palette : defaults.palette;
@@ -129,8 +330,78 @@
     if (showPreviewNotificationCheck) showPreviewNotificationCheck.checked = Boolean(settings.showPreviewNotification);
     if (previewNotificationPositionSelect) previewNotificationPositionSelect.value = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(settings.previewNotificationPosition) ? settings.previewNotificationPosition : defaults.previewNotificationPosition;
     if (timelineModeCheck) timelineModeCheck.checked = Boolean(settings.timelineModeEnabled);
+    if (autoSaveEnabledCheck) autoSaveEnabledCheck.checked = Boolean(settings.autoSaveEnabled);
+    if (autoSaveIntervalInput) autoSaveIntervalInput.value = String(settings.autoSaveIntervalMinutes);
+    if (autoSaveDirInput) autoSaveDirInput.value = settings.autoSaveDir || '';
+    if (uiFontSelect) {
+      const presetFonts = ['auto', 'system', 'source-han', 'noto-sans', 'noto-serif', 'microsoft', 'pingfang', 'yugothic', 'meiryo', 'jingnan-maiyuan', 'rounded', 'kaiti', 'songti'];
+      const importedFonts = settings.importedFonts || [];
+      importedFonts.forEach((f) => {
+        if (uiFontSelect.querySelector(`option[value="${f.key}"]`)) return;
+        const option = document.createElement('option');
+        option.value = f.key;
+        option.textContent = f.name || f.familyName || f.key;
+        uiFontSelect.appendChild(option);
+      });
+      // Remove orphaned imported options that no longer exist in storage
+      Array.from(uiFontSelect.options).forEach((opt) => {
+        if (presetFonts.includes(opt.value)) return;
+        if (!importedFonts.some((f) => f.key === opt.value)) opt.remove();
+      });
+      uiFontSelect.value = settings.uiFont || defaults.uiFont;
+    }
+    if (maskIntensitySlider) maskIntensitySlider.value = String(settings.maskIntensity);
+    if (maskIntensityValue) maskIntensityValue.textContent = `${settings.maskIntensity}%`;
+    if (backgroundBlurSlider) backgroundBlurSlider.value = String(settings.backgroundBlur);
+    if (backgroundBlurValue) backgroundBlurValue.textContent = `${settings.backgroundBlur}px`;
+    if (backgroundEffectsGroup) backgroundEffectsGroup.classList.toggle('hidden', !settings.backgroundImage);
+    populateImportedFontsList(settings.importedFonts);
+    updateAutoSaveControlsDisabledState();
     applyThemeSettings({ ...settings, backgroundImage: preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage });
+    applyUiFont(settings.uiFont);
     updateThemePreview(preserveBackground ? themeBackgroundInput?.value || '' : settings.backgroundImage);
+  }
+
+  function populateImportedFontsList(importedFonts = []) {
+    const container = document.getElementById('importedFontsList');
+    if (!container) return;
+    if (!importedFonts.length) {
+      container.classList.add('hidden');
+      container.innerHTML = '';
+      return;
+    }
+    container.classList.remove('hidden');
+    container.innerHTML = importedFonts.map((f) => `
+      <div class="imported-font-item" data-font-key="${f.key}">
+        <span class="imported-font-item-name">${f.name || f.familyName || f.key}</span>
+        <button type="button" class="secondary-btn delete-imported-font" data-font-key="${f.key}" data-i18n="common.delete">删除</button>
+      </div>
+    `).join('');
+    container.querySelectorAll('.delete-imported-font').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.fontKey;
+        try {
+          await window.rpgWorkbench?.deleteImportedFont?.(key);
+        } catch (e) {
+          console.error('Failed to delete imported font:', e);
+        }
+        const current = getStoredUiSettings();
+        const updated = current.importedFonts.filter((f) => f.key !== key);
+        localStorage.setItem(storageKeys.importedFonts, JSON.stringify(updated));
+        if (current.uiFont === key) {
+          localStorage.setItem(storageKeys.uiFont, defaults.uiFont);
+        }
+        syncUiSettingsFields();
+      });
+    });
+  }
+
+  function updateAutoSaveControlsDisabledState() {
+    const enabled = document.getElementById('autoSaveEnabledCheck')?.checked ?? false;
+    const intervalInput = document.getElementById('autoSaveIntervalInput');
+    const dirInput = document.getElementById('autoSaveDirInput');
+    const pickDirBtn = document.getElementById('pickAutoSaveDirBtn');
+    [intervalInput, dirInput, pickDirBtn].forEach((el) => { if (el) el.disabled = !enabled; });
   }
 
   function persistUiSettings({ persist = true } = {}) {
@@ -144,6 +415,16 @@
     const showPreviewNotificationCheck = document.getElementById('showPreviewNotificationCheck');
     const previewNotificationPositionSelect = document.getElementById('previewNotificationPositionSelect');
     const timelineModeCheck = document.getElementById('timelineModeCheck');
+    const autoSaveEnabledCheck = document.getElementById('autoSaveEnabledCheck');
+    const autoSaveIntervalInput = document.getElementById('autoSaveIntervalInput');
+    const autoSaveDirInput = document.getElementById('autoSaveDirInput');
+    const uiFontSelect = document.getElementById('uiFontSelect');
+    const maskIntensitySlider = document.getElementById('maskIntensitySlider');
+    const backgroundBlurSlider = document.getElementById('backgroundBlurSlider');
+    const interval = Number(autoSaveIntervalInput?.value);
+    const maskIntensity = Number(maskIntensitySlider?.value);
+    const backgroundBlur = Number(backgroundBlurSlider?.value);
+    const currentSettings = getStoredUiSettings();
     const settings = {
       language: languageSelect?.value || defaults.language,
       themeMode: themeModeSelect?.value || defaults.themeMode,
@@ -155,6 +436,13 @@
       showPreviewNotification: showPreviewNotificationCheck ? showPreviewNotificationCheck.checked : defaults.showPreviewNotification,
       previewNotificationPosition: ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(previewNotificationPositionSelect?.value) ? previewNotificationPositionSelect.value : defaults.previewNotificationPosition,
       timelineModeEnabled: timelineModeCheck ? timelineModeCheck.checked : defaults.timelineModeEnabled,
+      autoSaveEnabled: autoSaveEnabledCheck ? autoSaveEnabledCheck.checked : defaults.autoSaveEnabled,
+      autoSaveIntervalMinutes: Number.isFinite(interval) && interval >= 1 && interval <= 120 ? interval : defaults.autoSaveIntervalMinutes,
+      autoSaveDir: autoSaveDirInput?.value?.trim() || '',
+      uiFont: uiFontSelect?.value || defaults.uiFont,
+      importedFonts: currentSettings.importedFonts || [],
+      maskIntensity: Number.isFinite(maskIntensity) ? clamp(maskIntensity, 0, 100) : defaults.maskIntensity,
+      backgroundBlur: Number.isFinite(backgroundBlur) ? clamp(backgroundBlur, 0, 20) : defaults.backgroundBlur,
     };
     if (persist) {
       localStorage.setItem(storageKeys.language, settings.language);
@@ -167,14 +455,22 @@
       localStorage.setItem(storageKeys.showPreviewNotification, String(settings.showPreviewNotification));
       localStorage.setItem(storageKeys.previewNotificationPosition, settings.previewNotificationPosition);
       localStorage.setItem(storageKeys.timelineModeEnabled, String(settings.timelineModeEnabled));
+      localStorage.setItem(storageKeys.autoSaveEnabled, String(settings.autoSaveEnabled));
+      localStorage.setItem(storageKeys.autoSaveIntervalMinutes, String(settings.autoSaveIntervalMinutes));
+      localStorage.setItem(storageKeys.autoSaveDir, settings.autoSaveDir);
+      localStorage.setItem(storageKeys.uiFont, settings.uiFont);
+      localStorage.setItem(storageKeys.maskIntensity, String(settings.maskIntensity));
+      localStorage.setItem(storageKeys.backgroundBlur, String(settings.backgroundBlur));
       window.rpgWorkbench?.saveUiSettings?.(settings).catch?.(() => {});
     }
     applyThemeSettings(settings);
+    applyUiFont(settings.uiFont);
     applyI18n();
     window.RpgApp?.render?.();
     window.RpgGlossaryModule?.render?.();
     updateThemePreview(settings.backgroundImage);
     updateWorkspaceLayout();
+    updateAutoSaveControlsDisabledState();
     return settings;
   }
 
@@ -201,6 +497,13 @@
     localStorage.setItem(storageKeys.showPreviewNotification, String(defaults.showPreviewNotification));
     localStorage.setItem(storageKeys.previewNotificationPosition, defaults.previewNotificationPosition);
     localStorage.setItem(storageKeys.timelineModeEnabled, String(defaults.timelineModeEnabled));
+    localStorage.setItem(storageKeys.autoSaveEnabled, String(defaults.autoSaveEnabled));
+    localStorage.setItem(storageKeys.autoSaveIntervalMinutes, String(defaults.autoSaveIntervalMinutes));
+    localStorage.setItem(storageKeys.autoSaveDir, defaults.autoSaveDir);
+    localStorage.setItem(storageKeys.uiFont, defaults.uiFont);
+    localStorage.setItem(storageKeys.importedFonts, JSON.stringify(defaults.importedFonts));
+    localStorage.setItem(storageKeys.maskIntensity, String(defaults.maskIntensity));
+    localStorage.setItem(storageKeys.backgroundBlur, String(defaults.backgroundBlur));
     syncUiSettingsFields();
     return getStoredUiSettings();
   }
@@ -239,6 +542,7 @@
     const host = document.getElementById('gamePreviewHost');
     const tvSet = document.getElementById('tvSet');
     const led = document.querySelector('.tv-led');
+    const placeholder = document.getElementById('gamePreviewPlaceholder');
     const shouldSplit = Boolean(settings.enableGamePreview && settings.previewWindowMode === 'embedded');
 
     if (stage) stage.classList.toggle('has-embedded-preview', shouldSplit);
@@ -248,10 +552,13 @@
       const isRunning = Boolean((window.RpgAppStore?.getState?.() || {}).previewRunning);
       if (tvSet) tvSet.dataset.previewActive = isRunning ? 'true' : 'false';
       if (led) led.dataset.state = isRunning ? 'on' : 'off';
+      if (placeholder) placeholder.style.display = isRunning ? 'none' : '';
       if (host && !isRunning) {
         host.textContent = '';
         host.removeAttribute('data-placeholder');
       }
+    } else if (placeholder) {
+      placeholder.style.display = '';
     }
   }
 
@@ -267,10 +574,23 @@
     document.addEventListener('wheel', (event) => mark(event.target), true);
   }
 
+  async function refreshImportedFonts() {
+    try {
+      const result = await window.rpgWorkbench?.listImportedFonts?.();
+      if (result?.ok && Array.isArray(result.fonts)) {
+        localStorage.setItem(storageKeys.importedFonts, JSON.stringify(result.fonts));
+        injectImportedFontFaces(result.fonts);
+      }
+    } catch (e) {
+      console.error('Failed to refresh imported fonts:', e);
+    }
+  }
+
   window.RpgView = {
     ...(window.RpgView || {}),
     getStoredUiSettings,
     applyThemeSettings,
+    applyUiFont,
     applyI18n,
     syncUiSettingsFields,
     persistUiSettings,
@@ -278,7 +598,9 @@
     setCloseBehavior,
     updateThemePreview,
     updateWorkspaceLayout,
+    updateAutoSaveControlsDisabledState,
     resetUiSettings,
+    refreshImportedFonts,
     installTransientScrollbars,
     updateLocalText: window.RpgView?.updateLocalText || (() => {}),
   };

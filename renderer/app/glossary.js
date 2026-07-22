@@ -63,6 +63,12 @@
     hintEl.classList.remove('hidden');
   }
 
+  function getProjectNameFromRoot(rootDir) {
+    if (!rootDir) return '';
+    const normalized = String(rootDir).replace(/\\/g, '/');
+    return normalized.split('/').filter(Boolean).pop() || '';
+  }
+
   function syncUI() {
     const current = state();
     const status = get('glossaryStatus');
@@ -72,7 +78,10 @@
     const searchInput = get('termSearch');
     const categoryInput = get('glossaryCategoryInput');
     if (nameInput) nameInput.value = current.glossary?.glossaryName || 'default';
-    if (status) status.textContent = `${current.glossary?.projectName || t('glossary.currentProject')} / ${current.glossary?.glossaryName || 'default'}`;
+    // 优先使用术语库自身记录的 projectName；若缺失（例如旧草稿/外部导入库），兜底显示当前项目目录名，避免"项目名闪一下后重置为空"。
+    const fallbackProjectName = getProjectNameFromRoot(current.project?.rootDir);
+    const displayProjectName = current.glossary?.projectName || fallbackProjectName;
+    if (status) status.textContent = `${displayProjectName || t('glossary.currentProject')} / ${current.glossary?.glossaryName || 'default'}`;
     if (count) count.textContent = String(getTerms().length);
     if (hint) hint.textContent = getTerms().length ? format('glossary.termCountHint', { count: getTerms().length }) : t('glossary.emptyHint');
     if (searchInput && document.activeElement !== searchInput) searchInput.value = current.glossaryFilterText || '';
@@ -295,7 +304,8 @@
     const category = requestedCategory || current.glossary?.category || 'default';
     if (!current.project?.rootDir) throw new Error(t('glossary.loadProjectFirst'));
     if (!window.rpgWorkbench?.saveGlossaryAs) throw new Error(t('glossary.saveAsApiMissing'));
-    const nextGlossary = { projectName: current.glossary?.projectName || current.project?.name || '', glossaryName: name, category, terms: [] };
+    const fallbackProjectName = current.glossary?.projectName || getProjectNameFromRoot(current.project?.rootDir) || current.project?.displayName || '';
+    const nextGlossary = { projectName: fallbackProjectName, glossaryName: name, category, terms: [] };
     trace(t('glossary.creating'), 'normal');
     const result = await window.rpgWorkbench.saveGlossaryAs({ project: current.project, glossary: nextGlossary, defaultName: name });
     if (!result?.ok) {

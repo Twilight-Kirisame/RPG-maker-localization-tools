@@ -7,14 +7,17 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "dist": "electron-builder --win portable",
-    "dist:test": "electron-builder --win portable --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
+    "generate-icon": "python scripts/generate_icon.py assets/app-icon-source.png assets/app-icon.ico",
+    "dist": "npm run generate-icon && electron-builder --win nsis",
+    "dist:portable": "npm run generate-icon && electron-builder --win portable",
+    "dist:test": "npm run generate-icon && electron-builder --win nsis --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
+    "dist:test:portable": "npm run generate-icon && electron-builder --win portable --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
     "dist:mac": "electron-builder --mac dmg zip",
     "dist:mac:test": "electron-builder --mac dmg zip --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
     "dist:mac:winhost": "electron-builder --mac zip --x64 --arm64",
     "dist:mac:winhost:test": "electron-builder --mac zip --x64 --arm64 --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
-    "pack": "electron-builder --win dir",
-    "pack:test": "electron-builder --win dir --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
+    "pack": "npm run generate-icon && electron-builder --win dir",
+    "pack:test": "npm run generate-icon && electron-builder --win dir --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
     "pack:mac": "electron-builder --mac dir",
     "pack:mac:test": "electron-builder --mac dir --config.extraMetadata.name=rpg-localization-workbench-test --config.productName=RPG汉化工作台-测试版 --config.directories.output=dist-test",
     "lint": "echo \"No linter configured\""
@@ -29,6 +32,11 @@
     "appId": "com.rpg.localization.workbench",
     "productName": "RPG汉化工作台",
     "asar": true,
+    "asarUnpack": [
+      "assets/**/*.ico",
+      "assets/**/*.png",
+      "assets/**/*.svg"
+    ],
     "files": [
       "main.js",
       "preload.js",
@@ -47,8 +55,30 @@
       "icon": "assets/app-icon.ico",
       "signAndEditExecutable": false,
       "target": [
-        "portable"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RPG汉化工作台",
+      "uninstallDisplayName": "RPG汉化工作台 ${version}",
+      "installerIcon": "assets/app-icon.ico",
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "unicode": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "warningsAsErrors": true
     },
     "mac": {
       "category": "public.app-category.developer-tools",

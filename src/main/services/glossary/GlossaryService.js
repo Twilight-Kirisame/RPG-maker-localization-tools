@@ -86,15 +86,17 @@ async function saveGlossary(project, glossary, glossaryName = 'default') {
   if (!project?.rootDir) throw new Error('缺少项目根目录');
   const safeName = toSafeFileName(glossaryName || glossary?.glossaryName || glossary?.projectName || 'default');
   const filePath = glossaryPathFor(project, safeName);
+  // 术语库文件里的 projectName 应当反映项目目录名；若传入为空，兜底到项目目录名，避免 UI 上"项目名闪一下后重置为空"或显示成术语库名。
+  const projectNameFromRoot = path.basename(project.rootDir);
   const payload = {
-    projectName: glossary?.projectName || safeName,
+    projectName: glossary?.projectName || projectNameFromRoot,
     glossaryName: safeName,
     category: normalizeCategory(glossary?.category),
     terms: Array.isArray(glossary?.terms) ? glossary.terms : [],
     updatedAt: new Date().toISOString(),
   };
   await fsp.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
-  return { ok: true, path: filePath, glossaryName: safeName, category: payload.category };
+  return { ok: true, path: filePath, glossaryName: safeName, category: payload.category, glossary: { projectName: payload.projectName, glossaryName: safeName, category: payload.category, terms: payload.terms } };
 }
 
 /**
@@ -147,7 +149,9 @@ async function importGlossary(project, filePath) {
   const parsed = JSON.parse(await fsp.readFile(filePath, 'utf8'));
   const glossaryName = toSafeFileName(parsed?.glossaryName || parsed?.projectName || path.basename(filePath, '.json') || 'default');
   const targetPath = glossaryPathFor(project, glossaryName);
-  const payload = { ...parsed, glossaryName, projectName: parsed?.projectName || glossaryName, category: normalizeCategory(parsed?.category), terms: Array.isArray(parsed?.terms) ? parsed.terms : [], updatedAt: new Date().toISOString() };
+  // 导入外部术语库时，projectName 应跟随当前项目目录名，避免显示成旧项目名或文件名。
+  const projectNameFromRoot = path.basename(project.rootDir);
+  const payload = { ...parsed, glossaryName, projectName: parsed?.projectName || projectNameFromRoot, category: normalizeCategory(parsed?.category), terms: Array.isArray(parsed?.terms) ? parsed.terms : [], updatedAt: new Date().toISOString() };
   await fsp.writeFile(targetPath, JSON.stringify(payload, null, 2), 'utf8');
   return { ok: true, path: targetPath, glossaryName, glossary: { projectName: payload.projectName, glossaryName, category: payload.category, terms: payload.terms } };
 }

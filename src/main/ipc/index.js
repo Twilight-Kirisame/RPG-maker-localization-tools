@@ -10,6 +10,8 @@ const { registerTranslationIpc } = require('./translation.ipc');
 const { registerUiIpc } = require('./ui.ipc');
 const { registerPreviewIpc } = require('./preview.ipc');
 const { registerTimelineIpc } = require('./timeline.ipc');
+const { registerAutoSaveIpc } = require('./autoSave.ipc');
+const { registerFontIpc } = require('./font.ipc');
 
 /**
  * 注册全部 IPC。
@@ -22,6 +24,8 @@ function registerAllIpc() {
   registerUiIpc();
   registerPreviewIpc();
   registerTimelineIpc();
+  registerAutoSaveIpc();
+  registerFontIpc();
 }
 
 module.exports = { registerAllIpc };

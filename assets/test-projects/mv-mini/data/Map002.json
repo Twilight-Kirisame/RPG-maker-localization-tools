@@ -1,0 +1,260 @@
+{
+  "displayName": "村の広場",
+  "width": 20,
+  "height": 15,
+  "events": [
+    null,
+    {
+      "id": 1,
+      "name": "EV001_案内人",
+      "x": 8,
+      "y": 8,
+      "pages": [
+        {
+          "triggerType": 0,
+          "conditions": {},
+          "list": [
+            {
+              "code": 101,
+              "indent": 0,
+              "parameters": [
+                "Actor3",
+                0,
+                0,
+                2,
+                "案内人"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "こちらが村の入口です。"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "北に行くと広場、東には商店街があります。"
+              ]
+            },
+            {
+              "code": 0,
+              "indent": 0,
+              "parameters": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "EV002_自動イベント",
+      "x": 10,
+      "y": 5,
+      "pages": [
+        {
+          "triggerType": 3,
+          "conditions": {},
+          "list": [
+            {
+              "code": 101,
+              "indent": 0,
+              "parameters": [
+                "Actor2",
+                0,
+                0,
+                2,
+                "謎の声"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "ようこそ、冒険者よ。"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "この村には古い秘密が眠っている…"
+              ]
+            },
+            {
+              "code": 405,
+              "indent": 0,
+              "parameters": [
+                "＊＊＊長い説明文＊＊＊\nこの世界はかつて神々が住んでいた。しかし、大戦の後、神々は姿を消した…"
+              ]
+            },
+            {
+              "code": 0,
+              "indent": 0,
+              "parameters": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "EV003_条件分岐NPC",
+      "x": 3,
+      "y": 2,
+      "pages": [
+        {
+          "triggerType": 0,
+          "conditions": {},
+          "list": [
+            {
+              "code": 101,
+              "indent": 0,
+              "parameters": [
+                "Actor1",
+                0,
+                0,
+                2,
+                "村人A"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "今日はいい天気ですね。"
+              ]
+            },
+            {
+              "code": 0,
+              "indent": 0,
+              "parameters": []
+            }
+          ]
+        },
+        {
+          "triggerType": 0,
+          "conditions": {
+            "switch1Valid": true,
+            "switch1Id": 5
+          },
+          "list": [
+            {
+              "code": 101,
+              "indent": 0,
+              "parameters": [
+                "Actor1",
+                0,
+                0,
+                2,
+                "村人A"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "スイッチ5がONになった！何かが変わったようだ…"
+              ]
+            },
+            {
+              "code": 102,
+              "indent": 0,
+              "parameters": [
+                [
+                  "調べる",
+                  "無視する"
+                ],
+                0
+              ]
+            },
+            {
+              "code": 402,
+              "indent": 1,
+              "parameters": [
+                0,
+                "調べる選択肢"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 1,
+              "parameters": [
+                "古い石碑を見つけた。"
+              ]
+            },
+            {
+              "code": 0,
+              "indent": 1,
+              "parameters": []
+            },
+            {
+              "code": 402,
+              "indent": 1,
+              "parameters": [
+                1,
+                "無視する選択肢"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 1,
+              "parameters": [
+                "何もしなかった。"
+              ]
+            },
+            {
+              "code": 0,
+              "indent": 1,
+              "parameters": []
+            },
+            {
+              "code": 0,
+              "indent": 0,
+              "parameters": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "EV004_並行処理",
+      "x": 15,
+      "y": 12,
+      "pages": [
+        {
+          "triggerType": 4,
+          "conditions": {},
+          "list": [
+            {
+              "code": 101,
+              "indent": 0,
+              "parameters": [
+                "Actor4",
+                0,
+                0,
+                2,
+                "流しの商人"
+              ]
+            },
+            {
+              "code": 401,
+              "indent": 0,
+              "parameters": [
+                "おいしい果物、いかがですか？"
+              ]
+            },
+            {
+              "code": 0,
+              "indent": 0,
+              "parameters": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

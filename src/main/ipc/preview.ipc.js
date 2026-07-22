@@ -4,7 +4,7 @@
  */
 
 const { ipcMain } = require('electron');
-const { previewInGame, repreviewInGame, returnToTitle, stopPreview, cleanupOnStartup } = require('../services/preview/GamePreviewService');
+const { previewInGame, repreviewInGame, returnToTitle, prevPreviewEntry, nextPreviewEntry, stopPreview, cleanupOnStartup } = require('../services/preview/GamePreviewService');
 
 /**
  * 注册预览相关 IPC。
@@ -40,6 +40,26 @@ function registerPreviewIpc() {
     }
   });
 
+  ipcMain.handle('prev-entry', async (_event, payload = {}) => {
+    try {
+      const { rootDir } = payload;
+      prevPreviewEntry(rootDir);
+      return { ok: true, message: '已发送上一句指令' };
+    } catch (error) {
+      return { ok: false, message: error.message || '上一句指令失败' };
+    }
+  });
+
+  ipcMain.handle('next-entry', async (_event, payload = {}) => {
+    try {
+      const { rootDir } = payload;
+      nextPreviewEntry(rootDir);
+      return { ok: true, message: '已发送下一句指令' };
+    } catch (error) {
+      return { ok: false, message: error.message || '下一句指令失败' };
+    }
+  });
+
   ipcMain.handle('stop-preview', async (_event, rootDir) => {
     try {
       const result = await stopPreview(rootDir);
@@ -64,6 +84,18 @@ function registerPreviewIpc() {
       return { ok: true, ...result };
     } catch (error) {
       return { ok: false, message: error.message || '清理预览残留失败' };
+    }
+  });
+
+  ipcMain.handle('resize-embedded-preview', async (_event, payload = {}) => {
+    try {
+      const { pid, embedRect, rootDir } = payload;
+      if (!pid || !embedRect) return { ok: false, message: '缺少参数' };
+      const { embedGameWindow } = require('../services/preview/GamePreviewService');
+      const result = await embedGameWindow(rootDir || '', pid, embedRect);
+      return { ok: result?.ok ?? true, ...result };
+    } catch (error) {
+      return { ok: false, message: error.message || '调整嵌入窗口失败' };
     }
   });
 }

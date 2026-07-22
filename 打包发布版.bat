@@ -15,10 +15,12 @@ echo ========================================
 echo RPG Localization Workbench Packager
 echo ========================================
 echo.
-echo 1. Build Windows stable release   (dist/,      .exe)
-echo 2. Build Windows test release     (dist-test/, .exe)
-echo 3. Build macOS   stable release   (dist/,      .zip x64+arm64)
-echo 4. Build macOS   test release     (dist-test/, .zip x64+arm64)
+echo 1. Build Windows stable installer   (dist/,      Setup .exe)
+echo 2. Build Windows test installer     (dist-test/, Setup .exe)
+echo 3. Build Windows stable portable    (dist/,      .exe)
+echo 4. Build Windows test portable      (dist-test/, .exe)
+echo 5. Build macOS   stable release     (dist/,      .zip x64+arm64)
+echo 6. Build macOS   test release       (dist-test/, .zip x64+arm64)
 echo.
 echo    [Note] macOS DMG cannot be produced on Windows (requires macOS
 echo    native tools). We emit ZIPs signed with identity=null; users
@@ -26,7 +28,7 @@ echo    should unzip and drag the .app to /Applications, then
 echo    "xattr -d com.apple.quarantine /Applications/*.app" to launch.
 echo.
 set "BUILD_KIND=1"
-set /p "BUILD_KIND=Choose build type [1/2/3/4] [default=1]: "
+set /p "BUILD_KIND=Choose build type [1/2/3/4/5/6] [default=1]: "
 if not defined BUILD_KIND set "BUILD_KIND=1"
 
 set "BUILD_NAME="
@@ -36,21 +38,37 @@ set "CLEAN_DIR="
 
 if "%BUILD_KIND%"=="1" goto stable
 if "%BUILD_KIND%"=="2" goto test
-if "%BUILD_KIND%"=="3" goto macstable
-if "%BUILD_KIND%"=="4" goto mactest
+if "%BUILD_KIND%"=="3" goto stable_portable
+if "%BUILD_KIND%"=="4" goto test_portable
+if "%BUILD_KIND%"=="5" goto macstable
+if "%BUILD_KIND%"=="6" goto mactest
 goto invalid
 
 :stable
-set "BUILD_NAME=Windows stable"
+set "BUILD_NAME=Windows stable installer"
 set "OUTPUT_DIR=dist"
 set "NPM_SCRIPT=dist"
 set "CLEAN_DIR=dist"
 goto selected
 
 :test
-set "BUILD_NAME=Windows test"
+set "BUILD_NAME=Windows test installer"
 set "OUTPUT_DIR=dist-test"
 set "NPM_SCRIPT=dist:test"
+set "CLEAN_DIR=dist-test"
+goto selected
+
+:stable_portable
+set "BUILD_NAME=Windows stable portable"
+set "OUTPUT_DIR=dist"
+set "NPM_SCRIPT=dist:portable"
+set "CLEAN_DIR=dist"
+goto selected
+
+:test_portable
+set "BUILD_NAME=Windows test portable"
+set "OUTPUT_DIR=dist-test"
+set "NPM_SCRIPT=dist:test:portable"
 set "CLEAN_DIR=dist-test"
 goto selected
 
@@ -69,7 +87,7 @@ set "CLEAN_DIR=dist-test"
 goto selected
 
 :invalid
-echo [ERROR] Invalid selection. Please enter 1, 2, 3 or 4.
+echo [ERROR] Invalid selection. Please enter 1, 2, 3, 4, 5 or 6.
 pause
 exit /b 1
 
@@ -82,13 +100,17 @@ if not exist "node_modules\electron" (
   if errorlevel 1 goto depfail
 )
 
-echo [1/2] Closing possible locked build processes...
+echo [0/3] Generating application icon...
+python scripts\generate_icon.py assets\app-icon-source.png assets\app-icon.ico
+if errorlevel 1 goto iconfail
+
+echo [1/3] Closing possible locked build processes...
 taskkill /f /im "electron.exe" >nul 2>&1
 taskkill /f /im "app-builder.exe" >nul 2>&1
 taskkill /f /im "node.exe" >nul 2>&1
 timeout /t 2 /nobreak >nul
 
-echo [1/2] Cleaning %BUILD_NAME% build artifacts...
+echo [2/3] Cleaning %BUILD_NAME% build artifacts...
 if not defined CLEAN_DIR goto cleanfail
 if "%CLEAN_DIR%"=="" goto cleanfail
 if "%CLEAN_DIR%"=="." goto cleanfail
@@ -105,7 +127,7 @@ mkdir "%CLEAN_DIR%" >nul 2>&1
 if errorlevel 1 goto cleanfail
 
 echo.
-echo [2/2] Building %BUILD_NAME% release...
+echo [3/3] Building %BUILD_NAME% release...
 call npm run %NPM_SCRIPT%
 if errorlevel 1 goto buildfail
 
@@ -125,6 +147,13 @@ exit /b 1
 
 :cleanfail
 echo [ERROR] Failed to clean output contents in %CLEAN_DIR%.
+pause
+exit /b 1
+
+:iconfail
+echo [ERROR] Failed to generate application icon.
+echo [INFO] Please make sure Python and Pillow are installed:
+echo        pip install -r requirements.txt
 pause
 exit /b 1
 

@@ -111,9 +111,17 @@
     return runAction(t('action.returnToTitle'), async () => window.rpgWorkbench.returnToTitle(payload));
   }
 
+  async function prevPreviewEntry(payload) {
+    return runAction(t('action.prevPreviewEntry'), async () => window.rpgWorkbench.prevPreviewEntry(payload));
+  }
+
+  async function nextPreviewEntry(payload) {
+    return runAction(t('action.nextPreviewEntry'), async () => window.rpgWorkbench.nextPreviewEntry(payload));
+  }
+
   async function stopPreview(rootDir) {
     return runAction(t('action.stopPreview'), async () => window.rpgWorkbench.stopPreview(rootDir));
   }
 
-  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, loadFileEntries, previewInGame, repreviewInGame, returnToTitle, stopPreview, saveTranslatorSettings, testTranslatorSettings, aiTranslate, saveProjectLastPosition, loadProjectProgressState, getUiSettings, saveUiSettings };
+  window.RpgAppController = { runAction, pickProjectFolder, loadProjectTexts, loadFileEntries, previewInGame, repreviewInGame, returnToTitle, prevPreviewEntry, nextPreviewEntry, stopPreview, saveTranslatorSettings, testTranslatorSettings, aiTranslate, saveProjectLastPosition, loadProjectProgressState, getUiSettings, saveUiSettings };
 })();

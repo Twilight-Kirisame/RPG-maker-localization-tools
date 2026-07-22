@@ -5,6 +5,53 @@ v1.1 及更早版本的变更日志请参见 [README.md#更新日志](./README.m
 
 ---
 
+## v1.2.1 — Windows NSIS 安装程序
+
+**发布日期**：2026-07-22
+
+### 新增
+
+#### 1. 标准 Windows Setup 安装程序
+
+- Windows 端默认输出 **NSIS assisted installer**，替代以往的单一 portable exe 作为主要分发方式。
+- 安装程序支持：
+  - **选择安装路径**：用户可在安装向导中自定义安装目录。
+  - **安装进度条**：文件解压阶段显示进度。
+  - **安装模式选择**：仅当前用户或所有用户（自动触发 UAC）。
+  - **快捷方式**：自动创建开始菜单与桌面快捷方式。
+  - **卸载入口**：在「设置 → 应用 → 已安装应用」中显示为 `RPG汉化工作台 1.0.0`，并自带卸载向导。
+- 稳定版与测试版使用不同 `appId`，可独立安装、升级、卸载，互不影响。
+- 绿色便携版 `.exe` 继续保留，通过 `打包发布版.bat` 选项 `3` / `4` 或 `npm run dist:portable` / `npm run dist:test:portable` 产出。
+
+#### 2. 打包脚本与 npm scripts 扩展
+
+- `打包发布版.bat` 菜单从 4 项扩展为 6 项：
+  - `1` Windows stable installer
+  - `2` Windows test installer
+  - `3` Windows stable portable
+  - `4` Windows test portable
+  - `5` macOS stable release
+  - `6` macOS test release
+- 新增 npm scripts：
+  - `npm run dist:portable`
+  - `npm run dist:test:portable`
+
+#### 3. electron-builder 配置更新
+
+- `build.win.target` 同时声明 `nsis` 与 `portable`。
+- 新增 `build.nsis` 配置：
+  - `oneClick: false` 启用向导式安装。
+  - `allowToChangeInstallationDirectory: true` 启用安装路径选择。
+  - `perMachine: false` 允许用户选择仅自己或所有用户。
+  - `createDesktopShortcut: true` / `createStartMenuShortcut: true` 创建快捷方式。
+  - `unicode: true` 保证中文路径与用户名正常处理。
+
+### 修复
+
+- 无。
+
+---
+
 ## v1.2 — 上下文组重构、AI 对齐引擎与大型项目懒加载
 
 **发布日期**：2026-07-05

@@ -6,10 +6,46 @@
 const { assertAdapter } = require('./EngineAdapter');
 const RpgMakerAdapter = require('./RpgMakerAdapter');
 const UnityAdapter = require('./UnityAdapter');
+const { TyranoBuilderAdapter } = require('../engines/adapters/TyranoBuilderAdapter');
+const { KirikiriAdapter } = require('../engines/adapters/KirikiriAdapter');
+const { RenPyAdapter } = require('../engines/adapters/RenPyAdapter');
+const { RpgMakerOldAdapter } = require('../engines/adapters/RpgMakerOldAdapter');
+const { MkxpAdapter } = require('../engines/adapters/MkxpAdapter');
+const { WolfRpgAdapter } = require('../engines/adapters/WolfRpgAdapter');
+const { SrpgStudioAdapter } = require('../engines/adapters/SrpgStudioAdapter');
+const { SmileGameBuilderAdapter } = require('../engines/adapters/SmileGameBuilderAdapter');
+const { BakinAdapter } = require('../engines/adapters/BakinAdapter');
+const { PixelGameMakerMvAdapter } = require('../engines/adapters/PixelGameMakerMvAdapter');
+const { getConstraints } = require('../validation/EngineConstraints');
+
+function wrapModernAdapter(AdapterClass) {
+  const instance = new AdapterClass();
+  return {
+    id: instance.engineName,
+    displayName: instance.displayName,
+    detect: (rootDir) => {
+      const result = instance.detect(rootDir);
+      return { confidence: result.ok ? (result.confidence || 0.6) : 0, info: result };
+    },
+    extract: (rootDir) => instance.extract(rootDir),
+    apply: (payload) => instance.apply(payload),
+    getConstraints: (kind) => instance.getDefaultConstraints(),
+  };
+}
 
 const adapters = [
   assertAdapter(RpgMakerAdapter),
   assertAdapter(UnityAdapter),
+  assertAdapter(wrapModernAdapter(TyranoBuilderAdapter)),
+  assertAdapter(wrapModernAdapter(KirikiriAdapter)),
+  assertAdapter(wrapModernAdapter(RenPyAdapter)),
+  assertAdapter(wrapModernAdapter(RpgMakerOldAdapter)),
+  assertAdapter(wrapModernAdapter(MkxpAdapter)),
+  assertAdapter(wrapModernAdapter(WolfRpgAdapter)),
+  assertAdapter(wrapModernAdapter(SrpgStudioAdapter)),
+  assertAdapter(wrapModernAdapter(SmileGameBuilderAdapter)),
+  assertAdapter(wrapModernAdapter(BakinAdapter)),
+  assertAdapter(wrapModernAdapter(PixelGameMakerMvAdapter)),
 ];
 
 /**

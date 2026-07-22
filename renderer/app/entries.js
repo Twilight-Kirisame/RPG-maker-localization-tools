@@ -2,6 +2,19 @@
   const get = (id) => document.getElementById(id);
   const state = () => window.RpgAppStore?.getState?.() || {};
   const t = (key) => window.RpgView?.t?.(key) || key;
+
+  // 剧情流线模式内部虚拟文件分组前缀：分组对象本身与原始物理条目共享指针，
+  // 仅用于前端当前视图。全局统计/导出/跨文件扫描时应排除，避免重复计数。
+  const CHAPTER_VIRTUAL_PREFIX = '__chapter__/';
+  function isChapterVirtualGroup(group) {
+    return String(group?.file || '').startsWith(CHAPTER_VIRTUAL_PREFIX);
+  }
+  function getPhysicalGroups(groups) {
+    return (groups || []).filter((g) => !isChapterVirtualGroup(g));
+  }
+  function getPhysicalEntries(groups) {
+    return getPhysicalGroups(groups).flatMap((group) => group.items || []);
+  }
   // i18n 格式化：把 {key} 占位符替换为 params 中对应值；若 t() 找不到 key 则原样返回
   const tf = (key, params = {}) => {
     let text = t(key);
@@ -11,11 +24,106 @@
     return text;
   };
 
+  /**
+   * 根据文本内容判断主要语言，用于按语言应用对应字体。
+   * 优先级：日文假名 > 韩文 > 中文汉字 > 其他（按界面语言回退）。
+   */
+  function detectTextLang(text) {
+    const str = String(text || '');
+    if (/[぀-ゟ゠-ヿ]/.test(str)) return 'ja';
+    if (/[가-힯]/.test(str)) return 'ko';
+    if (/[一-鿿㐀-䶿豈-﫿]/.test(str)) return 'zh';
+    return 'en';
+  }
+
   // 上下文组备选列表的局部 UI 状态，跨 renderEntryList re-render 保留
   let _ctxGroupListFilter = '';
   let _ctxGroupListScroll = 0;
   let _ctxGroupListFilterFocused = false;
   let _ctxGroupListFilterCaret = 0;
+
+  // 嵌入式预览窗口尺寸/位置监听
+  let _previewResizeObserver = null;
+  let _previewScrollHandler = null;
+  let _currentEmbedPid = null;
+  let _webviewResizeObserver = null;
+
+  function _computeEmbedRect(host) {
+    const rect = host.getBoundingClientRect();
+    const scaleFactor = window.devicePixelRatio || 1;
+    return {
+      x: Math.round(rect.x * scaleFactor),
+      y: Math.round(rect.y * scaleFactor),
+      width: Math.round(rect.width * scaleFactor),
+      height: Math.round(rect.height * scaleFactor),
+    };
+  }
+
+  function _throttledResizeEmbed(host) {
+    if (!_currentEmbedPid) return;
+    const embedRect = _computeEmbedRect(host);
+    window.rpgWorkbench?.resizeEmbeddedPreview?.({ pid: _currentEmbedPid, embedRect }).catch(() => {});
+  }
+
+  function setupPreviewResizeObserver(pid) {
+    if (_previewResizeObserver) {
+      _previewResizeObserver.disconnect();
+      _previewResizeObserver = null;
+    }
+    if (_previewScrollHandler) {
+      window.removeEventListener('scroll', _previewScrollHandler, true);
+      _previewScrollHandler = null;
+    }
+    _currentEmbedPid = pid;
+    if (!pid || typeof ResizeObserver === 'undefined') return;
+
+    const host = document.getElementById('gamePreviewHost');
+    if (!host) return;
+
+    let scrollTimer = null;
+    _previewScrollHandler = () => {
+      if (scrollTimer) return;
+      scrollTimer = setTimeout(() => {
+        scrollTimer = null;
+        _throttledResizeEmbed(host);
+      }, 100);
+    };
+    window.addEventListener('scroll', _previewScrollHandler, true);
+
+    _previewResizeObserver = new ResizeObserver(() => {
+      _throttledResizeEmbed(host);
+    });
+    _previewResizeObserver.observe(host);
+  }
+
+  function teardownPreviewResizeObserver() {
+    if (_previewResizeObserver) {
+      _previewResizeObserver.disconnect();
+      _previewResizeObserver = null;
+    }
+    if (_previewScrollHandler) {
+      window.removeEventListener('scroll', _previewScrollHandler, true);
+      _previewScrollHandler = null;
+    }
+    if (_webviewResizeObserver) {
+      _webviewResizeObserver.disconnect();
+      _webviewResizeObserver = null;
+    }
+    _currentEmbedPid = null;
+  }
+
+  function setupWebviewResizeObserver(webview) {
+    teardownPreviewResizeObserver();
+    if (typeof ResizeObserver === 'undefined') return;
+    const host = document.getElementById('gamePreviewHost');
+    if (!host || !webview) return;
+    _webviewResizeObserver = new ResizeObserver(() => {
+      try {
+        webview.executeJavaScript('window.dispatchEvent(new Event("resize"));', true);
+      } catch { /* ignore */ }
+    });
+    _webviewResizeObserver.observe(host);
+  }
 
   // ── 单条 / 上下文组两个模式的滚动位置记忆（模块级，跨 render / re-bind 共享）─────
   // 组模式内部的 .context-group-entry-list 是每次渲染时新建的 DOM，无法一次挂载复用。
@@ -159,7 +267,11 @@
         const resolvedStatus = existingStatus || (targetText.trim() ? 'translated' : 'pending');
         return { ...item, localIndex: index, sourceDraft: '', targetDraft: targetText, translationStatus: resolvedStatus, draftStatus: resolvedStatus };
       }) }));
-    const currentFile = current.currentFile || groupedFiles[0]?.file || '';
+    let currentFile = current.currentFile || groupedFiles[0]?.file || '';
+    // 从剧情流线模式切回物理模式时，currentFile 可能是已不存在的虚拟章节路径，需回退到首个真实文件
+    if (currentFile && !groupedFiles.some((group) => group.file === currentFile)) {
+      currentFile = groupedFiles[0]?.file || '';
+    }
     window.RpgAppStore?.setState?.({
       ...current,
       groupedFiles,
@@ -206,7 +318,7 @@
   function persistLastPosition(entry) {
     const current = state();
     if (!entry || !current.project?.rootDir || !isTranslated(entry)) return Promise.resolve(null);
-    const globalIndex = (current.groupedFiles || []).flatMap((group) => group.items || []).findIndex((item) => item.id === entry.id);
+    const globalIndex = getPhysicalEntries(current.groupedFiles).findIndex((item) => item.id === entry.id);
     const payload = { project: current.project, entry, index: entry.localIndex ?? globalIndex };
     const api = window.RpgAppController?.saveProjectLastPosition || window.rpgWorkbench?.saveProjectLastPosition;
     return api?.(payload).then((result) => {
@@ -222,20 +334,21 @@
 
   function getExportEntries() {
     const current = state();
-    return (current.groupedFiles || []).flatMap((group) => group.items.map((entry) => {
+    return getPhysicalEntries(current.groupedFiles).map((entry) => {
       const target = String(entry.targetDraft ?? entry.target ?? '');
       return { ...entry, target, targetDraft: target, translationStatus: isTranslated(entry) ? 'translated' : 'pending', draftStatus: isTranslated(entry) ? 'translated' : 'pending' };
-    }));
+    });
   }
 
   function renderFileSelect() {
     const current = state();
     const fileSelect = get('fileSelect');
     if (!fileSelect) return;
-    const prevValue = fileSelect.value || current.currentFile || '';
+    // 优先使用 state 中的 currentFile；DOM value 在模式切换后可能仍是已失效的虚拟章节路径
+    const prevValue = current.currentFile || fileSelect.value || '';
     fileSelect.innerHTML = '';
     const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
-    const sourceList = useLazyLoad ? (current.fileList || []) : (current.groupedFiles || []);
+    const sourceList = useLazyLoad ? (current.fileList || []) : getPhysicalGroups(current.groupedFiles || []);
     sourceList.forEach((item) => {
       const file = useLazyLoad ? item.file : item.file;
       const group = useLazyLoad ? (current.groupedFiles || []).find((g) => g.file === file) : item;
@@ -259,7 +372,7 @@
     // 当前文件徽标（如果 HTML 里挂了 #currentFileProgressBadge 占位就更新它，没挂也无害）
     const badge = get('currentFileProgressBadge');
     if (badge) {
-      const cur = (current.groupedFiles || []).find((g) => g.file === fileSelect.value);
+      const cur = getPhysicalGroups(current.groupedFiles || []).find((g) => g.file === fileSelect.value);
       if (cur) {
         const total = (cur.items || []).length;
         const done = (cur.items || []).filter(isTranslated).length;
@@ -270,6 +383,354 @@
         badge.textContent = '';
       }
     }
+  }
+
+  // ========== 剧情章节树（Chapter Tree） ==========
+
+  function renderChapterTree() {
+    const current = state();
+    const container = get('chapterTree');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const groups = current.chapterTree || [];
+    if (!groups.length) {
+      container.innerHTML = `<div class="status-box small">${t('common.none')}</div>`;
+      return;
+    }
+
+    groups.forEach((group) => {
+      const hasSubGroups = group.subGroups && group.subGroups.length > 0;
+      const isExpanded = current.chapterTreeExpanded?.has(group.id);
+      const isActive = current.currentChapterGroup === group.id && !current.currentChapterSubGroup;
+
+      const node = document.createElement('div');
+      node.className = `chapter-tree-node ${isActive ? 'active' : ''}`;
+      node.dataset.groupId = group.id;
+
+      const toggle = document.createElement('span');
+      toggle.className = 'chapter-tree-toggle';
+      toggle.textContent = hasSubGroups ? (isExpanded ? '▼' : '▶') : '';
+      node.appendChild(toggle);
+
+      const icon = group.type === 'system' ? '⚙' : group.type === 'static' ? '🔍' : '📖';
+      const labelText = t(group.labelKey, group.labelParams || {});
+      const label = document.createElement('span');
+      label.className = 'chapter-tree-label';
+      label.textContent = `${icon} ${labelText}`;
+      node.appendChild(label);
+
+      const count = document.createElement('span');
+      count.className = 'chapter-tree-count';
+      count.textContent = `${group.translatedCount}/${group.entryCount}`;
+      node.appendChild(count);
+
+      const pct = group.entryCount ? Math.round((group.translatedCount / group.entryCount) * 100) : 0;
+      const bar = document.createElement('div');
+      bar.className = 'chapter-tree-progress-bar';
+      bar.innerHTML = `<div class="chapter-tree-progress-fill" style="width:${pct}%"></div>`;
+      node.appendChild(bar);
+
+      node.addEventListener('click', (e) => {
+        if (e.target === toggle || toggle.contains(e.target)) {
+          const nextExpanded = new Set(current.chapterTreeExpanded || []);
+          if (nextExpanded.has(group.id)) nextExpanded.delete(group.id);
+          else nextExpanded.add(group.id);
+          window.RpgAppStore?.setState?.({ chapterTreeExpanded: nextExpanded });
+          renderChapterTree();
+          return;
+        }
+        selectChapterGroup(group.id);
+      });
+      node.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showChapterGroupContextMenu(group, null, e);
+      });
+
+      container.appendChild(node);
+
+      if (hasSubGroups && isExpanded) {
+        group.subGroups.forEach((sub) => {
+          const subActive = current.currentChapterGroup === group.id && current.currentChapterSubGroup === sub.id;
+          const subNode = document.createElement('div');
+          subNode.className = `chapter-tree-node sub-node ${subActive ? 'active' : ''}`;
+          subNode.dataset.groupId = group.id;
+          subNode.dataset.subGroupId = sub.id;
+
+          const subLabel = document.createElement('span');
+          subLabel.className = 'chapter-tree-label';
+          subLabel.textContent = `🗺 ${sub.label || sub.id}`;
+          subNode.appendChild(subLabel);
+
+          const subCount = document.createElement('span');
+          subCount.className = 'chapter-tree-count';
+          subCount.textContent = `${sub.translatedCount}/${sub.entryCount}`;
+          subNode.appendChild(subCount);
+
+          const subPct = sub.entryCount ? Math.round((sub.translatedCount / sub.entryCount) * 100) : 0;
+          const subBar = document.createElement('div');
+          subBar.className = 'chapter-tree-progress-bar';
+          subBar.innerHTML = `<div class="chapter-tree-progress-fill" style="width:${subPct}%"></div>`;
+          subNode.appendChild(subBar);
+
+          subNode.addEventListener('click', () => selectChapterGroup(group.id, sub.id));
+          subNode.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showChapterGroupContextMenu(group, sub, e);
+          });
+          container.appendChild(subNode);
+        });
+      }
+    });
+  }
+
+  function showChapterGroupContextMenu(group, subGroup, event) {
+    const existing = document.querySelector('.entry-context-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'entry-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    const isCustomGroup = group.type === 'custom';
+    const isSubGroup = Boolean(subGroup);
+
+    const addItem = (labelKey, action) => {
+      const item = document.createElement('div');
+      item.className = 'context-menu-item';
+      item.textContent = t(labelKey);
+      item.addEventListener('click', async () => {
+        menu.remove();
+        await action();
+      });
+      menu.appendChild(item);
+    };
+
+    if (!isSubGroup) {
+      // 章节组操作
+      addItem('chapter.renameGroup', async () => {
+        const newName = prompt(t('chapter.renamePrompt'), group.labelParams?.name || t(group.labelKey, group.labelParams || {}));
+        if (!newName?.trim()) return;
+        const result = await window.rpgWorkbench?.renameChapterGroup?.({ groupId: group.id, newName: newName.trim() });
+        if (result?.ok) {
+          window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+          renderChapterTree();
+          window.showToast?.(t('chapter.renameGroup'), 'success');
+        }
+      });
+      if (isCustomGroup) {
+        addItem('chapter.deleteGroup', async () => {
+          if (!window.confirm(t('chapter.deleteConfirm'))) return;
+          const result = await window.rpgWorkbench?.deleteChapterGroup?.({ groupId: group.id });
+          if (result?.ok) {
+            window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+            const current = state();
+            if (current.currentChapterGroup === group.id) {
+              await selectChapterGroup(result.chapterGroups?.[0]?.id || '');
+            } else {
+              renderChapterTree();
+            }
+            window.showToast?.(t('chapter.deleteGroup'), 'success');
+          }
+        });
+      }
+      addItem('chapter.createSubGroup', async () => {
+        const name = prompt(t('chapter.createSubGroup'));
+        if (!name?.trim()) return;
+        const result = await window.rpgWorkbench?.createChapterSubGroup?.({ groupId: group.id, subGroupName: name.trim() });
+        if (result?.ok) {
+          window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+          const nextExpanded = new Set(state().chapterTreeExpanded || []);
+          nextExpanded.add(group.id);
+          window.RpgAppStore?.setState?.({ chapterTreeExpanded: nextExpanded });
+          renderChapterTree();
+          window.showToast?.(t('chapter.createSubGroup'), 'success');
+        }
+      });
+    } else {
+      // 子组操作
+      addItem('chapter.renameSubGroup', async () => {
+        const newName = prompt(t('chapter.renamePrompt'), subGroup.label || subGroup.id);
+        if (!newName?.trim()) return;
+        const result = await window.rpgWorkbench?.renameChapterSubGroup?.({ groupId: group.id, subGroupId: subGroup.id, newName: newName.trim() });
+        if (result?.ok) {
+          window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+          renderChapterTree();
+          window.showToast?.(t('chapter.renameSubGroup'), 'success');
+        }
+      });
+      addItem('chapter.deleteSubGroup', async () => {
+        if (!window.confirm(t('chapter.deleteConfirm'))) return;
+        const result = await window.rpgWorkbench?.deleteChapterSubGroup?.({ groupId: group.id, subGroupId: subGroup.id });
+        if (result?.ok) {
+          window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+          const current = state();
+          if (current.currentChapterGroup === group.id && current.currentChapterSubGroup === subGroup.id) {
+            await selectChapterGroup(group.id);
+          } else {
+            renderChapterTree();
+          }
+          window.showToast?.(t('chapter.deleteSubGroup'), 'success');
+        }
+      });
+    }
+
+    document.body.appendChild(menu);
+
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+
+  async function selectChapterGroup(groupId, subGroupId = '') {
+    const current = state();
+    window.RpgAppStore?.setState?.({
+      currentChapterGroup: groupId,
+      currentChapterSubGroup: subGroupId,
+      currentEntryIndex: 0,
+      entryRenderLimit: 100,
+    });
+
+    const result = await window.rpgWorkbench?.getChapterEntries?.({
+      groupId,
+      subGroupId,
+      page: 1,
+      pageSize: 100000,
+    });
+
+    if (!result?.ok) return;
+
+    const chapterEntries = result.entries || [];
+    const virtualFile = `${CHAPTER_VIRTUAL_PREFIX}${groupId}${subGroupId ? '/' + subGroupId : ''}`;
+
+    // 构造虚拟文件组：把条目 file 临时改为虚拟路径，使现有列表渲染逻辑不感知差异
+    const virtualGroup = buildGroupedFilesForFile(virtualFile, chapterEntries);
+    virtualGroup.items.forEach((item) => {
+      // 保留原始物理文件路径，供游戏内预览等需要真实 JSON 路径的功能使用
+      item.physicalFile = item.file;
+      item.file = virtualFile;
+    });
+
+    const otherGroups = (current.groupedFiles || []).filter((g) => !isChapterVirtualGroup(g));
+    window.RpgAppStore?.setState?.({
+      groupedFiles: [...otherGroups, virtualGroup],
+      currentFile: virtualFile,
+      currentEntryIndex: 0,
+    });
+
+    // 更新章节树标题旁的当前路径提示
+    const pathEl = get('chapterTreeCurrentPath');
+    if (pathEl) {
+      const groups = current.chapterTree || [];
+      const group = groups.find((g) => g.id === groupId);
+      const groupLabel = group ? t(group.labelKey, group.labelParams || {}) : groupId;
+      const subGroup = subGroupId && group?.subGroups ? group.subGroups.find((s) => s.id === subGroupId) : null;
+      const subLabel = subGroup ? (subGroup.label || subGroup.id) : '';
+      pathEl.textContent = subLabel ? `${groupLabel} · ${subLabel}` : groupLabel;
+      pathEl.title = pathEl.textContent;
+    }
+
+    renderChapterTree();
+    renderEntryList();
+    renderCurrentEntry?.();
+  }
+
+  function showEntryContextMenu(entry, event) {
+    const current = state();
+    if (current.viewMode !== 'timeline') return;
+
+    const existing = document.querySelector('.entry-context-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'entry-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    const groups = current.chapterTree || [];
+    if (!groups.length) return;
+
+    const header = document.createElement('div');
+    header.className = 'context-menu-header';
+    header.textContent = t('chapter.moveTo');
+    menu.appendChild(header);
+
+    // 新建章节组并移动
+    const newGroupItem = document.createElement('div');
+    newGroupItem.className = 'context-menu-item';
+    newGroupItem.textContent = t('chapter.moveToNewGroup');
+    newGroupItem.addEventListener('click', async () => {
+      menu.remove();
+      const name = prompt(t('chapter.createGroup'));
+      if (!name?.trim()) return;
+      const createResult = await window.rpgWorkbench?.createChapterGroup?.({ name: name.trim() });
+      if (!createResult?.ok || !createResult.group) return;
+      const moveResult = await window.rpgWorkbench?.moveEntryChapter?.({
+        entryId: entry.id,
+        targetGroupId: createResult.group.id,
+        targetSubGroupId: '',
+      });
+      if (moveResult?.ok) {
+        window.RpgAppStore?.setState?.({ chapterTree: moveResult.chapterGroups });
+        await selectChapterGroup(createResult.group.id);
+        window.showToast?.(t('chapter.moveTo'), 'success');
+      }
+    });
+    menu.appendChild(newGroupItem);
+
+    const separator = document.createElement('div');
+    separator.className = 'context-menu-separator';
+    menu.appendChild(separator);
+
+    groups.forEach((group) => {
+      const groupLabel = t(group.labelKey, group.labelParams || {});
+      if (group.subGroups && group.subGroups.length) {
+        group.subGroups.forEach((sub) => {
+          const subLabel = `${groupLabel} · ${sub.label || sub.id}`;
+          const item = createContextMenuItem(entry, group.id, sub.id, subLabel, menu);
+          menu.appendChild(item);
+        });
+      } else {
+        const item = createContextMenuItem(entry, group.id, '', groupLabel, menu);
+        menu.appendChild(item);
+      }
+    });
+
+    document.body.appendChild(menu);
+
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+
+  function createContextMenuItem(entry, targetGroupId, targetSubGroupId, label, menu) {
+    const item = document.createElement('div');
+    item.className = 'context-menu-item';
+    item.textContent = label;
+    item.addEventListener('click', async () => {
+      const current = state();
+      const result = await window.rpgWorkbench?.moveEntryChapter?.({
+        entryId: entry.id,
+        targetGroupId,
+        targetSubGroupId,
+      });
+      if (result?.ok) {
+        window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+        await selectChapterGroup(current.currentChapterGroup, current.currentChapterSubGroup);
+        window.showToast?.(`${t('chapter.moveTo')} ${label}`, 'success');
+      }
+      menu.remove();
+    });
+    return item;
   }
 
   function getSearchScope() {
@@ -293,7 +754,10 @@
     const scope = getSearchScope();
     const groups = current.groupedFiles || [];
     if (scope === 'all') {
-      return groups.flatMap((group) => (group.items || []).filter((entry) => matchesSearch(entry, q)).map((entry) => ({ ...entry, _searchScope: 'all' })));
+      // 跨全部文件搜索时应排除剧情流线虚拟分组，避免同一对象被重复匹配。
+      return getPhysicalEntries(groups)
+        .filter((entry) => matchesSearch(entry, q))
+        .map((entry) => ({ ...entry, _searchScope: 'all' }));
     }
     const group = groups.find((g) => g.file === current.currentFile);
     if (!group) return [];
@@ -410,8 +874,10 @@
       || engine.includes('rpgmaker')
       || adapterId.startsWith('rpgmaker')
       || adapterId.startsWith('rpg-maker');
-    const isMapFile = /(^|\/)data\/Map\d+\.json$/i.test(entry?.file);
-    const isCommonEvent = /(^|\/)data\/CommonEvents\.json$/i.test(entry?.file);
+    // 剧情流线模式下条目 file 是虚拟章节路径，预览判断需回退到原始物理文件
+    const targetFile = entry?.physicalFile || entry?.file;
+    const isMapFile = /(^|\/)data\/Map\d+\.json$/i.test(targetFile);
+    const isCommonEvent = /(^|\/)data\/CommonEvents\.json$/i.test(targetFile);
     const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
     const previewEnabled = uiSettings.enableGamePreview !== false;
     return Boolean(previewEnabled && isRpgMaker && (isMapFile || isCommonEvent) && project.rootDir);
@@ -434,7 +900,10 @@
     }
     window.showAiStatus?.(t('entry.previewPending') || '正在启动游戏预览…', 'pending');
     const currentState = state();
-    const isRepreview = opts.forceRepreview || (currentState.previewRunning && currentState.previewPid);
+    const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
+    const previewWindowMode = uiSettings.previewWindowMode || 'popup';
+    const isRepreview = opts.forceRepreview
+      || (currentState.previewRunning && (currentState.previewPid || previewWindowMode === 'embedded'));
     const api = isRepreview
       ? (window.RpgAppController?.repreviewInGame || window.rpgWorkbench?.repreviewInGame)
       : (window.RpgAppController?.previewInGame || window.rpgWorkbench?.previewInGame);
@@ -443,12 +912,12 @@
       return;
     }
 
-    const currentFileGroup = (state().groupedFiles || []).find((g) => g.file === entry.file);
+    // 剧情流线模式下条目 file 是虚拟章节路径，主进程预览需要真实物理文件路径
+    const physicalFile = entry.physicalFile || entry.file;
+    const currentFileGroup = (state().groupedFiles || []).find((g) => g.file === physicalFile);
     const fileEntries = currentFileGroup?.items || [];
     const entries = extraEntries?.length > 0 ? [...new Set([...fileEntries, ...extraEntries])] : fileEntries;
 
-    const uiSettings = window.RpgView?.getStoredUiSettings?.() || {};
-    const previewWindowMode = uiSettings.previewWindowMode || 'popup';
     const options = {
       jumpToStart: true,
       entries,
@@ -468,34 +937,49 @@
         container.classList.remove('hidden');
         host.textContent = '';
         host.removeAttribute('data-placeholder');
-        const rect = host.getBoundingClientRect();
-        const scaleFactor = window.devicePixelRatio || 1;
-        options.embedRect = {
-          x: Math.round(rect.x * scaleFactor),
-          y: Math.round(rect.y * scaleFactor),
-          width: Math.round(rect.width * scaleFactor),
-          height: Math.round(rect.height * scaleFactor),
-        };
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const placeholder = document.getElementById('gamePreviewPlaceholder');
+        if (placeholder) placeholder.style.display = 'none';
+        container.scrollIntoView({ block: 'start', behavior: 'auto' });
       }
       window.RpgView?.updateWorkspaceLayout?.();
     }
 
     const apiPayload = {
       rootDir,
-      entry: { file: entry.file, path: entry.path, key: entry.key, kind: entry.kind },
+      entry: { file: physicalFile, path: entry.path, key: entry.key, kind: entry.kind },
       targetText,
       options,
     };
-    if (isRepreview) {
+    if (isRepreview && currentState.previewPid) {
       apiPayload.options.gamePid = currentState.previewPid;
     }
     const result = await api(apiPayload);
     if (result?.ok) {
       const extras = result.patchCount > 1 ? `（连带 ${result.patchCount - 1} 处依赖文本）` : '';
-      const msgKey = isRepreview ? 'entry.repreviewStarted' : 'entry.previewStarted';
-      window.showAiStatus?.((tf(msgKey, { pid: result.pid }) || (isRepreview ? `预览点位已更新 (PID: ${result.pid})` : `预览已启动 (PID: ${result.pid})`)) + extras, 'success');
-      window.RpgAppStore?.setState?.({ previewRunning: true, previewPid: result.pid });
+      let statusMsg;
+      let statusType = 'success';
+      if (result.mode === 'webview') {
+        statusMsg = isRepreview
+          ? `预览点位已更新（嵌入模式）${extras}`
+          : `预览已启动（嵌入模式）${extras}`;
+        if (!isRepreview && result.gameUrl) {
+          createPreviewWebview(result.gameUrl, result.preloadPath);
+        } else if (isRepreview && previewWindowMode === 'embedded') {
+          const webview = document.querySelector('#gamePreviewHost webview');
+          if (webview) {
+            try {
+              webview.reloadIgnoringCache();
+            } catch {
+              webview.src = webview.src;
+            }
+          }
+        }
+      } else {
+        const msgKey = isRepreview ? 'entry.repreviewStarted' : 'entry.previewStarted';
+        statusMsg = (tf(msgKey, { pid: result.pid }) || (isRepreview ? `预览点位已更新 (PID: ${result.pid})` : `预览已启动 (PID: ${result.pid})`)) + extras;
+      }
+      window.showAiStatus?.(statusMsg, statusType);
+      window.RpgAppStore?.setState?.({ previewRunning: true, previewPid: result.pid || null });
       document.getElementById('stopPreviewBtn')?.classList.remove('hidden');
       document.getElementById('returnToTitleBtn')?.classList.remove('hidden');
       window.RpgView?.updateWorkspaceLayout?.();
@@ -506,6 +990,30 @@
       }
     }
     return result;
+  }
+
+  function createPreviewWebview(gameUrl, preloadPath) {
+    const host = document.getElementById('gamePreviewHost');
+    if (!host) return null;
+    host.textContent = '';
+    const webview = document.createElement('webview');
+    if (preloadPath) webview.setAttribute('preload', preloadPath);
+    webview.setAttribute('nodeintegration', 'no');
+    webview.setAttribute('webpreferences', 'contextIsolation=true, nodeIntegration=false, webSecurity=false');
+    webview.src = gameUrl;
+    webview.style.width = '100%';
+    webview.style.height = '100%';
+    webview.style.border = 'none';
+    webview.style.outline = 'none';
+    webview.addEventListener('dom-ready', () => {
+      // webview 已加载，必要时可在此触发状态更新
+    });
+    webview.addEventListener('crashed', () => {
+      window.showAiStatus?.(t('preview.crashed') || '游戏预览进程崩溃', 'error');
+    });
+    host.appendChild(webview);
+    setupWebviewResizeObserver(webview);
+    return webview;
   }
 
   /**
@@ -1169,7 +1677,9 @@
       const sourceBlock = document.createElement('textarea');
       sourceBlock.className = 'context-group-source-block context-group-source-editable';
       sourceBlock.placeholder = t('context.sourcePlaceholder');
-      sourceBlock.value = selectedEntries.map((entry) => entry.source || '').join('\n\\N\n');
+      const sourceJoined = selectedEntries.map((entry) => entry.source || '').join('\n\\N\n');
+      sourceBlock.value = sourceJoined;
+      sourceBlock.dataset.lang = detectTextLang(sourceJoined);
       // 阻止冒泡，避免点击/键盘事件触发外层 row 的选中切换
       ['click', 'mousedown', 'keydown'].forEach((evt) => sourceBlock.addEventListener(evt, (e) => e.stopPropagation()));
 
@@ -1178,6 +1688,7 @@
       targetCell.placeholder = t('context.targetPlaceholder');
       const sharedTarget = selectedEntries[0]?.targetDraft || selectedEntries[0]?.target || '';
       targetCell.value = sharedTarget;
+      targetCell.dataset.lang = detectTextLang(sharedTarget);
 
       const previewContainer = document.createElement('div');
       previewContainer.className = 'context-group-preview-container';
@@ -1247,7 +1758,10 @@
       }
 
       // input 事件天然就会在用户键入 \N 后触发，于是分行预览实时更新
-      targetCell.addEventListener('input', () => renderPreviewLines());
+      targetCell.addEventListener('input', () => {
+        targetCell.dataset.lang = detectTextLang(targetCell.value);
+        renderPreviewLines();
+      });
       renderPreviewLines();
       previewContainer.appendChild(previewLabel);
       previewContainer.appendChild(previewLines);
@@ -1444,6 +1958,7 @@
         const text = document.createElement('span');
         text.className = 'context-group-source-text';
         text.textContent = entry.source || '—';
+        text.dataset.lang = detectTextLang(entry.source);
         checkboxWrap.appendChild(text);
         const meta = document.createElement('span');
         meta.className = 'context-group-row-meta';
@@ -1529,7 +2044,9 @@
     let previousTimelineContext = null;
     visibleItems.forEach((entry, index) => {
       const current = state();
-      const sourceEntry = entry._searchScope === 'all' ? (current.groupedFiles || []).flatMap((group) => group.items || []).find((item) => item.id === entry.id) || entry : entry;
+      const sourceEntry = entry._searchScope === 'all'
+        ? (getPhysicalEntries(current.groupedFiles).find((item) => item.id === entry.id) || entry)
+        : entry;
       const tlCtx = viewMode === 'timeline' ? (sourceEntry.timelineContext || sourceEntry.context || {}) : {};
       const currentScene = tlCtx.scene || '';
       const currentSpeaker = tlCtx.speaker || '';
@@ -1556,16 +2073,24 @@
       const controlCharHit = /\\[VNCP]\[\d+\]/.test(sourceEntry.source || '');
       row.className = `paired-row ${sourceEntry.localIndex === current.currentEntryIndex && sourceEntry.file === current.currentFile ? 'active' : ''} ${translated ? 'translated' : 'untranslated'} ${hitCount ? 'has-hits' : ''} ${controlCharHit ? 'has-controls' : ''} ${viewMode === 'timeline' ? 'timeline-row' : ''} ${sameSpeakerGroup ? 'timeline-same-speaker' : ''}`;
       row.dataset.localIndex = String(sourceEntry.localIndex ?? index);
+      row.addEventListener('contextmenu', (e) => {
+        if (viewMode === 'timeline') {
+          e.preventDefault();
+          showEntryContextMenu(sourceEntry, e);
+        }
+      });
       const sourceCell = document.createElement('div');
       sourceCell.className = 'paired-cell source';
       sourceCell.setAttribute('tabindex', '0');
       const fallbackSource = String(sourceEntry.source || '').trim();
       sourceCell.textContent = fallbackSource || t('common.none');
+      sourceCell.dataset.lang = detectTextLang(fallbackSource);
       const sourceClickSelect = () => {
         const current = state();
+        const isChapterFile = String(current.currentFile || '').startsWith(CHAPTER_VIRTUAL_PREFIX);
         window.RpgAppStore?.setState?.({
           ...current,
-          currentFile: sourceEntry.file,
+          currentFile: isChapterFile ? current.currentFile : sourceEntry.file,
           currentEntryIndex: sourceEntry.localIndex,
           searchScope: sourceEntry._searchScope === 'all' ? 'all' : (current.searchScope || 'current'),
           project: current.project || null,
@@ -1585,6 +2110,7 @@
       targetCell.className = `paired-cell target ${initialTargetText.trim() ? '' : 'empty'}`.trim();
       targetCell.placeholder = sourceEntry.source || t('editor.targetPlaceholder');
       targetCell.value = initialTargetText;
+      targetCell.dataset.lang = detectTextLang(initialTargetText) || detectTextLang(sourceEntry.source);
       targetCell.addEventListener('click', (e) => e.stopPropagation());
       targetCell.addEventListener('mousedown', (e) => e.stopPropagation());
       targetCell.addEventListener('keydown', (e) => e.stopPropagation());
@@ -1596,6 +2122,7 @@
         row.classList.toggle('untranslated', !isTranslated(entry));
         row.classList.toggle('has-warnings', (entry.warnings || []).length > 0);
         targetCell.classList.toggle('empty', !targetCell.value.trim());
+        targetCell.dataset.lang = detectTextLang(targetCell.value) || detectTextLang(sourceEntry.source);
         renderWarningTags(tags, entry.warnings || []);
         updateCounts();
       });
@@ -1708,8 +2235,9 @@
 
   function calculateClientProgress() {
     const current = state();
-    const allEntries = (current.groupedFiles || []).flatMap((group) => group.items || []);
-    const fileProgress = (current.groupedFiles || []).map((group) => {
+    // 剧情流线虚拟分组与物理条目共享对象指针，全局统计应排除虚拟分组避免重复计数。
+    const allEntries = getPhysicalEntries(current.groupedFiles);
+    const fileProgress = getPhysicalGroups(current.groupedFiles || []).map((group) => {
       const total = group.items.length;
       const translated = group.items.filter((entry) => isTranslated(entry)).length;
       const warningCount = group.items.reduce((sum, entry) => sum + (Array.isArray(entry.warnings) ? entry.warnings.length : 0), 0);
@@ -1747,14 +2275,12 @@
     const translatedCount = get('translatedCount');
     const glossaryHitCount = get('glossaryHitCount');
     const useLazyLoad = Boolean(current.project?.useLazyLoad || current.fileList?.length);
-    const allEntries = (current.groupedFiles || []).flatMap((group) => group.items || []);
+    const allEntries = getPhysicalEntries(current.groupedFiles);
     const totalLoaded = allEntries.length;
     const translated = allEntries.filter((item) => isTranslated(item)).length;
     const percent = totalLoaded ? Math.round((translated / totalLoaded) * 100) : 0;
-    if (entryCount) entryCount.textContent = String(useLazyLoad ? (current.fileList || []).length : (current.groupedFiles || []).length);
-    if (translatedCount) translatedCount.textContent = useLazyLoad
-      ? `${translated}/${totalLoaded} · ${percent}%`
-      : `${translated}/${totalLoaded} · ${percent}%`;
+    if (entryCount) entryCount.textContent = String(useLazyLoad ? (current.fileList || []).length : getPhysicalGroups(current.groupedFiles).length);
+    if (translatedCount) translatedCount.textContent = `${translated}/${totalLoaded} · ${percent}%`;
     if (glossaryHitCount) glossaryHitCount.textContent = String(allEntries.reduce((sum, item) => sum + ((item.glossaryHits || []).length), 0));
     // 同步刷新文件下拉里每个 JSON 的百分比，以及顶部进度面板的三个文本与"下一未翻译"指针。
     // 顶部面板曾只在 persistLastPosition 之后刷新，导致状态按钮切换 / 用户输入 / AI 回填后
@@ -1774,7 +2300,7 @@
 
   function clearAllTranslations() {
     const current = state();
-    const allEntries = (current.groupedFiles || []).flatMap((group) => group.items || []);
+    const allEntries = getPhysicalEntries(current.groupedFiles);
     if (!allEntries.length) return;
     const ok = window.confirm(t('workspace.clearConfirm'));
     if (!ok) return;
@@ -1841,6 +2367,29 @@
     if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', async () => { const entry = getCurrentEntry(); if (!entry) return; const cur = window.RpgAppStore?.getState?.() || {}; window.showAiStatus?.(t('common.aiPending'), 'pending'); const result = await (window.RpgAppController?.aiTranslate || window.rpgWorkbench?.aiTranslate)?.({ sourceText: entry.source, settings: (window.RpgApp?.flattenAiSettingsForBackend?.(cur.aiSettings || {}) || cur.aiSettings || {}), glossary: cur.aggregatedGlossary || cur.glossary || null, project: cur.project || null, entry: { file: entry.file, key: entry.key, kind: entry.kind, code: entry.code, path: entry.path } }); if (result?.ok) { applyDraftWithoutMarking(entry, result.translatedText || ''); renderEntryList(); renderCurrentEntry(); window.showAiStatus?.(result.message || `已使用 ${result.provider} 完成翻译。`, 'success'); } else { window.showAiStatus?.(result?.message || t('common.aiTestFail'), 'error'); } });
     if (saveEntryBtn) saveEntryBtn.addEventListener('click', () => { const entry = getCurrentEntry(); if (!entry) return; entry.target = (entry.targetDraft || entry.target || '').trim(); entry.targetDraft = entry.target; renderEntryList(); renderCurrentEntry(); window.showToast?.(t('common.aiSaved'), 'success'); });
     clearTextsBtn?.addEventListener('click', () => clearAllTranslations());
+
+    // 剧情流线模式：章节树工具栏
+    const createChapterGroupBtn = get('createChapterGroupBtn');
+    const resetChapterOverridesBtn = get('resetChapterOverridesBtn');
+    createChapterGroupBtn?.addEventListener('click', async () => {
+      const name = prompt(t('chapter.createGroup'));
+      if (!name?.trim()) return;
+      const result = await window.rpgWorkbench?.createChapterGroup?.({ name: name.trim() });
+      if (result?.ok) {
+        window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+        renderChapterTree();
+        window.showToast?.(t('chapter.createGroup'), 'success');
+      }
+    });
+    resetChapterOverridesBtn?.addEventListener('click', async () => {
+      if (!window.confirm(t('chapter.resetConfirm'))) return;
+      const result = await window.rpgWorkbench?.resetChapterOverrides?.();
+      if (result?.ok) {
+        window.RpgAppStore?.setState?.({ chapterTree: result.chapterGroups });
+        await selectChapterGroup(result.chapterGroups?.[0]?.id || '');
+        window.showToast?.(t('chapter.resetDefault'), 'success');
+      }
+    });
 
     const singleBtn = get('singleEntryModeBtn');
     const groupBtn = get('contextGroupModeBtn');
@@ -1949,7 +2498,7 @@
     nextPendingBtn?.addEventListener('click', () => {
       const cur = state();
       // 在当前文件中先找；找不到就跨文件按 groupedFiles 顺序找
-      const groups = cur.groupedFiles || [];
+      const groups = getPhysicalGroups(cur.groupedFiles || []);
       const currentFile = cur.currentFile || groups[0]?.file || '';
       const currentIdx = cur.currentEntryIndex || 0;
       const findInGroup = (group, startIdx) => {
@@ -1991,6 +2540,7 @@
   // 游戏进程异常退出或被关闭后，自动重置渲染端预览状态
   if (window.rpgWorkbench?.onPreviewProcessExited) {
     window.rpgWorkbench.onPreviewProcessExited(() => {
+      teardownPreviewResizeObserver();
       window.RpgAppStore?.setState?.({ previewRunning: false, previewPid: null });
       document.getElementById('stopPreviewBtn')?.classList.add('hidden');
       document.getElementById('returnToTitleBtn')?.classList.add('hidden');
@@ -1999,5 +2549,5 @@
     });
   }
 
-  window.RpgEntries = { getCurrentEntry, buildGroupedFiles, buildGroupedFilesForFile, getExportEntries, renderFileSelect, getFilteredItems, renderEntryList, updateCounts, renderCurrentEntry, clearAllTranslations, syncListState, bindEntryActions };
+  window.RpgEntries = { getCurrentEntry, buildGroupedFiles, buildGroupedFilesForFile, getExportEntries, renderFileSelect, renderChapterTree, selectChapterGroup, getFilteredItems, renderEntryList, updateCounts, renderCurrentEntry, clearAllTranslations, syncListState, bindEntryActions, setupPreviewResizeObserver, teardownPreviewResizeObserver };
 })();
